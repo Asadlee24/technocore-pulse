@@ -1,0 +1,111 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-bg-primary: #050A12;
+    --color-bg-elevated: #0B1320;
+    --color-surface: #101A2A;
+    --color-border: #1B2A3D;
+    --color-cyan: #36D7E7;
+    --color-blue: #4DA3FF;
+    --color-green: #2FD27F;
+    --color-amber: #F0A824;
+    --color-purple: #A855F7;
+    --color-text-primary: #EAF2F7;
+    --color-text-secondary: #95A4B8;
+    --color-text-muted: #6F8096;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: #050A12;
+    color: #EAF2F7;
+  }
+
+  h1, h2, h3, h4, .font-heading {
+    font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  }
+
+  code, pre, .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+/* Custom Protocol Observatory Utilities */
+.bg-grid-pattern {
+  background-size: 32px 32px;
+  background-image: 
+    linear-gradient(to right, rgba(27, 42, 61, 0.35) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(27, 42, 61, 0.35) 1px, transparent 1px);
+}
+
+.bg-radial-vignette {
+  background: radial-gradient(circle at 50% 20%, rgba(54, 215, 231, 0.08) 0%, rgba(5, 10, 18, 0.8) 60%, #050A12 100%);
+}
+
+.glow-cyan-sm {
+  box-shadow: 0 0 16px -4px rgba(54, 215, 231, 0.35);
+}
+
+.glow-cyan-lg {
+  box-shadow: 0 0 35px -8px rgba(54, 215, 231, 0.45);
+}
+
+.glow-amber-sm {
+  box-shadow: 0 0 16px -4px rgba(240, 168, 36, 0.35);
+}
+
+.glow-purple-sm {
+  box-shadow: 0 0 16px -4px rgba(168, 85, 247, 0.35);
+}
+
+.glass-panel {
+  background: rgba(16, 26, 42, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(27, 42, 61, 0.85);
+}
+
+.glass-panel-elevated {
+  background: rgba(11, 19, 32, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(54, 215, 231, 0.2);
+}
+
+/* Custom modern scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #050A12;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1B2A3D;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #36D7E7;
+}
+
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 0.9; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.05); }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(1000%); }
+}
+
+.animate-scanline {
+  animation: scanline 8s linear infinite;
+}

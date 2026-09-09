@@ -1,0 +1,5 @@
+# Technocore Pulse Robots Configuration
+User-agent: *
+Allow: /
+
+Sitemap: https://technocore-pulse.vercel.app/sitemap.xml

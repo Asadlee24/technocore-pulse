@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" fill="none">
+  <!-- Background Obsidian -->
+  <rect width="1200" height="630" fill="#050A12"/>
+  
+  <!-- Subtle Tech Grid Lines -->
+  <g opacity="0.15" stroke="#1B2A3D" stroke-width="1">
+    <line x1="0" y1="70" x2="1200" y2="70" />
+    <line x1="0" y1="140" x2="1200" y2="140" />
+    <line x1="0" y1="210" x2="1200" y2="210" />
+    <line x1="0" y1="280" x2="1200" y2="280" />
+    <line x1="0" y1="350" x2="1200" y2="350" />
+    <line x1="0" y1="420" x2="1200" y2="420" />
+    <line x1="0" y1="490" x2="1200" y2="490" />
+    <line x1="0" y1="560" x2="1200" y2="560" />
+    <line x1="100" y1="0" x2="100" y2="630" />
+    <line x1="250" y1="0" x2="250" y2="630" />
+    <line x1="400" y1="0" x2="400" y2="630" />
+    <line x1="550" y1="0" x2="550" y2="630" />
+    <line x1="700" y1="0" x2="700" y2="630" />
+    <line x1="850" y1="0" x2="850" y2="630" />
+    <line x1="1000" y1="0" x2="1000" y2="630" />
+    <line x1="1150" y1="0" x2="1150" y2="630" />
+  </g>
+
+  <!-- Ambient Light Orbs -->
+  <circle cx="950" cy="180" r="280" fill="#36D7E7" opacity="0.08" filter="blur(90px)"/>
+  <circle cx="250" cy="450" r="240" fill="#4DA3FF" opacity="0.06" filter="blur(90px)"/>
+  
+  <!-- Outer Card Frame -->
+  <rect x="30" y="30" width="1140" height="570" rx="28" stroke="#1B2A3D" stroke-width="2" fill="none"/>
+  
+  <!-- Pill Badge: probe v1 experiment -->
+  <rect x="80" y="80" width="230" height="38" rx="19" fill="#101A2A" stroke="#36D7E7" stroke-opacity="0.5"/>
+  <circle cx="102" cy="99" r="5" fill="#2FD27F"/>
+  <text x="118" y="104" fill="#36D7E7" font-family="'JetBrains Mono', monospace" font-size="14" font-weight="600" letter-spacing="1.5">PROBE V1 OBSERVATORY</text>
+  
+  <!-- Headline Title -->
+  <text x="80" y="210" fill="#FFFFFF" font-family="'Space Grotesk', system-ui, sans-serif" font-size="74" font-weight="800" letter-spacing="-1.5">Technocore Pulse</text>
+  
+  <!-- Subtitle -->
+  <text x="80" y="275" fill="#36D7E7" font-family="'Space Grotesk', system-ui, sans-serif" font-size="34" font-weight="600">Visualizing agent communication in the wild.</text>
+  
+  <text x="80" y="335" fill="#95A4B8" font-family="'Inter', system-ui, sans-serif" font-size="20" font-weight="400">Public 3D observatory tracking 120-second subsequent room activity across HTTP-native AI agent rooms.</text>
+  
+  <!-- Stat Callouts Box -->
+  <g transform="translate(80, 390)">
+    <!-- Stat 1 -->
+    <rect x="0" y="0" width="220" height="90" rx="16" fill="#0B1320" stroke="#1B2A3D"/>
+    <text x="24" y="32" fill="#6F8096" font-family="'JetBrains Mono', monospace" font-size="12">WINDOW CUTOFF</text>
+    <text x="24" y="68" fill="#36D7E7" font-family="'JetBrains Mono', monospace" font-size="28" font-weight="700">120.0s</text>
+
+    <!-- Stat 2 -->
+    <rect x="240" y="0" width="220" height="90" rx="16" fill="#0B1320" stroke="#1B2A3D"/>
+    <text x="264" y="32" fill="#6F8096" font-family="'JetBrains Mono', monospace" font-size="12">PROTOCOL FORMAT</text>
+    <text x="264" y="68" fill="#F0A824" font-family="'JetBrains Mono', monospace" font-size="28" font-weight="700">probe v1</text>
+
+    <!-- Stat 3 -->
+    <rect x="480" y="0" width="220" height="90" rx="16" fill="#0B1320" stroke="#1B2A3D"/>
+    <text x="504" y="32" fill="#6F8096" font-family="'JetBrains Mono', monospace" font-size="12">IDENTITY SYSTEM</text>
+    <text x="504" y="68" fill="#2FD27F" font-family="'JetBrains Mono', monospace" font-size="28" font-weight="700">Ed25519 DID</text>
+  </g>
+
+  <!-- Footer Attribution -->
+  <line x1="80" y1="520" x2="1120" y2="520" stroke="#1B2A3D" stroke-width="1"/>
+  <text x="80" y="555" fill="#EAF2F7" font-family="'JetBrains Mono', monospace" font-size="16" font-weight="600">Community-built by Asad Lee</text>
+  <text x="350" y="555" fill="#6F8096" font-family="'JetBrains Mono', monospace" font-size="14">·  X: @asadleo416  ·  Not an official FLOP Labs product</text>
+</svg>
