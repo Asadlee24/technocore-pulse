@@ -30,13 +30,13 @@ export class AgentDeskFactory {
   public static initSharedResources() {
     if (this.deskTopGeo) return;
 
-    this.deskTopGeo = new THREE.BoxGeometry(1.4, 0.08, 0.8);
-    this.deskLegGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.7, 8);
-    this.chairSeatGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.06, 12);
-    this.chairBackGeo = new THREE.BoxGeometry(0.42, 0.35, 0.05);
+    this.deskTopGeo = new THREE.BoxGeometry(1.25, 0.06, 0.65);
+    this.deskLegGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.68, 8);
+    this.chairSeatGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.05, 14);
+    this.chairBackGeo = new THREE.BoxGeometry(0.36, 0.28, 0.04);
 
-    this.laptopBaseGeo = new THREE.BoxGeometry(0.42, 0.025, 0.32);
-    this.laptopScreenGeo = new THREE.BoxGeometry(0.42, 0.28, 0.02);
+    this.laptopBaseGeo = new THREE.BoxGeometry(0.38, 0.02, 0.26);
+    this.laptopScreenGeo = new THREE.BoxGeometry(0.38, 0.24, 0.015);
 
     this.deskMat = new THREE.MeshStandardMaterial({
       color: 0x101A2A,
@@ -88,16 +88,16 @@ export class AgentDeskFactory {
 
     // 1. Desk Surface
     const deskTop = new THREE.Mesh(this.deskTopGeo!, this.deskMat!);
-    deskTop.position.y = 0.7;
+    deskTop.position.y = 0.70;
     deskTop.castShadow = true;
     group.add(deskTop);
 
     // 2. Desk Legs (4 slim minimalist pillars)
     const legOffsets = [
-      [-0.6, 0.35, -0.3],
-      [0.6, 0.35, -0.3],
-      [-0.6, 0.35, 0.3],
-      [0.6, 0.35, 0.3]
+      [-0.52, 0.34, -0.24],
+      [0.52, 0.34, -0.24],
+      [-0.52, 0.34, 0.24],
+      [0.52, 0.34, 0.24]
     ];
     legOffsets.forEach(([lx, ly, lz]) => {
       const leg = new THREE.Mesh(this.deskLegGeo!, this.legMat!);
@@ -107,26 +107,26 @@ export class AgentDeskFactory {
 
     // 3. Ergonomic Minimalist Chair
     const chairGroup = new THREE.Group();
-    chairGroup.position.set(0, 0, 0.55); // positioned behind desk
+    chairGroup.position.set(0, 0, 0.48); // positioned behind desk
 
     const seat = new THREE.Mesh(this.chairSeatGeo!, this.chairMat!);
-    seat.position.y = 0.42;
+    seat.position.y = 0.44;
     chairGroup.add(seat);
 
     const chairPost = new THREE.Mesh(this.deskLegGeo!, this.legMat!);
-    chairPost.scale.set(1, 0.6, 1);
-    chairPost.position.y = 0.21;
+    chairPost.scale.set(1, 0.62, 1);
+    chairPost.position.y = 0.22;
     chairGroup.add(chairPost);
 
     const backrest = new THREE.Mesh(this.chairBackGeo!, this.chairMat!);
-    backrest.position.set(0, 0.72, 0.2);
+    backrest.position.set(0, 0.68, 0.16);
     chairGroup.add(backrest);
 
     group.add(chairGroup);
 
     // 4. Autonomous Agent Laptop
     const laptopGroup = new THREE.Group();
-    laptopGroup.position.set(0, 0.75, 0.05);
+    laptopGroup.position.set(0, 0.71, 0.04);
 
     // Laptop Base
     const laptopBase = new THREE.Mesh(this.laptopBaseGeo!, this.laptopBodyMat!);
@@ -140,16 +140,16 @@ export class AgentDeskFactory {
         : this.screenTerminalMat!;
 
     const laptopScreen = new THREE.Mesh(this.laptopScreenGeo!, screenMat);
-    laptopScreen.position.set(0, 0.14, -0.15);
+    laptopScreen.position.set(0, 0.12, -0.12);
     laptopScreen.rotation.x = -Math.PI / 10; // angled upward
     laptopGroup.add(laptopScreen);
 
     // Tiny keyboard accent plate
-    const kbGeo = new THREE.PlaneGeometry(0.36, 0.16);
+    const kbGeo = new THREE.PlaneGeometry(0.32, 0.14);
     const kbMat = new THREE.MeshBasicMaterial({ color: 0x1B2A3D });
     const kb = new THREE.Mesh(kbGeo, kbMat);
     kb.rotation.x = -Math.PI / 2;
-    kb.position.set(0, 0.016, 0.04);
+    kb.position.set(0, 0.021, 0.03);
     laptopGroup.add(kb);
 
     group.add(laptopGroup);

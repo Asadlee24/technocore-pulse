@@ -153,6 +153,8 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   }, []);
 
   const switchCameraToBuilding = useCallback((building: BuildingLayout) => {
+    isIntroRef.current = false;
+    setShowIntroBadge(false);
     setViewLevel('building');
     setIsAutoRotate(false);
     isTransitioningRef.current = true;
@@ -179,6 +181,8 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   }, []);
 
   const switchCameraToInterior = useCallback((building: BuildingLayout) => {
+    isIntroRef.current = false;
+    setShowIntroBadge(false);
     setViewLevel('interior');
     setIsAutoRotate(false);
     isTransitioningRef.current = true;
@@ -191,16 +195,16 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 
     const bX = building.position[0];
     const bZ = building.position[2];
-    // Focus close on Floor 1/2 office workstations
-    const bY = 2.4;
+    // Focus close on active office workstations with clear view of laptops and agents
+    const bY = 0.85;
 
-    const angle = Math.atan2(bZ, bX) + 0.2;
+    const angle = Math.atan2(bZ, bX) + 0.25;
     cameraTargetPos.current.set(
-      bX + Math.cos(angle) * 7.5,
-      bY + 2.2,
-      bZ + Math.sin(angle) * 7.5
+      bX + Math.cos(angle) * 5.2,
+      bY + 1.25,
+      bZ + Math.sin(angle) * 5.2
     );
-    cameraTargetLookAt.current.set(bX, bY + 1.2, bZ);
+    cameraTargetLookAt.current.set(bX, bY + 0.45, bZ);
     setPulseLog(`Entering #${building.room.name} office interior. Autonomous agent workers online.`);
   }, []);
 
@@ -210,10 +214,10 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     if (controlledViewLevel === 'city') {
       switchCameraToCity();
     } else if (controlledViewLevel === 'building') {
-      const bObj = buildingsMapRef.current.get(activeRoom.id);
+      const bObj = buildingsMapRef.current.get(activeRoom.id) || Array.from(buildingsMapRef.current.values())[0];
       if (bObj) switchCameraToBuilding(bObj.layout);
     } else if (controlledViewLevel === 'interior') {
-      const bObj = buildingsMapRef.current.get(activeRoom.id);
+      const bObj = buildingsMapRef.current.get(activeRoom.id) || Array.from(buildingsMapRef.current.values())[0];
       if (bObj) switchCameraToInterior(bObj.layout);
     }
   }, [controlledViewLevel, activeRoom.id, switchCameraToCity, switchCameraToBuilding, switchCameraToInterior]);

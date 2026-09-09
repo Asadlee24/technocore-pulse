@@ -82,59 +82,61 @@ export class AgentOfficeFloor {
    */
   private populateWorkstations() {
     const { width, depth, room } = this.config;
-
-    // Determine how many workers to render based on activeAgentsCount:
-    // 1-5 agents -> 3 workers
-    // 6-20 agents -> 4-6 workers
-    // 21+ agents -> 6-8 workers per floor
     const count = room.activeAgentsCount;
-    const workerTarget = count > 20 ? 6 : count > 5 ? 4 : 2;
 
-    const availableX = (width - 1.8) / 2;
-    const availableZ = (depth - 1.8) / 2;
+    // Calculate clean non-overlapping spacing across the room
+    const spacingX = Math.min(1.35, (width - 0.8) / 3);
+    const rowZ = Math.min(1.25, depth * 0.24);
 
+    // 6 distinct workstations arranged in 2 collaborative banks
     const deskLayouts: DeskConfig[] = [
-      { x: -availableX * 0.55, y: 0.15, z: -availableZ * 0.4, rotationY: 0, screenType: 'terminal' },
-      { x: availableX * 0.55, y: 0.15, z: -availableZ * 0.4, rotationY: 0, screenType: 'telemetry' },
-      { x: -availableX * 0.55, y: 0.15, z: availableZ * 0.4, rotationY: Math.PI, screenType: 'signal' },
-      { x: availableX * 0.55, y: 0.15, z: availableZ * 0.4, rotationY: Math.PI, screenType: 'terminal' },
-      { x: 0, y: 0.15, z: -availableZ * 0.4, rotationY: 0, screenType: 'telemetry' },
-      { x: 0, y: 0.15, z: availableZ * 0.4, rotationY: Math.PI, screenType: 'signal' }
+      // Row 1 (desks at -rowZ, facing towards +Z center aisle, rotationY: 0)
+      { x: -spacingX, y: 0.15, z: -rowZ, rotationY: 0, screenType: 'terminal' },
+      { x: 0, y: 0.15, z: -rowZ, rotationY: 0, screenType: 'telemetry' },
+      { x: spacingX, y: 0.15, z: -rowZ, rotationY: 0, screenType: 'signal' },
+
+      // Row 2 (desks at +rowZ, facing towards -Z center aisle, rotationY: Math.PI)
+      { x: -spacingX, y: 0.15, z: rowZ, rotationY: Math.PI, screenType: 'signal' },
+      { x: 0, y: 0.15, z: rowZ, rotationY: Math.PI, screenType: 'terminal' },
+      { x: spacingX, y: 0.15, z: rowZ, rotationY: Math.PI, screenType: 'telemetry' }
     ];
 
-    const desksToCreate = deskLayouts.slice(0, Math.min(deskLayouts.length, workerTarget));
-
-    desksToCreate.forEach((cfg) => {
-      // 1. Create Workstation (Desk + Chair + Glowing Laptop)
+    // Guarantee EVERY workstation has a seated agent operating their laptop ("all ko sae kro")
+    deskLayouts.forEach((cfg) => {
+      // 1. Create Workstation (Desk + Ergonomic Chair + Glowing Cyber Laptop)
       const deskGroup = AgentDeskFactory.createWorkstation(cfg);
       this.group.add(deskGroup);
 
-      // 2. Create Seated Agent Worker
+      // 2. Mount Seated Agent directly inside deskGroup
+      // Because worker is a child of deskGroup, local (0, 0.25, 0.46) places them squarely on the chair,
+      // facing the laptop (-Z) with hands on the keyboard regardless of desk rotation!
       const worker = new AgentWorker({
-        x: cfg.x,
-        y: cfg.y,
-        z: cfg.z + (cfg.rotationY === Math.PI ? -0.55 : 0.55),
-        rotationY: cfg.rotationY === Math.PI ? 0 : Math.PI, // Facing laptop
+        x: 0,
+        y: 0.25,
+        z: 0.46,
+        rotationY: 0, // Faces forward (-Z) towards laptop
         isSeated: true,
+        visorColor: room.color,
         activityState: room.status === 'surge' ? 'surge' : 'active'
       });
+      deskGroup.add(worker.group);
       this.workers.push(worker);
-      this.group.add(worker.group);
     });
 
-    // Add 1 walking agent patrolling the office corridor if room is active
-    if (count >= 8) {
+    // Add 1 walking agent patrolling the office central aisle if room is active
+    if (count >= 6) {
       const walkingWorker = new AgentWorker({
-        x: -availableX * 0.4,
+        x: -spacingX * 0.9,
         y: 0.15,
-        z: 0,
+        z: 0, // central aisle between the two rows of desks
         isSeated: false,
         isWalking: true,
         walkPath: {
-          start: new THREE.Vector3(-availableX * 0.6, 0.15, 0),
-          end: new THREE.Vector3(availableX * 0.6, 0.15, 0),
-          speed: 1.2
+          start: new THREE.Vector3(-spacingX * 0.9, 0.15, 0),
+          end: new THREE.Vector3(spacingX * 0.9, 0.15, 0),
+          speed: 1.1
         },
+        visorColor: room.color,
         activityState: room.status === 'surge' ? 'surge' : 'active'
       });
       this.workers.push(walkingWorker);
