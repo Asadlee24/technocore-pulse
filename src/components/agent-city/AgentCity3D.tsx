@@ -24,6 +24,7 @@ interface AgentCity3DProps {
   onPulseComplete?: () => void;
   viewLevel?: CameraViewLevel;
   onViewLevelChange?: (level: CameraViewLevel) => void;
+  theme?: 'dark' | 'light';
 }
 
 const DEFAULT_FALLBACK_ROOM: RoomCluster = {
@@ -47,7 +48,8 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   isSimulatingPulse = false,
   onPulseComplete,
   viewLevel: controlledViewLevel,
-  onViewLevelChange
+  onViewLevelChange,
+  theme = 'dark'
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   
@@ -230,10 +232,12 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     const container = mountRef.current;
     if (!container) return;
 
+    const isLight = theme === 'light';
+
     // 1. Scene & Atmospheric Fog
     const scene = new THREE.Scene();
     sceneRef.current = scene;
-    scene.fog = new THREE.FogExp2(0x050A12, 0.012);
+    scene.fog = new THREE.FogExp2(isLight ? 0xE8EEF5 : 0x050A12, 0.012);
 
     // 2. Camera Setup
     const width = container.clientWidth;
@@ -246,6 +250,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(isLight ? 0xE8EEF5 : 0x050A12, 1);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     rendererRef.current = renderer;
@@ -254,7 +259,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     container.appendChild(renderer.domElement);
 
     // 4. Shared Materials & Pulse System
-    const materials = createCityMaterials();
+    const materials = createCityMaterials(theme);
     materialsRef.current = materials;
 
     const pulseSystem = new ProbePulseSystem();
@@ -262,7 +267,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     scene.add(pulseSystem.group);
 
     // 5. Foundational Digital Platform & Cyber Flora
-    const environment = new CityEnvironment();
+    const environment = new CityEnvironment(theme);
     scene.add(environment.group);
 
     // 6. Central Technocore Core Landmark & 8 District Bridges
@@ -273,10 +278,10 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // 7. Full 8-District Layout & Metropolitan Road Network
     const { buildings, roadWaypoints } = generateCityLayout(safeClusters);
 
-    const roads = new CityRoads(roadWaypoints);
+    const roads = new CityRoads(roadWaypoints, theme);
     scene.add(roads.group);
 
-    const skyline = new CitySkyline();
+    const skyline = new CitySkyline(theme);
     scene.add(skyline.group);
 
     // 8. Elevated Autonomous Sky Transport, Rails & Aerial Drones
@@ -317,14 +322,25 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     scene.add(agentParticles.group);
 
     // 10. Ambient & Key Lighting
-    const ambientLight = new THREE.AmbientLight(0x0E1724, 1.5);
+    const ambientLight = new THREE.AmbientLight(
+      isLight ? 0xFFFFFF : 0x0E1724,
+      isLight ? 1.9 : 1.5
+    );
     scene.add(ambientLight);
 
-    const coreLight = new THREE.PointLight(0x36D7E7, 3.8, 55, 1.2);
+    const coreLight = new THREE.PointLight(
+      isLight ? 0x0284C7 : 0x36D7E7,
+      isLight ? 4.5 : 3.8,
+      55,
+      1.2
+    );
     coreLight.position.set(0, 18, 0);
     scene.add(coreLight);
 
-    const dirLight = new THREE.DirectionalLight(0x4DA3FF, 1.3);
+    const dirLight = new THREE.DirectionalLight(
+      isLight ? 0x38BDF8 : 0x4DA3FF,
+      isLight ? 1.8 : 1.3
+    );
     dirLight.position.set(25, 45, 20);
     scene.add(dirLight);
 
@@ -501,40 +517,58 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       }
       renderer.dispose();
     };
-  }, [switchCameraToBuilding]);
+  }, [switchCameraToBuilding, theme]);
+
+  const isLight = theme === 'light';
 
   return (
     <div className="relative w-full h-full">
       <div ref={mountRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
 
       {/* City Legend & Protocol Disclaimer (Safely placed at top-20 left-4 below header) */}
-      <div className="absolute top-20 left-4 z-10 hidden md:flex flex-col space-y-1.5 p-3 rounded-xl bg-[#0B1320]/85 backdrop-blur-md border border-[#1B2A3D] text-[10px] font-mono text-[#95A4B8] max-w-xs shadow-xl pointer-events-none">
-        <div className="flex items-center space-x-2 text-[#36D7E7] font-semibold uppercase tracking-wider">
+      <div className={`absolute top-20 left-4 z-10 hidden md:flex flex-col space-y-1.5 p-3 rounded-xl backdrop-blur-md border text-[10px] font-mono max-w-xs shadow-xl pointer-events-none transition-colors ${
+        isLight
+          ? 'bg-white/90 border-slate-200 text-slate-600 shadow-slate-300/40'
+          : 'bg-[#0B1320]/85 border-[#1B2A3D] text-[#95A4B8]'
+      }`}>
+        <div className={`flex items-center space-x-2 font-semibold uppercase tracking-wider ${
+          isLight ? 'text-[#0284C7]' : 'text-[#36D7E7]'
+        }`}>
           <Sparkles className="w-3 h-3" />
           <span>Agent City Legend</span>
         </div>
         <div className="flex flex-col space-y-1 pt-1 text-[10px]">
-          <div>🏢 <strong className="text-white">Building</strong> = Room</div>
-          <div>💻 <strong className="text-white">Interior</strong> = Agent Desks & Laptops</div>
-          <div>📡 <strong className="text-white">Beacon</strong> = Probe state</div>
-          <div>⚡ <strong className="text-white">Pulse</strong> = 120s observation event</div>
-          <div>🌐 <strong className="text-white">Routes</strong> = Network topology</div>
+          <div>🏢 <strong className={isLight ? 'text-slate-900' : 'text-white'}>Building</strong> = Room</div>
+          <div>💻 <strong className={isLight ? 'text-slate-900' : 'text-white'}>Interior</strong> = Agent Desks & Laptops</div>
+          <div>📡 <strong className={isLight ? 'text-slate-900' : 'text-white'}>Beacon</strong> = Probe state</div>
+          <div>⚡ <strong className={isLight ? 'text-slate-900' : 'text-white'}>Pulse</strong> = 120s observation event</div>
+          <div>🌐 <strong className={isLight ? 'text-slate-900' : 'text-white'}>Routes</strong> = Network topology</div>
         </div>
-        <div className="text-[9px] text-[#6F8096] pt-1.5 border-t border-[#1B2A3D] leading-tight">
+        <div className={`text-[9px] pt-1.5 border-t leading-tight ${
+          isLight ? 'border-slate-200 text-slate-500' : 'border-[#1B2A3D] text-[#6F8096]'
+        }`}>
           City geometry is a visualization of observed public activity, not a literal physical network.
         </div>
       </div>
 
       {/* Floating Status Ticker */}
-      <div className="absolute bottom-4 right-4 z-10 hidden sm:flex items-center space-x-2 text-[11px] font-mono text-[#95A4B8] bg-[#0B1320]/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-[#1B2A3D]">
-        <Radio className="w-3 h-3 text-[#36D7E7] animate-pulse flex-shrink-0" />
+      <div className={`absolute bottom-4 right-4 z-10 hidden sm:flex items-center space-x-2 text-[11px] font-mono backdrop-blur-md px-3 py-1.5 rounded-lg border transition-colors ${
+        isLight
+          ? 'bg-white/90 border-slate-200 text-slate-700 shadow-lg'
+          : 'bg-[#0B1320]/80 border-[#1B2A3D] text-[#95A4B8]'
+      }`}>
+        <Radio className={`w-3 h-3 animate-pulse flex-shrink-0 ${isLight ? 'text-[#0284C7]' : 'text-[#36D7E7]'}`} />
         <span className="truncate max-w-xs">{pulseLog}</span>
       </div>
 
       {/* Hovered Room Tooltip */}
       {hoveredRoom && (
         <div
-          className="fixed pointer-events-none z-30 px-2.5 py-1 bg-[#0B1320]/90 border border-[#36D7E7]/50 rounded shadow-lg text-[11px] font-mono text-[#36D7E7] -translate-x-1/2 -translate-y-full mb-2"
+          className={`fixed pointer-events-none z-30 px-2.5 py-1 rounded shadow-lg text-[11px] font-mono -translate-x-1/2 -translate-y-full mb-2 ${
+            isLight
+              ? 'bg-white border border-[#0284C7]/60 text-[#0284C7] shadow-md'
+              : 'bg-[#0B1320]/90 border border-[#36D7E7]/50 text-[#36D7E7]'
+          }`}
           style={{ left: hoveredRoom.x, top: hoveredRoom.y - 10 }}
         >
           #{hoveredRoom.room.id}

@@ -4,23 +4,24 @@ import type { RoadWaypoints } from './cityLayout';
 export class CityRoads {
   public group: THREE.Group;
 
-  constructor(waypoints: RoadWaypoints) {
+  constructor(waypoints: RoadWaypoints, theme: 'dark' | 'light' = 'dark') {
     this.group = new THREE.Group();
     this.group.name = 'city-road-network';
 
-    this.buildRoadSurfaces(waypoints);
-    this.buildGlowingLaneMarkings(waypoints);
-    this.buildElevatedDataFlyovers();
+    this.buildRoadSurfaces(waypoints, theme);
+    this.buildGlowingLaneMarkings(waypoints, theme);
+    this.buildElevatedDataFlyovers(theme);
   }
 
   /**
-   * Builds dark asphalt road meshes for concentric boulevards and radial avenues
+   * Builds asphalt or clean concrete road surfaces
    */
-  private buildRoadSurfaces(waypoints: RoadWaypoints) {
+  private buildRoadSurfaces(waypoints: RoadWaypoints, theme: 'dark' | 'light') {
+    const isLight = theme === 'light';
     const roadMat = new THREE.MeshStandardMaterial({
-      color: 0x08101A,
-      roughness: 0.85,
-      metalness: 0.15
+      color: isLight ? 0xCBD5E1 : 0x08101A,
+      roughness: isLight ? 0.6 : 0.85,
+      metalness: isLight ? 0.1 : 0.15
     });
 
     // 1. Inner Ring Boulevard (around Core)
@@ -56,7 +57,6 @@ export class CityRoads {
       aveMesh.rotation.x = -Math.PI / 2;
       aveMesh.rotation.z = -ave.angle - Math.PI / 2;
 
-      // Center position of the avenue segment
       const midRadius = (ave.startRadius + ave.endRadius) / 2;
       aveMesh.position.set(
         Math.cos(ave.angle) * midRadius,
@@ -69,17 +69,18 @@ export class CityRoads {
   }
 
   /**
-   * Builds subtle neon-luminescent lane markings
+   * Builds glowing lane markings
    */
-  private buildGlowingLaneMarkings(waypoints: RoadWaypoints) {
+  private buildGlowingLaneMarkings(waypoints: RoadWaypoints, theme: 'dark' | 'light') {
+    const isLight = theme === 'light';
     const laneMat = new THREE.MeshBasicMaterial({
-      color: 0x36D7E7,
+      color: isLight ? 0x0284C7 : 0x36D7E7,
       transparent: true,
-      opacity: 0.65
+      opacity: isLight ? 0.85 : 0.65
     });
 
     const edgeMat = new THREE.MeshBasicMaterial({
-      color: 0x1B2A3D,
+      color: isLight ? 0x94A3B8 : 0x1B2A3D,
       transparent: true,
       opacity: 0.8
     });
@@ -109,7 +110,7 @@ export class CityRoads {
     // Radial avenue centerlines
     waypoints.radialAvenues.forEach((ave) => {
       const length = ave.endRadius - ave.startRadius;
-      const lineGeo = new THREE.PlaneGeometry(0.12, length);
+      const lineGeo = new THREE.PlaneGeometry(0.14, length);
       const lineMesh = new THREE.Mesh(lineGeo, laneMat);
       lineMesh.rotation.x = -Math.PI / 2;
       lineMesh.rotation.z = -ave.angle - Math.PI / 2;
@@ -140,23 +141,20 @@ export class CityRoads {
     });
   }
 
-  /**
-   * Elevated Data Flyovers connecting non-adjacent sectors across the city
-   */
-  private buildElevatedDataFlyovers() {
+  private buildElevatedDataFlyovers(theme: 'dark' | 'light') {
+    const isLight = theme === 'light';
     const flyoverMat = new THREE.MeshStandardMaterial({
-      color: 0x0E1724,
-      metalness: 0.8,
+      color: isLight ? 0xE2E8F0 : 0x0E1724,
+      metalness: isLight ? 0.3 : 0.8,
       roughness: 0.3
     });
 
     const flyoverGlow = new THREE.MeshBasicMaterial({
-      color: 0x4DA3FF,
+      color: isLight ? 0x0284C7 : 0x4DA3FF,
       transparent: true,
-      opacity: 0.7
+      opacity: 0.8
     });
 
-    // Cross-district bridges
     const flyoverPaths = [
       { start: [20, 2, 8], end: [-18, 2, 22] },
       { start: [10, 2.5, -24], end: [-22, 2.5, -12] }
@@ -174,14 +172,12 @@ export class CityRoads {
       bridgeMesh.lookAt(p2);
       this.group.add(bridgeMesh);
 
-      // Light trail along bridge center
       const trailGeo = new THREE.BoxGeometry(0.15, 0.05, dist);
       const trailMesh = new THREE.Mesh(trailGeo, flyoverGlow);
       trailMesh.position.set(mid.x, mid.y + 0.16, mid.z);
       trailMesh.lookAt(p2);
       this.group.add(trailMesh);
 
-      // Support pylons
       const pylonGeo = new THREE.CylinderGeometry(0.18, 0.25, mid.y, 8);
       const pylon = new THREE.Mesh(pylonGeo, flyoverMat);
       pylon.position.set(mid.x, mid.y / 2, mid.z);

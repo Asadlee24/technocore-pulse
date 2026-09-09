@@ -6,25 +6,25 @@ export class CitySkyline {
   private instancedAntennae: THREE.InstancedMesh | null = null;
   private instancedSpireBeacons: THREE.InstancedMesh | null = null;
 
-  constructor() {
+  constructor(theme: 'dark' | 'light' = 'dark') {
     this.group = new THREE.Group();
     this.group.name = 'city-skyline-background';
 
-    this.buildMetropolitanSkyline();
+    this.buildMetropolitanSkyline(theme);
   }
 
   /**
-   * Generates 72 procedural background towers and spires in the perimeter zone (radius 44 - 88)
+   * Generates 64 procedural background towers and spires in the perimeter zone (radius 44 - 88)
    */
-  private buildMetropolitanSkyline() {
+  private buildMetropolitanSkyline(theme: 'dark' | 'light') {
+    const isLight = theme === 'light';
     const totalTowers = 64;
     const baseGeo = new THREE.BoxGeometry(1, 1, 1);
     
-    // Deep obsidian metallic facade material
     const facadeMat = new THREE.MeshStandardMaterial({
-      color: 0x070E18,
-      roughness: 0.7,
-      metalness: 0.5
+      color: isLight ? 0xDCE5EE : 0x070E18,
+      roughness: isLight ? 0.4 : 0.7,
+      metalness: isLight ? 0.3 : 0.5
     });
 
     this.instancedBuildings = new THREE.InstancedMesh(baseGeo, facadeMat, totalTowers);
@@ -33,15 +33,17 @@ export class CitySkyline {
 
     // Antenna spires
     const antennaGeo = new THREE.CylinderGeometry(0.04, 0.08, 1, 6);
-    const antennaMat = new THREE.MeshBasicMaterial({ color: 0x1B2A3D });
+    const antennaMat = new THREE.MeshBasicMaterial({
+      color: isLight ? 0x94A3B8 : 0x1B2A3D
+    });
     this.instancedAntennae = new THREE.InstancedMesh(antennaGeo, antennaMat, totalTowers);
 
     // Spire beacon tip lights
     const beaconGeo = new THREE.SphereGeometry(0.2, 8, 8);
     const beaconMat = new THREE.MeshBasicMaterial({
-      color: 0x36D7E7,
+      color: isLight ? 0x0284C7 : 0x36D7E7,
       transparent: true,
-      opacity: 0.75
+      opacity: isLight ? 0.85 : 0.75
     });
     this.instancedSpireBeacons = new THREE.InstancedMesh(beaconGeo, beaconMat, totalTowers);
 
@@ -51,25 +53,21 @@ export class CitySkyline {
 
     for (let i = 0; i < totalTowers; i++) {
       const angle = (i / totalTowers) * Math.PI * 2 + (Math.sin(i * 3.7) * 0.05);
-      // Ring layers between 44 and 82 radius
       const radiusLayer = 44 + ((i % 4) * 9.5) + (Math.cos(i * 5.1) * 3);
       const x = Math.cos(angle) * radiusLayer;
       const z = Math.sin(angle) * radiusLayer;
 
-      // Varied skyscraper heights (20 to 58)
       const seed = Math.sin(i * 12.9898 + 78.233);
       const height = 18 + Math.abs(seed) * 38;
       const width = 3.5 + ((i % 3) * 1.5);
       const depth = 3.5 + (((i + 1) % 3) * 1.5);
 
-      // Building Box Matrix
       dummy.position.set(x, height / 2, z);
       dummy.scale.set(width, height, depth);
       dummy.rotation.set(0, angle + Math.PI / 2, 0);
       dummy.updateMatrix();
       this.instancedBuildings.setMatrixAt(i, dummy.matrix);
 
-      // Antenna Spires on taller towers
       const antennaHeight = 4 + (i % 3) * 3;
       dummyAntenna.position.set(x, height + antennaHeight / 2, z);
       dummyAntenna.scale.set(1, antennaHeight, 1);
@@ -77,7 +75,6 @@ export class CitySkyline {
       dummyAntenna.updateMatrix();
       this.instancedAntennae.setMatrixAt(i, dummyAntenna.matrix);
 
-      // Beacon Tip
       dummyBeacon.position.set(x, height + antennaHeight, z);
       dummyBeacon.scale.set(1, 1, 1);
       dummyBeacon.updateMatrix();
