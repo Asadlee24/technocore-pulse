@@ -252,12 +252,16 @@ export function generateCityLayout(rooms: RoomCluster[]): {
         roomForLot = {
           id: `${distType}-lot-${lotIdx + 1}`,
           name: `${cfg.name.split(' ')[0]} ${lot.isFlagship ? 'Tower' : 'Block ' + (lotIdx + 1)}`,
+          displayName: `${cfg.name.split(' ')[0]} ${lot.isFlagship ? 'Tower' : 'Block ' + (lotIdx + 1)}`,
           activeAgentsCount: infillAgents,
-          category: distType === 'compute' ? 'compute-relay' : distType === 'settlement' ? 'settlement-prep' : 'coordination',
+          totalProbesReceived: Math.floor(6 + Math.abs(seed) * 14),
+          averageResponseLatency: Number((1.2 + Math.abs(seed) * 1.5).toFixed(1)),
+          category: distType === 'compute' ? 'compute-relay' : distType === 'settlement' ? 'settlement-prep' : distType === 'social' ? 'agent-social' : 'coordination',
           status: Math.abs(seed) > 0.65 ? 'surge' : 'active',
           color: cfg.color,
+          coordinates: [x, 0, z],
           lastProbeArm: Math.abs(seed) > 0.5 ? 'question' : 'offer'
-        } as any;
+        };
       }
 
       const height = Math.round(calculatedHeight);

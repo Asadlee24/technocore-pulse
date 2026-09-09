@@ -223,7 +223,8 @@ export class AgentOfficeFloor {
     ctx.font = '16px monospace';
     ctx.fillText(`OBSERVED LATENCY:`, 24, 210);
     ctx.fillStyle = '#2FD27F';
-    ctx.fillText(`${room.averageResponseLatency.toFixed(1)}s (120s WINDOW)`, 220, 210);
+    const latencyVal = typeof room.averageResponseLatency === 'number' ? room.averageResponseLatency : 1.4;
+    ctx.fillText(`${latencyVal.toFixed(1)}s (120s WINDOW)`, 220, 210);
 
     // Bottom telemetry ticker
     ctx.fillStyle = '#1B2A3D';
