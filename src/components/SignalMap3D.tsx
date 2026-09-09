@@ -10,6 +10,20 @@ interface SignalMap3DProps {
   activeFilter?: ProbeArm | 'all';
 }
 
+const DEFAULT_ROOM: RoomCluster = {
+  id: 'live-room-technocore',
+  name: 'technocore',
+  displayName: '#technocore',
+  category: 'coordination',
+  activeAgentsCount: 16,
+  totalProbesReceived: 8,
+  averageResponseLatency: 1.8,
+  status: 'active',
+  color: '#36D7E7',
+  coordinates: [0, 0, 0],
+  lastProbeArm: 'question'
+};
+
 export const SignalMap3D: React.FC<SignalMap3DProps> = ({
   onSelectRoom,
   selectedRoomId,
@@ -17,7 +31,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
 }) => {
   const { activeRoomClusters } = useData();
   const mountRef = useRef<HTMLDivElement>(null);
-  const [selectedRoom, setSelectedRoom] = useState<RoomCluster>(activeRoomClusters[0]);
+  const [selectedRoom, setSelectedRoom] = useState<RoomCluster>(activeRoomClusters[0] || DEFAULT_ROOM);
   const [isAutoRotate, setIsAutoRotate] = useState<boolean>(true);
   const [pulseLog, setPulseLog] = useState<string>('System nominal. Tracking active clusters.');
   const [isSimulatingPulse, setIsSimulatingPulse] = useState<boolean>(false);
@@ -28,6 +42,8 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
       setSelectedRoom(activeRoomClusters[0]);
     }
   }, [activeRoomClusters]);
+
+  const activeDisplayRoom = selectedRoom || activeRoomClusters[0] || DEFAULT_ROOM;
 
   // References for Three.js objects
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -390,17 +406,17 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
             <div className="flex items-center space-x-2">
               <span
                 className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: selectedRoom.color }}
+                style={{ backgroundColor: activeDisplayRoom.color }}
               />
               <h4 className="font-heading font-bold text-lg text-white">
-                {selectedRoom.displayName}
+                {activeDisplayRoom.displayName}
               </h4>
               <span className="px-2 py-0.5 text-[10px] font-mono uppercase rounded bg-[#101A2A] text-[#36D7E7] border border-[#1B2A3D]">
-                {selectedRoom.category}
+                {activeDisplayRoom.category}
               </span>
             </div>
             <p className="font-mono text-xs text-[#95A4B8] mt-1">
-              Room Identifier: <span className="text-[#36D7E7]">{selectedRoom.name}</span>
+              Room Identifier: <span className="text-[#36D7E7]">{activeDisplayRoom.name}</span>
             </p>
           </div>
 
@@ -409,7 +425,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
             <div className="flex items-center space-x-1 mt-0.5">
               <span className="w-2 h-2 rounded-full bg-[#2FD27F]" />
               <span className="text-xs font-mono font-medium uppercase text-[#2FD27F]">
-                {selectedRoom.status}
+                {activeDisplayRoom.status}
               </span>
             </div>
           </div>
@@ -420,19 +436,19 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
           <div className="p-2 rounded-lg bg-[#101A2A]/80 border border-[#1B2A3D]">
             <div className="text-[10px] font-mono text-[#6F8096] uppercase">Active Agents</div>
             <div className="text-base font-bold text-white font-mono mt-0.5">
-              {selectedRoom.activeAgentsCount}
+              {activeDisplayRoom.activeAgentsCount}
             </div>
           </div>
           <div className="p-2 rounded-lg bg-[#101A2A]/80 border border-[#1B2A3D]">
             <div className="text-[10px] font-mono text-[#6F8096] uppercase">Probes Received</div>
             <div className="text-base font-bold text-[#36D7E7] font-mono mt-0.5">
-              {selectedRoom.totalProbesReceived}
+              {activeDisplayRoom.totalProbesReceived}
             </div>
           </div>
           <div className="p-2 rounded-lg bg-[#101A2A]/80 border border-[#1B2A3D]">
             <div className="text-[10px] font-mono text-[#6F8096] uppercase">Avg Latency</div>
             <div className="text-base font-bold text-[#F0A824] font-mono mt-0.5">
-              {selectedRoom.averageResponseLatency}s
+              {activeDisplayRoom.averageResponseLatency}s
             </div>
           </div>
         </div>
