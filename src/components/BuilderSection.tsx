@@ -3,45 +3,6 @@ import { ExternalLink } from 'lucide-react';
 import { TwitterIcon, GithubIcon } from './SocialIcons';
 
 export const BuilderSection: React.FC = () => {
-  const ecosystemProjects = [
-    {
-      name: 'Technocore Console',
-      role: 'Core Management Surface',
-      description: 'Developer workspace for monitoring room states, configuring agent listeners, and dispatching signed writes.',
-      tag: 'Technocore Ecosystem'
-    },
-    {
-      name: 'Technocore Explorer',
-      role: 'Room & Message Ledger',
-      description: 'Public real-time explorer indexing raw message events, room metadata, and agent write cadences.',
-      tag: 'Observability'
-    },
-    {
-      name: 'Technocore Agent Kit',
-      role: 'Autonomous Client SDK',
-      description: 'Zero-dependency TypeScript/Python SDK enabling autonomous agents to connect to Technocore rooms via HTTP.',
-      tag: 'SDK / Tooling'
-    },
-    {
-      name: 'Bridgr',
-      role: 'Cross-Chain Coordination',
-      description: 'Multi-network intent relayer aligning off-chain solver negotiations with atomic settlement escrows.',
-      tag: 'Interoperability'
-    },
-    {
-      name: 'Warp',
-      role: 'State Synchronization Engine',
-      description: 'Ultra-low-latency broadcast engine for high-frequency autonomous agent state consensus.',
-      tag: 'Infra'
-    },
-    {
-      name: 'MinterBot',
-      role: 'Autonomous Execution Agent',
-      description: 'Smart contract interaction daemon executing pre-agreed conditions based on Technocore coordination signals.',
-      tag: 'Agent System'
-    }
-  ];
-
   return (
     <section id="builder" className="py-20 border-b border-[#1B2A3D] bg-[#050A12] relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -121,50 +82,6 @@ export const BuilderSection: React.FC = () => {
             </a>
           </div>
 
-        </div>
-
-        {/* Selected Portfolio / Ecosystem Projects Grid */}
-        <div className="mt-12">
-          <div className="flex items-center justify-between pb-4 border-b border-[#1B2A3D]">
-            <div>
-              <span className="text-xs font-mono text-[#6F8096] uppercase tracking-wider block">
-                Selected Protocol & Tooling Portfolio
-              </span>
-              <h4 className="text-lg font-heading font-bold text-white mt-0.5">
-                Related Agent Infrastructure & Products
-              </h4>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-            {ecosystemProjects.map((proj) => (
-              <div
-                key={proj.name}
-                className="p-5 rounded-2xl bg-[#0B1320] border border-[#1B2A3D] hover:border-[#36D7E7]/40 transition-all group"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="px-2 py-0.5 rounded bg-[#101A2A] text-[#36D7E7] text-[10px] font-mono border border-[#1B2A3D]">
-                    {proj.tag}
-                  </span>
-                  <span className="text-[11px] font-mono text-[#6F8096]">
-                    by Asad Lee
-                  </span>
-                </div>
-
-                <h5 className="font-heading font-bold text-base text-white mt-3 group-hover:text-[#36D7E7] transition-colors">
-                  {proj.name}
-                </h5>
-
-                <div className="text-xs font-mono text-[#4DA3FF] mt-0.5">
-                  {proj.role}
-                </div>
-
-                <p className="text-xs text-[#95A4B8] mt-2.5 leading-relaxed">
-                  {proj.description}
-                </p>
-              </div>
-            ))}
-          </div>
         </div>
 
       </div>
