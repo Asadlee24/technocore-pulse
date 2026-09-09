@@ -18,10 +18,20 @@ interface AerialDrone {
   bobFreq: number;
 }
 
+interface HighwayCourier {
+  group: THREE.Group;
+  type: 'radial' | 'ring';
+  avenueAngle?: number;
+  ringRadius?: number;
+  speed: number;
+  offset: number;
+}
+
 export class CityTransportManager {
   public group: THREE.Group;
   private vehicles: TransportVehicle[] = [];
   private drones: AerialDrone[] = [];
+  private highwayCouriers: HighwayCourier[] = [];
   private skyRailsGroup: THREE.Group;
 
   constructor() {
@@ -34,6 +44,7 @@ export class CityTransportManager {
     this.buildElevatedRails();
     this.spawnAutonomousPods();
     this.spawnAerialDrones();
+    this.spawnHighwayCouriers();
   }
 
   /**
@@ -80,7 +91,7 @@ export class CityTransportManager {
     });
 
     const podGlowMat = new THREE.MeshBasicMaterial({
-      color: 0x36D7E7 // Cyan headlights / trail
+      color: 0x36D7E7 // Cyan headlights
     });
 
     const railConfigs = [
@@ -158,8 +169,82 @@ export class CityTransportManager {
     });
   }
 
+  /**
+   * Ground Street-Level Autonomous Maglev Couriers cruising along avenues & beltways
+   */
+  private spawnHighwayCouriers() {
+    const bodyGeo = new THREE.BoxGeometry(0.7, 0.12, 0.32);
+    const bodyMat = new THREE.MeshStandardMaterial({
+      color: 0x0E1A2C,
+      roughness: 0.2,
+      metalness: 0.9
+    });
+
+    const headlightMat = new THREE.MeshBasicMaterial({ color: 0x38BDF8 });
+    const taillightMat = new THREE.MeshBasicMaterial({ color: 0xF43F5E });
+
+    // 8 radial couriers darting along the 8 radial grand avenues
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2;
+      const courierGroup = new THREE.Group();
+      
+      const body = new THREE.Mesh(bodyGeo, bodyMat);
+      courierGroup.add(body);
+
+      // Headlight
+      const head = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.24), headlightMat);
+      head.position.set(0.35, 0.02, 0);
+      courierGroup.add(head);
+
+      // Taillight
+      const tail = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.24), taillightMat);
+      tail.position.set(-0.35, 0.02, 0);
+      courierGroup.add(tail);
+
+      this.group.add(courierGroup);
+      this.highwayCouriers.push({
+        group: courierGroup,
+        type: 'radial',
+        avenueAngle: angle,
+        speed: 0.45 + (i % 3) * 0.15,
+        offset: i * 0.8
+      });
+    }
+
+    // 6 ring couriers circling the inner (r=12) and outer (r=26) circular avenues
+    const ringConfigs = [
+      { radius: 12.5, speed: 0.4, count: 3 },
+      { radius: 26.5, speed: -0.28, count: 3 }
+    ];
+
+    ringConfigs.forEach((cfg) => {
+      for (let j = 0; j < cfg.count; j++) {
+        const ringCourier = new THREE.Group();
+        const body = new THREE.Mesh(bodyGeo, bodyMat);
+        ringCourier.add(body);
+
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.24), headlightMat);
+        head.position.set(0.35, 0.02, 0);
+        ringCourier.add(head);
+
+        const tail = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.24), taillightMat);
+        tail.position.set(-0.35, 0.02, 0);
+        ringCourier.add(tail);
+
+        this.group.add(ringCourier);
+        this.highwayCouriers.push({
+          group: ringCourier,
+          type: 'ring',
+          ringRadius: cfg.radius,
+          speed: cfg.speed,
+          offset: (j / cfg.count) * Math.PI * 2
+        });
+      }
+    });
+  }
+
   public update(delta: number, time: number = 0) {
-    // Update rail pods
+    // Update elevated rail pods
     this.vehicles.forEach((v) => {
       v.angle += v.speed * v.direction * delta;
       const x = Math.cos(v.angle) * v.pathRadius;
@@ -179,6 +264,31 @@ export class CityTransportManager {
       const y = d.height + Math.sin(time * d.bobFreq) * 0.6;
       d.group.position.set(x, y, z);
       d.group.rotation.y = -d.angle;
+    });
+
+    // Update ground highway couriers
+    this.highwayCouriers.forEach((c) => {
+      if (c.type === 'radial' && c.avenueAngle !== undefined) {
+        // Ping-pong along avenue between radius 7 and 32
+        const progress = Math.sin(time * c.speed + c.offset) * 0.5 + 0.5;
+        const r = 7.5 + progress * 24.5;
+        const x = Math.cos(c.avenueAngle) * r;
+        const z = Math.sin(c.avenueAngle) * r;
+        c.group.position.set(x, 0.16, z);
+
+        // Face traveling direction
+        const dir = Math.cos(time * c.speed + c.offset) >= 0 ? 1 : -1;
+        c.group.rotation.y = dir === 1 ? -c.avenueAngle : -c.avenueAngle + Math.PI;
+      } else if (c.type === 'ring' && c.ringRadius !== undefined) {
+        const curAngle = time * c.speed + c.offset;
+        const x = Math.cos(curAngle) * c.ringRadius;
+        const z = Math.sin(curAngle) * c.ringRadius;
+        c.group.position.set(x, 0.16, z);
+
+        // Face tangent of the ring
+        const forwardAngle = curAngle + (c.speed >= 0 ? Math.PI / 2 : -Math.PI / 2);
+        c.group.rotation.y = -forwardAngle;
+      }
     });
   }
 
@@ -202,5 +312,19 @@ export class CityTransportManager {
       });
     });
     this.drones = [];
+
+    this.highwayCouriers.forEach(c => {
+      c.group.traverse(obj => {
+        if (obj instanceof THREE.Mesh) {
+          obj.geometry.dispose();
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach(m => m.dispose());
+          } else {
+            obj.material.dispose();
+          }
+        }
+      });
+    });
+    this.highwayCouriers = [];
   }
 }

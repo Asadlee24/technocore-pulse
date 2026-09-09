@@ -96,6 +96,25 @@ export class CityDistrictManager {
       this.coreRings.push(ringMesh);
     });
 
+    // Monumental Celestial Sky Gimbal Rings floating above the spire
+    const skyRingMat = new THREE.MeshBasicMaterial({
+      color: 0x38BDF8,
+      transparent: true,
+      opacity: 0.5,
+      wireframe: true
+    });
+    const skyRing1 = new THREE.Mesh(new THREE.TorusGeometry(11.5, 0.08, 6, 64), skyRingMat);
+    skyRing1.position.y = coreHeight + 8;
+    skyRing1.rotation.x = Math.PI / 2;
+    coreGroup.add(skyRing1);
+    this.coreRings.push(skyRing1);
+
+    const skyRing2 = new THREE.Mesh(new THREE.TorusGeometry(15.5, 0.05, 6, 64), skyRingMat);
+    skyRing2.position.y = coreHeight + 11;
+    skyRing2.rotation.x = Math.PI / 2.2;
+    coreGroup.add(skyRing2);
+    this.coreRings.push(skyRing2);
+
     // 5. Internal data particles ascending the light column
     const particleCount = 50;
     const particleGeo = new THREE.BufferGeometry();
