@@ -46,6 +46,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
   const mountRef = useRef<HTMLDivElement>(null);
   const [viewMode, setViewMode] = useState<'topology' | 'city'>('city');
   const [cityViewLevel, setCityViewLevel] = useState<CameraViewLevel>('city');
+  const [cameraPerspective, setCameraPerspective] = useState<'orbit' | 'drone' | 'plaza'>('orbit');
   const [selectedRoom, setSelectedRoom] = useState<RoomCluster>(activeRoomClusters[0] || DEFAULT_ROOM);
   const [isAutoRotate, setIsAutoRotate] = useState<boolean>(true);
   const [pulseLog, setPulseLog] = useState<string>('Technocore Metropolis online. Autonomous agent districts active.');
@@ -372,6 +373,45 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
             </div>
           )}
 
+          {/* Agent City Perspective Mode (Orbit | Drone Tour | Plaza) */}
+          {viewMode === 'city' && (
+            <div className="flex items-center space-x-1 p-0.5 rounded-lg bg-[#101A2A] border border-[#1B2A3D] text-[11px] font-mono">
+              <button
+                onClick={() => setCameraPerspective('orbit')}
+                className={`px-2.5 py-1 rounded-md font-bold transition-all ${
+                  cameraPerspective === 'orbit'
+                    ? 'bg-[#36D7E7] text-[#050A12] shadow-sm shadow-[#36D7E7]/20'
+                    : 'text-[#6F8096] hover:text-[#95A4B8]'
+                }`}
+                title="Free 360 Orbit Camera"
+              >
+                ORBIT
+              </button>
+              <button
+                onClick={() => setCameraPerspective('drone')}
+                className={`px-2.5 py-1 rounded-md font-bold transition-all ${
+                  cameraPerspective === 'drone'
+                    ? 'bg-[#36D7E7] text-[#050A12] shadow-sm shadow-[#36D7E7]/20'
+                    : 'text-[#6F8096] hover:text-[#95A4B8]'
+                }`}
+                title="Continuous Autonomous Drone Tour"
+              >
+                DRONE TOUR
+              </button>
+              <button
+                onClick={() => setCameraPerspective('plaza')}
+                className={`px-2.5 py-1 rounded-md font-bold transition-all ${
+                  cameraPerspective === 'plaza'
+                    ? 'bg-[#36D7E7] text-[#050A12] shadow-sm shadow-[#36D7E7]/20'
+                    : 'text-[#6F8096] hover:text-[#95A4B8]'
+                }`}
+                title="Plaza Ground-Level Pedestrian View"
+              >
+                PLAZA
+              </button>
+            </div>
+          )}
+
           {viewMode === 'topology' && (
             <button
               onClick={() => setIsAutoRotate(!isAutoRotate)}
@@ -417,6 +457,8 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
             selectedRoom={activeDisplayRoom}
             viewLevel={cityViewLevel}
             onViewLevelChange={setCityViewLevel}
+            cameraPerspective={cameraPerspective}
+            onPerspectiveChange={setCameraPerspective}
             theme="dark"
             onSelectRoom={(room) => {
               setSelectedRoom(room);

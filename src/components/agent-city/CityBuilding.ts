@@ -265,10 +265,11 @@ export class CityBuilding {
     this.interior.setCutawayVisible(cutaway);
 
     if (cutaway) {
-      this.buildingMesh.material = this.materials.facadeCutaway;
+      this.buildingMesh.visible = false;
       if (this.windowMesh) this.windowMesh.visible = false;
       if (this.crownGroup) this.crownGroup.visible = false;
     } else {
+      this.buildingMesh.visible = true;
       this.buildingMesh.material = this.baseFacadeMat;
       if (this.windowMesh) this.windowMesh.visible = true;
       if (this.crownGroup) this.crownGroup.visible = true;

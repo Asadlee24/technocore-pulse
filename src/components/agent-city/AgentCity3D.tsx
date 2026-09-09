@@ -25,6 +25,8 @@ interface AgentCity3DProps {
   viewLevel?: CameraViewLevel;
   onViewLevelChange?: (level: CameraViewLevel) => void;
   theme?: 'dark' | 'light';
+  cameraPerspective?: 'orbit' | 'drone' | 'plaza';
+  onPerspectiveChange?: (persp: 'orbit' | 'drone' | 'plaza') => void;
 }
 
 const DEFAULT_FALLBACK_ROOM: RoomCluster = {
@@ -49,7 +51,9 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   onPulseComplete,
   viewLevel: controlledViewLevel,
   onViewLevelChange,
-  theme = 'dark'
+  theme = 'dark',
+  cameraPerspective = 'orbit',
+  onPerspectiveChange
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   
@@ -65,6 +69,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   const [isAutoRotate, setIsAutoRotate] = useState<boolean>(true);
   const [hoveredRoom, setHoveredRoom] = useState<{ room: RoomCluster; x: number; y: number } | null>(null);
   const [pulseLog, setPulseLog] = useState<string>('Technocore Metropolis online. Autonomous agent districts active.');
+  const [showIntroBadge, setShowIntroBadge] = useState<boolean>(true);
 
   // Persistent Three.js References
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -80,6 +85,20 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   const cityGroupRef = useRef<THREE.Group | null>(null);
   const interactiveMeshesRef = useRef<THREE.Mesh[]>([]);
   const lodManagerRef = useRef<CityLODManager>(new CityLODManager());
+
+  // Cinematic Intro & Perspective references
+  const isIntroRef = useRef<boolean>(true);
+  const introProgressRef = useRef<number>(0);
+  const INTRO_START_POS = useRef<THREE.Vector3>(new THREE.Vector3(88, 82, 92));
+  const INTRO_END_POS = useRef<THREE.Vector3>(new THREE.Vector3(44, 34, 48));
+  const INTRO_START_LOOK = useRef<THREE.Vector3>(new THREE.Vector3(0, 16, 0));
+  const INTRO_END_LOOK = useRef<THREE.Vector3>(new THREE.Vector3(0, 8, 0));
+
+  const cameraPerspectiveRef = useRef<'orbit' | 'drone' | 'plaza'>(cameraPerspective);
+  cameraPerspectiveRef.current = cameraPerspective;
+
+  const onPerspectiveChangeRef = useRef(onPerspectiveChange);
+  onPerspectiveChangeRef.current = onPerspectiveChange;
 
   // Animation & Camera targets
   const controlsRef = useRef<OrbitControls | null>(null);
@@ -101,6 +120,17 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 
   const onSelectRoomRef = useRef(onSelectRoom);
   onSelectRoomRef.current = onSelectRoom;
+
+  const skipIntro = useCallback(() => {
+    isIntroRef.current = false;
+    setShowIntroBadge(false);
+    if (cameraRef.current && controlsRef.current) {
+      cameraRef.current.position.copy(INTRO_END_POS.current);
+      controlsRef.current.target.copy(INTRO_END_LOOK.current);
+      cameraTargetPos.current.copy(INTRO_END_POS.current);
+      cameraTargetLookAt.current.copy(INTRO_END_LOOK.current);
+    }
+  }, []);
 
   // -------------------------------------------------------------
   // CAMERA VIEW SCALE CONTROLLERS
@@ -186,6 +216,26 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     }
   }, [controlledViewLevel, activeRoom.id, switchCameraToCity, switchCameraToBuilding, switchCameraToInterior]);
 
+  // Sync camera perspective (orbit | drone | plaza)
+  useEffect(() => {
+    if (cameraPerspective === 'plaza') {
+      isTransitioningRef.current = true;
+      cameraTargetPos.current.set(13, 2.4, 13);
+      cameraTargetLookAt.current.set(0, 14, 0);
+      setPulseLog('Camera switched to Plaza ground view.');
+    } else if (cameraPerspective === 'orbit') {
+      if (viewLevelRef.current === 'city') {
+        isTransitioningRef.current = true;
+        cameraTargetPos.current.set(44, 34, 48);
+        cameraTargetLookAt.current.set(0, 8, 0);
+      }
+      setPulseLog('Camera switched to Free Orbit mode.');
+    } else if (cameraPerspective === 'drone') {
+      isTransitioningRef.current = false;
+      setPulseLog('Autonomous Drone Flythrough Tour initiated.');
+    }
+  }, [cameraPerspective]);
+
   // -------------------------------------------------------------
   // SIMULATED / LIVE PROBE EFFECT TRIGGER
   // -------------------------------------------------------------
@@ -243,7 +293,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     const width = container.clientWidth;
     const height = container.clientHeight || 540;
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.5, 300);
-    camera.position.copy(cameraTargetPos.current);
+    camera.position.copy(INTRO_START_POS.current);
     cameraRef.current = camera;
 
     // 3. WebGL Renderer
@@ -347,6 +397,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // 11. OrbitControls & User Interaction (Smooth Damping, Pan, Orbit, Wheel Zoom)
     const controls = new OrbitControls(camera, renderer.domElement);
     controlsRef.current = controls;
+    controls.target.copy(INTRO_START_LOOK.current);
     controls.enableDamping = true;
     controls.dampingFactor = 0.06;
     controls.screenSpacePanning = true;
@@ -358,8 +409,17 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     controls.panSpeed = 0.8;
     controls.autoRotateSpeed = 0.6;
 
-    // Interrupt any automated sweep when the user touches controls
+    // Interrupt any automated sweep or intro when the user touches controls
     controls.addEventListener('start', () => {
+      if (isIntroRef.current) {
+        isIntroRef.current = false;
+        setShowIntroBadge(false);
+      }
+      if (cameraPerspectiveRef.current === 'drone') {
+        if (onPerspectiveChangeRef.current) {
+          onPerspectiveChangeRef.current('orbit');
+        }
+      }
       isTransitioningRef.current = false;
       if (isAutoRotateRef.current) {
         setIsAutoRotate(false);
@@ -375,6 +435,10 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     const handlePointerDown = (e: MouseEvent) => {
       pointerDownPos = { x: e.clientX, y: e.clientY };
       pointerDownTime = performance.now();
+      if (isIntroRef.current) {
+        isIntroRef.current = false;
+        setShowIntroBadge(false);
+      }
     };
 
     const handlePointerUp = (e: MouseEvent) => {
@@ -438,25 +502,56 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       const delta = clock.getDelta();
       const time = clock.getElapsedTime();
 
-      // Smooth camera interpolation towards target when transitioning
-      if (isTransitioningRef.current && controlsRef.current) {
-        camera.position.lerp(cameraTargetPos.current, 0.08);
-        controlsRef.current.target.lerp(cameraTargetLookAt.current, 0.08);
-
-        if (
-          camera.position.distanceTo(cameraTargetPos.current) < 0.25 &&
-          controlsRef.current.target.distanceTo(cameraTargetLookAt.current) < 0.25
-        ) {
-          camera.position.copy(cameraTargetPos.current);
-          controlsRef.current.target.copy(cameraTargetLookAt.current);
-          isTransitioningRef.current = false;
+      // Intro descent interpolation
+      if (isIntroRef.current) {
+        introProgressRef.current += delta;
+        const t = Math.min(1, introProgressRef.current / 4.2);
+        const ease = 1 - Math.pow(1 - t, 3);
+        camera.position.lerpVectors(INTRO_START_POS.current, INTRO_END_POS.current, ease);
+        if (controlsRef.current) {
+          controlsRef.current.target.lerpVectors(INTRO_START_LOOK.current, INTRO_END_LOOK.current, ease);
+          controlsRef.current.update();
         }
-      }
+        if (t >= 1) {
+          isIntroRef.current = false;
+          setShowIntroBadge(false);
+          cameraTargetPos.current.copy(INTRO_END_POS.current);
+          cameraTargetLookAt.current.copy(INTRO_END_LOOK.current);
+        }
+      } else if (cameraPerspectiveRef.current === 'drone') {
+        // Continuous aerial drone flythrough tour
+        const droneAngle = time * 0.16;
+        const droneRadius = 31;
+        const droneHeight = 12.5 + Math.sin(time * 0.35) * 3.5;
+        camera.position.x = Math.cos(droneAngle) * droneRadius;
+        camera.position.z = Math.sin(droneAngle) * droneRadius;
+        camera.position.y = droneHeight;
+        const lookAngle = droneAngle + 0.35;
+        if (controlsRef.current) {
+          controlsRef.current.target.set(Math.cos(lookAngle) * 4, 7 + Math.sin(time * 0.25) * 2, Math.sin(lookAngle) * 4);
+          controlsRef.current.update();
+        }
+      } else {
+        // Smooth camera interpolation towards target when transitioning
+        if (isTransitioningRef.current && controlsRef.current) {
+          camera.position.lerp(cameraTargetPos.current, 0.08);
+          controlsRef.current.target.lerp(cameraTargetLookAt.current, 0.08);
 
-      // Update OrbitControls with damping and auto-rotate
-      if (controlsRef.current) {
-        controlsRef.current.autoRotate = isAutoRotateRef.current && viewLevelRef.current === 'city';
-        controlsRef.current.update();
+          if (
+            camera.position.distanceTo(cameraTargetPos.current) < 0.25 &&
+            controlsRef.current.target.distanceTo(cameraTargetLookAt.current) < 0.25
+          ) {
+            camera.position.copy(cameraTargetPos.current);
+            controlsRef.current.target.copy(cameraTargetLookAt.current);
+            isTransitioningRef.current = false;
+          }
+        }
+
+        // Update OrbitControls with damping and auto-rotate
+        if (controlsRef.current) {
+          controlsRef.current.autoRotate = isAutoRotateRef.current && viewLevelRef.current === 'city' && cameraPerspectiveRef.current === 'orbit';
+          controlsRef.current.update();
+        }
       }
 
       // Update Sub-systems
@@ -550,6 +645,23 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
           City geometry is a visualization of observed public activity, not a literal physical network.
         </div>
       </div>
+
+      {/* Floating Cinematic Intro Skip Badge */}
+      {showIntroBadge && (
+        <button
+          onClick={skipIntro}
+          className={`absolute top-20 right-4 z-20 flex items-center space-x-2 px-3.5 py-1.5 rounded-xl backdrop-blur-md border text-xs font-mono font-bold transition-all shadow-xl hover:scale-105 active:scale-95 ${
+            isLight
+              ? 'bg-white/95 border-[#0284C7]/40 text-[#0284C7] shadow-slate-300/60'
+              : 'bg-[#0B1320]/90 border-[#36D7E7]/60 text-[#36D7E7] shadow-[#36D7E7]/20'
+          }`}
+          title="Skip cinematic fly-in"
+        >
+          <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+          <span>Cinematic Descent</span>
+          <span className="text-[10px] uppercase ml-1 px-1.5 py-0.5 rounded bg-white/10 underline">Skip</span>
+        </button>
+      )}
 
       {/* Floating Status Ticker */}
       <div className={`absolute bottom-4 right-4 z-10 hidden sm:flex items-center space-x-2 text-[11px] font-mono backdrop-blur-md px-3 py-1.5 rounded-lg border transition-colors ${
