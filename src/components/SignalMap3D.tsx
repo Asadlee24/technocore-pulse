@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useData } from '../context/DataContext';
 import type { RoomCluster, ProbeArm } from '../types/probe';
-import { Radio, RefreshCw, Sparkles } from 'lucide-react';
+import { Radio, RefreshCw, Sparkles, Building2, Network } from 'lucide-react';
+import { AgentCity3D } from './agent-city/AgentCity3D';
 
 interface SignalMap3DProps {
   onSelectRoom?: (room: RoomCluster) => void;
@@ -31,6 +32,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
 }) => {
   const { activeRoomClusters } = useData();
   const mountRef = useRef<HTMLDivElement>(null);
+  const [viewMode, setViewMode] = useState<'topology' | 'city'>('city');
   const [selectedRoom, setSelectedRoom] = useState<RoomCluster>(activeRoomClusters[0] || DEFAULT_ROOM);
   const [isAutoRotate, setIsAutoRotate] = useState<boolean>(true);
   const [pulseLog, setPulseLog] = useState<string>('System nominal. Tracking active clusters.');
@@ -323,7 +325,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
       }
       renderer.dispose();
     };
-  }, [isAutoRotate, activeRoomClusters]);
+  }, [isAutoRotate, activeRoomClusters, viewMode]);
 
   // Handle external selectedRoomId prop changes
   useEffect(() => {
@@ -360,27 +362,55 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
         <div className="flex items-center space-x-3">
           <div className="w-2.5 h-2.5 rounded-full bg-[#36D7E7] animate-ping" />
           <span className="font-mono text-xs uppercase tracking-widest text-[#36D7E7] font-semibold">
-            3D Signal Map · Cluster Topology
+            {viewMode === 'city' ? 'Agent City · 3D Metropolitan View' : '3D Signal Map · Cluster Topology'}
           </span>
           <span className="hidden sm:inline-block px-2 py-0.5 text-[10px] font-mono rounded bg-[#101A2A] text-[#2FD27F] border border-[#2FD27F]/30">
-            Live Public Topology
+            {viewMode === 'city' ? 'Autonomous Colony' : 'Live Topology'}
           </span>
         </div>
 
-        {/* 3D Controls */}
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => setIsAutoRotate(!isAutoRotate)}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-mono transition-all border ${
-              isAutoRotate
-                ? 'bg-[#36D7E7]/15 text-[#36D7E7] border-[#36D7E7]/40'
-                : 'bg-[#101A2A] text-[#95A4B8] border-[#1B2A3D] hover:text-white'
-            }`}
-            title="Toggle Orbital Rotation"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isAutoRotate ? 'animate-spin' : ''}`} />
-            <span>{isAutoRotate ? 'Auto Orbit ON' : 'Paused'}</span>
-          </button>
+        {/* View Mode Toggle & 3D Controls */}
+        <div className="flex items-center space-x-3">
+          {/* Prominent View Mode Switcher: TOPOLOGY vs AGENT CITY */}
+          <div className="flex items-center p-1 rounded-xl bg-[#050A12] border border-[#1B2A3D] shadow-inner">
+            <button
+              onClick={() => setViewMode('topology')}
+              className={`flex items-center space-x-1.5 px-3 py-1 text-xs font-mono font-bold rounded-lg transition-all ${
+                viewMode === 'topology'
+                  ? 'bg-[#101A2A] text-[#36D7E7] border border-[#36D7E7]/40 shadow-sm shadow-[#36D7E7]/10'
+                  : 'text-[#6F8096] hover:text-[#95A4B8]'
+              }`}
+            >
+              <Network className="w-3.5 h-3.5" />
+              <span>TOPOLOGY</span>
+            </button>
+            <button
+              onClick={() => setViewMode('city')}
+              className={`flex items-center space-x-1.5 px-3 py-1 text-xs font-mono font-bold rounded-lg transition-all ${
+                viewMode === 'city'
+                  ? 'bg-[#36D7E7] text-[#050A12] shadow-md shadow-[#36D7E7]/25'
+                  : 'text-[#6F8096] hover:text-[#95A4B8]'
+              }`}
+            >
+              <Building2 className="w-3.5 h-3.5" />
+              <span>AGENT CITY</span>
+            </button>
+          </div>
+
+          {viewMode === 'topology' && (
+            <button
+              onClick={() => setIsAutoRotate(!isAutoRotate)}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-mono transition-all border ${
+                isAutoRotate
+                  ? 'bg-[#36D7E7]/15 text-[#36D7E7] border-[#36D7E7]/40'
+                  : 'bg-[#101A2A] text-[#95A4B8] border-[#1B2A3D] hover:text-white'
+              }`}
+              title="Toggle Orbital Rotation"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isAutoRotate ? 'animate-spin' : ''}`} />
+              <span>{isAutoRotate ? 'Auto Orbit ON' : 'Paused'}</span>
+            </button>
+          )}
 
           <button
             onClick={handleTriggerSimulatedPulse}
@@ -393,11 +423,24 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
         </div>
       </div>
 
-      {/* 3D WebGL Canvas Container */}
-      <div
-        ref={mountRef}
-        className="w-full h-[540px] cursor-grab active:cursor-grabbing bg-radial-vignette"
-      />
+      {/* 3D WebGL Canvas Container: Swaps cleanly between Agent City and Topology */}
+      {viewMode === 'city' ? (
+        <AgentCity3D
+          activeRoomClusters={activeRoomClusters}
+          selectedRoom={activeDisplayRoom}
+          onSelectRoom={(room) => {
+            setSelectedRoom(room);
+            if (onSelectRoom) onSelectRoom(room);
+          }}
+          isSimulatingPulse={isSimulatingPulse}
+          onPulseComplete={() => setIsSimulatingPulse(false)}
+        />
+      ) : (
+        <div
+          ref={mountRef}
+          className="w-full h-[540px] cursor-grab active:cursor-grabbing bg-radial-vignette"
+        />
+      )}
 
       {/* Floating HUD: Selected Room Details */}
       <div className="absolute bottom-4 left-4 right-4 sm:right-auto sm:max-w-md z-20 p-4 rounded-xl bg-[#0B1320]/90 backdrop-blur-xl border border-[#36D7E7]/30 shadow-2xl">
