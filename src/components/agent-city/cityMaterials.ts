@@ -22,25 +22,25 @@ export function createCityMaterials(theme: 'dark' | 'light' = 'dark'): CityMater
 
   return {
     facadeBase: new THREE.MeshStandardMaterial({
-      color: isLight ? 0xE2E8F0 : 0x0B1320,
-      roughness: isLight ? 0.4 : 0.85,
-      metalness: isLight ? 0.2 : 0.35,
-      emissive: isLight ? 0xF8FAFC : 0x050A12,
-      emissiveIntensity: isLight ? 0.1 : 0.2
+      color: isLight ? 0xE2E8F0 : 0x16263D,
+      roughness: isLight ? 0.4 : 0.45,
+      metalness: isLight ? 0.2 : 0.6,
+      emissive: isLight ? 0xF8FAFC : 0x0F1B2E,
+      emissiveIntensity: isLight ? 0.1 : 0.35
     }),
     facadeActive: new THREE.MeshStandardMaterial({
-      color: isLight ? 0xFFFFFF : 0x101A2A,
-      roughness: isLight ? 0.3 : 0.7,
-      metalness: isLight ? 0.4 : 0.5,
+      color: isLight ? 0xFFFFFF : 0x1E3554,
+      roughness: isLight ? 0.3 : 0.35,
+      metalness: isLight ? 0.4 : 0.65,
       emissive: isLight ? 0x0284C7 : 0x36D7E7,
-      emissiveIntensity: isLight ? 0.15 : 0.15
+      emissiveIntensity: isLight ? 0.15 : 0.25
     }),
     facadeSurge: new THREE.MeshStandardMaterial({
-      color: isLight ? 0xFFFFFF : 0x152238,
-      roughness: isLight ? 0.3 : 0.6,
-      metalness: isLight ? 0.5 : 0.6,
+      color: isLight ? 0xFFFFFF : 0x234166,
+      roughness: isLight ? 0.3 : 0.3,
+      metalness: isLight ? 0.5 : 0.7,
       emissive: isLight ? 0x10B981 : 0x2FD27F,
-      emissiveIntensity: isLight ? 0.25 : 0.25
+      emissiveIntensity: isLight ? 0.25 : 0.35
     }),
     facadeCutaway: new THREE.MeshStandardMaterial({
       color: isLight ? 0xF1F5F9 : 0x0E1A2C,
@@ -61,9 +61,9 @@ export function createCityMaterials(theme: 'dark' | 'light' = 'dark'): CityMater
       opacity: 0.95
     }),
     edgeLine: new THREE.LineBasicMaterial({
-      color: isLight ? 0x94A3B8 : 0x1B2A3D,
+      color: isLight ? 0x0284C7 : 0x38BDF8,
       transparent: true,
-      opacity: isLight ? 0.8 : 0.6
+      opacity: isLight ? 0.85 : 0.75
     }),
     groundGrid: new THREE.LineBasicMaterial({
       color: isLight ? 0xCBD5E1 : 0x1B2A3D,

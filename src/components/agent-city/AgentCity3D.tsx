@@ -89,10 +89,10 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   // Cinematic Intro & Perspective references
   const isIntroRef = useRef<boolean>(true);
   const introProgressRef = useRef<number>(0);
-  const INTRO_START_POS = useRef<THREE.Vector3>(new THREE.Vector3(88, 82, 92));
-  const INTRO_END_POS = useRef<THREE.Vector3>(new THREE.Vector3(44, 34, 48));
-  const INTRO_START_LOOK = useRef<THREE.Vector3>(new THREE.Vector3(0, 16, 0));
-  const INTRO_END_LOOK = useRef<THREE.Vector3>(new THREE.Vector3(0, 8, 0));
+  const INTRO_START_POS = useRef<THREE.Vector3>(new THREE.Vector3(56, 46, 58));
+  const INTRO_END_POS = useRef<THREE.Vector3>(new THREE.Vector3(34, 24, 36));
+  const INTRO_START_LOOK = useRef<THREE.Vector3>(new THREE.Vector3(0, 10, 0));
+  const INTRO_END_LOOK = useRef<THREE.Vector3>(new THREE.Vector3(0, 5, 0));
 
   const cameraPerspectiveRef = useRef<'orbit' | 'drone' | 'plaza'>(cameraPerspective);
   cameraPerspectiveRef.current = cameraPerspective;
@@ -103,8 +103,8 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   // Animation & Camera targets
   const controlsRef = useRef<OrbitControls | null>(null);
   const isTransitioningRef = useRef<boolean>(false);
-  const cameraTargetPos = useRef<THREE.Vector3>(new THREE.Vector3(44, 34, 48));
-  const cameraTargetLookAt = useRef<THREE.Vector3>(new THREE.Vector3(0, 8, 0));
+  const cameraTargetPos = useRef<THREE.Vector3>(new THREE.Vector3(34, 24, 36));
+  const cameraTargetLookAt = useRef<THREE.Vector3>(new THREE.Vector3(0, 5, 0));
 
   // Refs for animation loop (prevents scene destruction on state changes)
   const isAutoRotateRef = useRef<boolean>(isAutoRotate);
@@ -145,8 +145,8 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // Close all cutaways
     buildingsMapRef.current.forEach(b => b.setCutaway(false));
 
-    cameraTargetPos.current.set(44, 34, 48);
-    cameraTargetLookAt.current.set(0, 8, 0);
+    cameraTargetPos.current.set(34, 24, 36);
+    cameraTargetLookAt.current.set(0, 5, 0);
     setPulseLog('Camera returned to Agent City metropolitan overview.');
   }, []);
 
@@ -226,8 +226,8 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     } else if (cameraPerspective === 'orbit') {
       if (viewLevelRef.current === 'city') {
         isTransitioningRef.current = true;
-        cameraTargetPos.current.set(44, 34, 48);
-        cameraTargetLookAt.current.set(0, 8, 0);
+        cameraTargetPos.current.set(34, 24, 36);
+        cameraTargetLookAt.current.set(0, 5, 0);
       }
       setPulseLog('Camera switched to Free Orbit mode.');
     } else if (cameraPerspective === 'drone') {

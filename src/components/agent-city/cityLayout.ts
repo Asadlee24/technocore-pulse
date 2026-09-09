@@ -231,8 +231,8 @@ export function generateCityLayout(rooms: RoomCluster[]): {
     const cfg = DISTRICT_CONFIGS[distType];
     const baseAngle = cfg.sectorIndex * sectorAngleStep;
     
-    // Add 3-5 procedural supporting buildings per district to create real skyline depth
-    const infillCount = 4;
+    // Set to 0: Only authentic room clusters exist, keeping city wide open, bright, and completely visible
+    const infillCount = 0;
     for (let i = 0; i < infillCount; i++) {
       const angleOffset = (i - 1.5) * 0.12;
       const angle = baseAngle + angleOffset;
