@@ -11,9 +11,7 @@ import {
   Network,
   Monitor,
   Maximize2,
-  Minimize2,
-  Sun,
-  Moon
+  Minimize2
 } from 'lucide-react';
 import { AgentCity3D } from './agent-city/AgentCity3D';
 import type { CameraViewLevel } from './agent-city/CityLODManager';
@@ -22,8 +20,6 @@ interface SignalMap3DProps {
   onSelectRoom?: (room: RoomCluster) => void;
   selectedRoomId?: string;
   activeFilter?: ProbeArm | 'all';
-  theme?: 'dark' | 'light';
-  onToggleTheme?: () => void;
 }
 
 const DEFAULT_ROOM: RoomCluster = {
@@ -40,35 +36,21 @@ const DEFAULT_ROOM: RoomCluster = {
   lastProbeArm: 'question'
 };
 
-const DISTRICT_QUICK_JUMPS = [
-  { id: 'coordination', label: 'Core', icon: '🏛️' },
-  { id: 'work', label: 'Work', icon: '🏢' },
-  { id: 'research', label: 'Research', icon: '🧪' },
-  { id: 'compute-relay', label: 'Compute', icon: '⚡' },
-  { id: 'settlement-prep', label: 'Settlement', icon: '🔒' },
-  { id: 'agent-social', label: 'Social', icon: '💬' },
-  { id: 'broadcast', label: 'Broadcast', icon: '📡' },
-  { id: 'infrastructure', label: 'Infra', icon: '🌐' }
-];
-
 export const SignalMap3D: React.FC<SignalMap3DProps> = ({
   onSelectRoom,
   selectedRoomId: _selectedRoomId,
-  activeFilter: _activeFilter = 'all',
-  theme = 'dark',
-  onToggleTheme
+  activeFilter: _activeFilter = 'all'
 }) => {
   const { activeRoomClusters } = useData();
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const mountRef = useRef<HTMLDivElement>(null);
   const [viewMode, setViewMode] = useState<'topology' | 'city'>('city');
   const [cityViewLevel, setCityViewLevel] = useState<CameraViewLevel>('city');
   const [selectedRoom, setSelectedRoom] = useState<RoomCluster>(activeRoomClusters[0] || DEFAULT_ROOM);
   const [isAutoRotate, setIsAutoRotate] = useState<boolean>(true);
-  const [pulseLog, setPulseLog] = useState<string>('Technocore Metropolis online. Tracking autonomous clusters.');
+  const [pulseLog, setPulseLog] = useState<string>('Technocore Metropolis online. Autonomous agent districts active.');
   const [isSimulatingPulse, setIsSimulatingPulse] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
-
-  const isLight = theme === 'light';
 
   // Sync selected room when activeRoomClusters changes
   useEffect(() => {
@@ -77,28 +59,57 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
     }
   }, [activeRoomClusters]);
 
-  // Handle ESC key to exit fullscreen
+  // Robust Native Fullscreen API Handler
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isFullscreen) {
-        setIsFullscreen(false);
-      }
+    const handleFullscreenChange = () => {
+      const isFs = !!document.fullscreenElement;
+      setIsFullscreen(isFs);
+
+      // Trigger resize for Three.js camera projection & renderer
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+      }, 60);
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isFullscreen]);
 
-  const activeDisplayRoom = selectedRoom || activeRoomClusters[0] || DEFAULT_ROOM;
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
 
-  // Quick jump to a district
-  const handleDistrictJump = (districtCat: string) => {
-    const targetRoom = activeRoomClusters.find(r => r.category === districtCat || r.id.includes(districtCat)) || activeRoomClusters[0];
-    if (targetRoom) {
-      setSelectedRoom(targetRoom);
-      if (onSelectRoom) onSelectRoom(targetRoom);
-      setCityViewLevel('building');
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        if (wrapperRef.current?.requestFullscreen) {
+          await wrapperRef.current.requestFullscreen();
+        } else if ((wrapperRef.current as any)?.webkitRequestFullscreen) {
+          await (wrapperRef.current as any).webkitRequestFullscreen();
+        } else {
+          // CSS fallback
+          setIsFullscreen(prev => !prev);
+          setTimeout(() => window.dispatchEvent(new Event('resize')), 60);
+        }
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        } else {
+          setIsFullscreen(false);
+          setTimeout(() => window.dispatchEvent(new Event('resize')), 60);
+        }
+      }
+    } catch (err) {
+      console.warn('Fullscreen request rejected, using CSS fallback', err);
+      setIsFullscreen(prev => !prev);
+      setTimeout(() => window.dispatchEvent(new Event('resize')), 60);
     }
   };
+
+  const activeDisplayRoom = selectedRoom || activeRoomClusters[0] || DEFAULT_ROOM;
 
   // References for Three.js objects (Topology Mode)
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -114,7 +125,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
     // SCENE SETUP
     const scene = new THREE.Scene();
     sceneRef.current = scene;
-    scene.fog = new THREE.FogExp2(isLight ? 0xE8EEF5 : 0x050A12, 0.015);
+    scene.fog = new THREE.FogExp2(0x050A12, 0.015);
 
     const camera = new THREE.PerspectiveCamera(
       45,
@@ -128,16 +139,16 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
     renderer.setSize(container.clientWidth, container.clientHeight || 600);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setClearColor(isLight ? 0xE8EEF5 : 0x050A12, 1);
+    renderer.setClearColor(0x050A12, 1);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
 
     // AMBIENT & DIRECTIONAL LIGHTING
-    const ambientLight = new THREE.AmbientLight(0xffffff, isLight ? 1.2 : 0.7);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
     scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(isLight ? 0x0284C7 : 0x36D7E7, 1.2);
+    const dirLight = new THREE.DirectionalLight(0x36D7E7, 1.2);
     dirLight.position.set(20, 40, 20);
     scene.add(dirLight);
 
@@ -146,7 +157,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
     scene.add(blueLight);
 
     // BACKGROUND GRID FLOOR
-    const gridHelper = new THREE.GridHelper(80, 40, isLight ? 0x94A3B8 : 0x1B2A3D, isLight ? 0xCBD5E1 : 0x0B1320);
+    const gridHelper = new THREE.GridHelper(80, 40, 0x1B2A3D, 0x0B1320);
     gridHelper.position.y = -22;
     scene.add(gridHelper);
 
@@ -243,7 +254,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
         container.removeChild(renderer.domElement);
       }
     };
-  }, [viewMode, activeRoomClusters, isLight, isAutoRotate]);
+  }, [viewMode, activeRoomClusters, isAutoRotate]);
 
   const handleTriggerSimulatedPulse = () => {
     setIsSimulatingPulse(true);
@@ -264,53 +275,42 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
 
   return (
     <div
-      className={`relative w-full transition-all duration-300 ${
+      ref={wrapperRef}
+      className={`relative w-full transition-all duration-200 bg-[#050A12] text-[#EAF2F7] ${
         isFullscreen
-          ? 'fixed inset-0 z-50 w-screen h-screen overflow-hidden'
-          : 'rounded-2xl overflow-hidden border shadow-2xl'
-      } ${
-        isLight
-          ? 'bg-[#E8EEF5] border-slate-300 text-slate-900 shadow-slate-300/60'
-          : 'bg-[#050A12] border-[#1B2A3D] text-[#EAF2F7] shadow-black/80'
+          ? 'fixed inset-0 z-[9999] w-screen h-screen overflow-hidden'
+          : 'h-[calc(100vh-5rem)] min-h-[720px] rounded-2xl overflow-hidden border border-[#1B2A3D] shadow-2xl shadow-black/80'
       }`}
     >
       {/* HUD Header Bar */}
-      <div
-        className={`absolute top-0 inset-x-0 z-20 flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-3.5 backdrop-blur-xl border-b transition-colors ${
-          isLight
-            ? 'bg-white/90 border-slate-200 text-slate-800'
-            : 'bg-[#0B1320]/85 border-[#1B2A3D] text-white'
-        }`}
-      >
+      <div className="absolute top-0 inset-x-0 z-20 flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-3.5 bg-[#0B1320]/85 backdrop-blur-xl border-b border-[#1B2A3D]">
         <div className="flex items-center space-x-3">
           <div className="w-2.5 h-2.5 rounded-full bg-[#36D7E7] animate-ping" />
           <div>
             <div className="flex items-center space-x-2">
-              <span className={`font-mono text-xs uppercase tracking-widest font-bold ${isLight ? 'text-[#0284C7]' : 'text-[#36D7E7]'}`}>
+              <span className="font-mono text-xs uppercase tracking-widest font-bold text-[#36D7E7]">
                 {viewMode === 'city' ? 'Technocore Agent City' : 'Signal Topology'}
               </span>
-              <span className={`hidden sm:inline-block px-2 py-0.2 text-[10px] font-mono rounded font-bold uppercase ${
-                isLight ? 'bg-emerald-50 text-emerald-700 border border-emerald-300' : 'bg-[#101A2A] text-[#2FD27F] border border-[#2FD27F]/30'
-              }`}>
-                {viewMode === 'city' ? '8 Districts Active' : 'Live Topology'}
+              <span className="hidden sm:inline-block px-2 py-0.5 text-[10px] font-mono rounded font-bold uppercase bg-[#101A2A] text-[#2FD27F] border border-[#2FD27F]/30">
+                {viewMode === 'city' ? 'Autonomous Colony' : 'Live Topology'}
               </span>
             </div>
-            <span className={`block text-[10px] font-mono ${isLight ? 'text-slate-500' : 'text-[#6F8096]'}`}>
-              Autonomous Procedural Metropolis · 60 FPS
+            <span className="block text-[10px] font-mono text-[#6F8096]">
+              Autonomous Digital Metropolis · Procedural 3D WebGL
             </span>
           </div>
         </div>
 
-        {/* View Mode Switcher, Theme & Fullscreen Controls */}
+        {/* View Mode Switcher, Orbit & Fullscreen Controls */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Prominent View Mode Switcher: TOPOLOGY vs AGENT CITY */}
-          <div className={`flex items-center p-1 rounded-xl border shadow-inner ${isLight ? 'bg-slate-100 border-slate-300' : 'bg-[#050A12] border-[#1B2A3D]'}`}>
+          <div className="flex items-center p-1 rounded-xl bg-[#050A12] border border-[#1B2A3D] shadow-inner">
             <button
               onClick={() => setViewMode('city')}
               className={`flex items-center space-x-1.5 px-3 py-1 text-xs font-mono font-bold rounded-lg transition-all ${
                 viewMode === 'city'
                   ? 'bg-[#36D7E7] text-[#050A12] shadow-md shadow-[#36D7E7]/25'
-                  : isLight ? 'text-slate-600 hover:text-slate-900' : 'text-[#6F8096] hover:text-[#95A4B8]'
+                  : 'text-[#6F8096] hover:text-[#95A4B8]'
               }`}
             >
               <Building2 className="w-3.5 h-3.5" />
@@ -320,8 +320,8 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
               onClick={() => setViewMode('topology')}
               className={`flex items-center space-x-1.5 px-3 py-1 text-xs font-mono font-bold rounded-lg transition-all ${
                 viewMode === 'topology'
-                  ? isLight ? 'bg-white text-[#0284C7] shadow-sm' : 'bg-[#101A2A] text-[#36D7E7] border border-[#36D7E7]/40'
-                  : isLight ? 'text-slate-600 hover:text-slate-900' : 'text-[#6F8096] hover:text-[#95A4B8]'
+                  ? 'bg-[#101A2A] text-[#36D7E7] border border-[#36D7E7]/40'
+                  : 'text-[#6F8096] hover:text-[#95A4B8]'
               }`}
             >
               <Network className="w-3.5 h-3.5" />
@@ -331,13 +331,13 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
 
           {/* Visual Scales for Agent City: CITY | BUILDING | INTERIOR */}
           {viewMode === 'city' && (
-            <div className={`flex items-center p-1 rounded-xl border shadow-inner text-xs font-mono ${isLight ? 'bg-slate-100 border-slate-300' : 'bg-[#050A12] border-[#1B2A3D]'}`}>
+            <div className="flex items-center p-1 rounded-xl bg-[#050A12] border border-[#1B2A3D] shadow-inner text-xs font-mono">
               <button
                 onClick={() => setCityViewLevel('city')}
                 className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg font-bold transition-all ${
                   cityViewLevel === 'city'
                     ? 'bg-[#36D7E7] text-[#050A12] shadow-sm shadow-[#36D7E7]/20'
-                    : isLight ? 'text-slate-600 hover:text-slate-900' : 'text-[#6F8096] hover:text-[#95A4B8]'
+                    : 'text-[#6F8096] hover:text-[#95A4B8]'
                 }`}
                 title="Metropolitan City Overview"
               >
@@ -349,7 +349,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
                 className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg font-bold transition-all ${
                   cityViewLevel === 'building'
                     ? 'bg-[#36D7E7] text-[#050A12] shadow-sm shadow-[#36D7E7]/20'
-                    : isLight ? 'text-slate-600 hover:text-slate-900' : 'text-[#6F8096] hover:text-[#95A4B8]'
+                    : 'text-[#6F8096] hover:text-[#95A4B8]'
                 }`}
                 title="Building Tower View & Cutaway"
               >
@@ -362,7 +362,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
                 className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg font-bold transition-all ${
                   cityViewLevel === 'interior'
                     ? 'bg-[#36D7E7] text-[#050A12] shadow-sm shadow-[#36D7E7]/20'
-                    : isLight ? 'text-slate-600 hover:text-slate-900' : 'text-[#6F8096] hover:text-[#95A4B8]'
+                    : 'text-[#6F8096] hover:text-[#95A4B8]'
                 }`}
                 title="Agent Office Interior & Laptops"
               >
@@ -377,8 +377,8 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
               onClick={() => setIsAutoRotate(!isAutoRotate)}
               className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all border ${
                 isAutoRotate
-                  ? isLight ? 'bg-sky-100 text-[#0284C7] border-sky-300' : 'bg-[#36D7E7]/15 text-[#36D7E7] border-[#36D7E7]/40'
-                  : isLight ? 'bg-slate-100 text-slate-600 border-slate-300' : 'bg-[#101A2A] text-[#95A4B8] border-[#1B2A3D]'
+                  ? 'bg-[#36D7E7]/15 text-[#36D7E7] border-[#36D7E7]/40'
+                  : 'bg-[#101A2A] text-[#95A4B8] border-[#1B2A3D]'
               }`}
               title="Toggle Orbital Rotation"
             >
@@ -387,33 +387,13 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
             </button>
           )}
 
-          {/* Theme Switcher Toggle */}
-          {onToggleTheme && (
-            <button
-              onClick={onToggleTheme}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all border ${
-                isLight
-                  ? 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200'
-                  : 'bg-[#101A2A] text-[#F0A824] border-[#1B2A3D] hover:border-[#F0A824]/50'
-              }`}
-              title={isLight ? "Switch to Dark Night Theme" : "Switch to White/Daylight Theme"}
-            >
-              {isLight ? <Sun className="w-3.5 h-3.5 text-amber-600" /> : <Moon className="w-3.5 h-3.5 text-amber-400" />}
-              <span>{isLight ? 'Daylight' : 'Cyber Night'}</span>
-            </button>
-          )}
-
-          {/* Fullscreen Expansion Toggle */}
+          {/* Native Fullscreen Expansion Toggle */}
           <button
-            onClick={() => setIsFullscreen(!isFullscreen)}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all border ${
-              isLight
-                ? 'bg-slate-100 text-slate-800 border-slate-300 hover:bg-slate-200'
-                : 'bg-[#101A2A] text-[#95A4B8] border-[#1B2A3D] hover:text-white'
-            }`}
-            title={isFullscreen ? "Exit Fullscreen (ESC)" : "Expand Giant Fullscreen"}
+            onClick={toggleFullscreen}
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all border bg-[#101A2A] text-[#95A4B8] border-[#1B2A3D] hover:text-white hover:border-[#36D7E7]/40"
+            title={isFullscreen ? "Exit Fullscreen (ESC)" : "Expand Fullscreen Mode"}
           >
-            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5 text-[#36D7E7]" /> : <Maximize2 className="w-3.5 h-3.5 text-[#36D7E7]" />}
             <span>{isFullscreen ? 'Exit Full' : 'Fullscreen'}</span>
           </button>
 
@@ -421,7 +401,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
           <button
             onClick={handleTriggerSimulatedPulse}
             disabled={isSimulatingPulse}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all bg-[#36D7E7] text-[#050A12] hover:bg-[#36D7E7]/90 active:scale-95 disabled:opacity-50 shadow-lg shadow-[#36D7E7]/20"
+            className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all bg-[#36D7E7] text-[#050A12] hover:bg-[#36D7E7]/90 active:scale-95 disabled:opacity-50 shadow-lg shadow-[#36D7E7]/20"
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>{isSimulatingPulse ? 'Pulsing...' : 'Fire Probe Pulse'}</span>
@@ -429,44 +409,15 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
         </div>
       </div>
 
-      {/* District Quick Jumps Toolbar (Directly beneath Header in City mode) */}
-      {viewMode === 'city' && (
-        <div className={`absolute top-16 inset-x-0 z-20 hidden md:flex items-center justify-center space-x-1.5 py-1.5 px-4 backdrop-blur-md border-b text-[11px] font-mono transition-colors ${
-          isLight ? 'bg-white/70 border-slate-200/80 text-slate-700' : 'bg-[#0B1320]/60 border-[#1B2A3D]/80 text-[#95A4B8]'
-        }`}>
-          <span className={`text-[10px] uppercase font-bold tracking-wider mr-2 ${isLight ? 'text-slate-500' : 'text-[#6F8096]'}`}>
-            Districts:
-          </span>
-          {DISTRICT_QUICK_JUMPS.map(d => (
-            <button
-              key={d.id}
-              onClick={() => handleDistrictJump(d.id)}
-              className={`flex items-center space-x-1 px-2.5 py-1 rounded-md transition-all font-medium ${
-                isLight
-                  ? 'hover:bg-slate-200/80 hover:text-slate-900'
-                  : 'hover:bg-[#101A2A] hover:text-[#36D7E7]'
-              }`}
-            >
-              <span>{d.icon}</span>
-              <span>{d.label}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* Giant 3D WebGL Canvas Container */}
-      <div className={`w-full relative transition-all duration-300 ${
-        isFullscreen
-          ? 'h-screen'
-          : 'h-[calc(100vh-4.5rem)] min-h-[720px]'
-      }`}>
+      <div className="w-full h-full relative">
         {viewMode === 'city' ? (
           <AgentCity3D
             activeRoomClusters={activeRoomClusters}
             selectedRoom={activeDisplayRoom}
             viewLevel={cityViewLevel}
             onViewLevelChange={setCityViewLevel}
-            theme={theme}
+            theme="dark"
             onSelectRoom={(room) => {
               setSelectedRoom(room);
               if (onSelectRoom) onSelectRoom(room);
@@ -483,13 +434,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
       </div>
 
       {/* Floating HUD: Selected Room Details (Bottom-Left) */}
-      <div
-        className={`absolute bottom-4 left-4 right-4 sm:right-auto sm:max-w-md z-20 p-4 rounded-xl backdrop-blur-xl border shadow-2xl transition-colors ${
-          isLight
-            ? 'bg-white/95 border-slate-200 text-slate-800 shadow-slate-300/70'
-            : 'bg-[#0B1320]/90 border-[#36D7E7]/30 text-white shadow-black/80'
-        }`}
-      >
+      <div className="absolute bottom-4 left-4 right-4 sm:right-auto sm:max-w-md z-20 p-4 rounded-xl bg-[#0B1320]/90 backdrop-blur-xl border border-[#36D7E7]/30 text-white shadow-2xl shadow-black/80">
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center space-x-2">
@@ -497,22 +442,20 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
                 className="w-3 h-3 rounded-full"
                 style={{ backgroundColor: activeDisplayRoom.color }}
               />
-              <h4 className={`font-heading font-bold text-lg ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              <h4 className="font-heading font-bold text-lg text-white">
                 {activeDisplayRoom.displayName}
               </h4>
-              <span className={`px-2 py-0.5 text-[10px] font-mono uppercase rounded border ${
-                isLight ? 'bg-sky-50 text-sky-800 border-sky-300' : 'bg-[#101A2A] text-[#36D7E7] border-[#1B2A3D]'
-              }`}>
+              <span className="px-2 py-0.5 text-[10px] font-mono uppercase rounded bg-[#101A2A] text-[#36D7E7] border border-[#1B2A3D]">
                 {activeDisplayRoom.category}
               </span>
             </div>
-            <p className={`font-mono text-xs mt-1 ${isLight ? 'text-slate-500' : 'text-[#95A4B8]'}`}>
-              Room Identifier: <span className={isLight ? 'text-[#0284C7] font-semibold' : 'text-[#36D7E7]'}>{activeDisplayRoom.name}</span>
+            <p className="font-mono text-xs mt-1 text-[#95A4B8]">
+              Room Identifier: <span className="text-[#36D7E7] font-semibold">{activeDisplayRoom.name}</span>
             </p>
           </div>
 
           <div className="text-right">
-            <span className={`text-xs font-mono ${isLight ? 'text-slate-500' : 'text-[#95A4B8]'}`}>Status</span>
+            <span className="text-xs font-mono text-[#95A4B8]">Status</span>
             <div className="flex items-center space-x-1 mt-0.5">
               <span className="w-2 h-2 rounded-full bg-[#2FD27F]" />
               <span className="text-xs font-mono font-medium uppercase text-[#2FD27F]">
@@ -523,21 +466,21 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
         </div>
 
         {/* Room Metrics Row */}
-        <div className={`grid grid-cols-3 gap-2 mt-3.5 pt-3 border-t ${isLight ? 'border-slate-200' : 'border-[#1B2A3D]'}`}>
-          <div className={`p-2 rounded-lg border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#101A2A]/80 border-[#1B2A3D]'}`}>
-            <div className={`text-[10px] font-mono uppercase ${isLight ? 'text-slate-500' : 'text-[#6F8096]'}`}>Active Agents</div>
-            <div className={`text-base font-bold font-mono mt-0.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+        <div className="grid grid-cols-3 gap-2 mt-3.5 pt-3 border-t border-[#1B2A3D]">
+          <div className="p-2 rounded-lg bg-[#101A2A]/80 border border-[#1B2A3D]">
+            <div className="text-[10px] font-mono uppercase text-[#6F8096]">Active Agents</div>
+            <div className="text-base font-bold font-mono mt-0.5 text-white">
               {activeDisplayRoom.activeAgentsCount}
             </div>
           </div>
-          <div className={`p-2 rounded-lg border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#101A2A]/80 border-[#1B2A3D]'}`}>
-            <div className={`text-[10px] font-mono uppercase ${isLight ? 'text-slate-500' : 'text-[#6F8096]'}`}>Probes Received</div>
-            <div className={`text-base font-bold font-mono mt-0.5 ${isLight ? 'text-[#0284C7]' : 'text-[#36D7E7]'}`}>
+          <div className="p-2 rounded-lg bg-[#101A2A]/80 border border-[#1B2A3D]">
+            <div className="text-[10px] font-mono uppercase text-[#6F8096]">Probes Received</div>
+            <div className="text-base font-bold font-mono mt-0.5 text-[#36D7E7]">
               {activeDisplayRoom.totalProbesReceived}
             </div>
           </div>
-          <div className={`p-2 rounded-lg border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#101A2A]/80 border-[#1B2A3D]'}`}>
-            <div className={`text-[10px] font-mono uppercase ${isLight ? 'text-slate-500' : 'text-[#6F8096]'}`}>Avg Latency</div>
+          <div className="p-2 rounded-lg bg-[#101A2A]/80 border border-[#1B2A3D]">
+            <div className="text-[10px] font-mono uppercase text-[#6F8096]">Avg Latency</div>
             <div className="text-base font-bold text-[#F0A824] font-mono mt-0.5">
               {activeDisplayRoom.averageResponseLatency}s
             </div>
@@ -546,7 +489,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
 
         {/* Agent City Mode Actions: Quick Jump to Office Interior or Building View */}
         {viewMode === 'city' && (
-          <div className={`mt-3 pt-3 border-t flex items-center space-x-2 ${isLight ? 'border-slate-200' : 'border-[#1B2A3D]'}`}>
+          <div className="mt-3 pt-3 border-t border-[#1B2A3D] flex items-center space-x-2">
             {cityViewLevel !== 'interior' ? (
               <button
                 onClick={() => setCityViewLevel('interior')}
@@ -558,11 +501,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
             ) : (
               <button
                 onClick={() => setCityViewLevel('building')}
-                className={`flex-1 flex items-center justify-center space-x-2 py-2 px-3 rounded-lg font-mono font-bold text-xs active:scale-95 transition-all border ${
-                  isLight
-                    ? 'bg-slate-100 text-[#0284C7] border-[#0284C7]/40 hover:bg-slate-200'
-                    : 'bg-[#101A2A] text-[#36D7E7] border-[#36D7E7]/40 hover:bg-[#1B2A3D]'
-                }`}
+                className="flex-1 flex items-center justify-center space-x-2 py-2 px-3 rounded-lg font-mono font-bold text-xs active:scale-95 transition-all bg-[#101A2A] text-[#36D7E7] border border-[#36D7E7]/40 hover:bg-[#1B2A3D]"
               >
                 <Building2 className="w-3.5 h-3.5" />
                 <span>BUILDING CUTAWAY</span>
@@ -572,11 +511,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
             {cityViewLevel !== 'city' && (
               <button
                 onClick={() => setCityViewLevel('city')}
-                className={`px-3 py-2 rounded-lg font-mono text-xs transition-all border ${
-                  isLight
-                    ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-300'
-                    : 'bg-[#101A2A] text-[#95A4B8] hover:text-white border-[#1B2A3D]'
-                }`}
+                className="px-3 py-2 rounded-lg font-mono text-xs transition-all bg-[#101A2A] text-[#95A4B8] hover:text-white border border-[#1B2A3D]"
                 title="Return to City Overview"
               >
                 <span>RESET</span>
@@ -586,26 +521,16 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
         )}
 
         {/* Status Log Footer */}
-        <div className={`mt-3 flex items-center space-x-2 text-[11px] font-mono px-2.5 py-1.5 rounded-md border ${
-          isLight
-            ? 'bg-slate-100/90 text-slate-700 border-slate-200'
-            : 'bg-[#101A2A]/60 text-[#95A4B8] border-[#1B2A3D]'
-        }`}>
-          <Radio className={`w-3 h-3 animate-pulse flex-shrink-0 ${isLight ? 'text-[#0284C7]' : 'text-[#36D7E7]'}`} />
+        <div className="mt-3 flex items-center space-x-2 text-[11px] font-mono px-2.5 py-1.5 rounded-md border bg-[#101A2A]/60 text-[#95A4B8] border-[#1B2A3D]">
+          <Radio className="w-3 h-3 text-[#36D7E7] animate-pulse flex-shrink-0" />
           <span className="truncate">{pulseLog}</span>
         </div>
       </div>
 
       {/* Helper Legend / Hint (Only in Topology view) */}
       {viewMode === 'topology' && (
-        <div className={`absolute top-18 right-4 hidden md:flex flex-col space-y-2 p-3 rounded-xl backdrop-blur-md border text-[11px] font-mono ${
-          isLight
-            ? 'bg-white/90 border-slate-200 text-slate-700 shadow-lg'
-            : 'bg-[#0B1320]/80 border-[#1B2A3D] text-[#95A4B8]'
-        }`}>
-          <div className={`text-[10px] font-bold uppercase tracking-wider border-b pb-1 ${
-            isLight ? 'text-slate-500 border-slate-200' : 'text-[#6F8096] border-[#1B2A3D]'
-          }`}>
+        <div className="absolute top-18 right-4 hidden md:flex flex-col space-y-2 p-3 rounded-xl bg-[#0B1320]/80 backdrop-blur-md border border-[#1B2A3D] text-[11px] font-mono text-[#95A4B8]">
+          <div className="text-[10px] font-bold uppercase tracking-wider border-b border-[#1B2A3D] pb-1 text-[#6F8096]">
             Cluster Categories
           </div>
           <div className="flex items-center space-x-2">
@@ -624,9 +549,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
             <span className="w-2.5 h-2.5 rounded-full bg-[#2FD27F]" />
             <span>Agent Social</span>
           </div>
-          <div className={`pt-2 text-[10px] border-t ${
-            isLight ? 'text-slate-500 border-slate-200' : 'text-[#6F8096] border-[#1B2A3D]'
-          }`}>
+          <div className="pt-2 text-[10px] border-t border-[#1B2A3D] text-[#6F8096]">
             * Click node to inspect details. Drag to orbit.
           </div>
         </div>
