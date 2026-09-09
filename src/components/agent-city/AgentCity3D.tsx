@@ -11,7 +11,7 @@ import { AgentParticles } from './AgentParticles';
 import { ProbePulseSystem } from './ProbePulseSystem';
 import { CityTransportManager } from './CityTransport';
 import { CityLODManager, type CameraViewLevel } from './CityLODManager';
-import { Radio, RefreshCw, Sparkles, Building2, Monitor, ArrowLeft, Users } from 'lucide-react';
+import { Radio, Sparkles } from 'lucide-react';
 
 interface AgentCity3DProps {
   activeRoomClusters: RoomCluster[];
@@ -19,6 +19,8 @@ interface AgentCity3DProps {
   onSelectRoom: (room: RoomCluster) => void;
   isSimulatingPulse?: boolean;
   onPulseComplete?: () => void;
+  viewLevel?: CameraViewLevel;
+  onViewLevelChange?: (level: CameraViewLevel) => void;
 }
 
 const DEFAULT_FALLBACK_ROOM: RoomCluster = {
@@ -40,12 +42,21 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   selectedRoom,
   onSelectRoom,
   isSimulatingPulse = false,
-  onPulseComplete
+  onPulseComplete,
+  viewLevel: controlledViewLevel,
+  onViewLevelChange
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   
   // Visual scale state: 'city' | 'building' | 'interior'
-  const [viewLevel, setViewLevel] = useState<CameraViewLevel>('city');
+  const [internalViewLevel, setInternalViewLevel] = useState<CameraViewLevel>('city');
+  const viewLevel = controlledViewLevel !== undefined ? controlledViewLevel : internalViewLevel;
+  
+  const setViewLevel = useCallback((level: CameraViewLevel) => {
+    setInternalViewLevel(level);
+    if (onViewLevelChange) onViewLevelChange(level);
+  }, [onViewLevelChange]);
+
   const [isAutoRotate, setIsAutoRotate] = useState<boolean>(true);
   const [hoveredRoom, setHoveredRoom] = useState<{ room: RoomCluster; x: number; y: number } | null>(null);
   const [pulseLog, setPulseLog] = useState<string>('Technocore Metropolis online. Autonomous agent districts active.');
@@ -155,6 +166,20 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     cameraTargetLookAt.current.set(bX, bY + 1.2, bZ);
     setPulseLog(`Entering #${building.room.name} office interior. Autonomous agent workers online.`);
   }, []);
+
+  // Sync view scale with controlled prop from parent
+  useEffect(() => {
+    if (!controlledViewLevel) return;
+    if (controlledViewLevel === 'city') {
+      switchCameraToCity();
+    } else if (controlledViewLevel === 'building') {
+      const bObj = buildingsMapRef.current.get(activeRoom.id);
+      if (bObj) switchCameraToBuilding(bObj.layout);
+    } else if (controlledViewLevel === 'interior') {
+      const bObj = buildingsMapRef.current.get(activeRoom.id);
+      if (bObj) switchCameraToInterior(bObj.layout);
+    }
+  }, [controlledViewLevel, activeRoom.id, switchCameraToCity, switchCameraToBuilding, switchCameraToInterior]);
 
   // -------------------------------------------------------------
   // SIMULATED / LIVE PROBE EFFECT TRIGGER
@@ -460,176 +485,12 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     };
   }, [switchCameraToBuilding]);
 
-  // Handler to enter office interior from HUD
-  const handleEnterOffice = () => {
-    const bObj = buildingsMapRef.current.get(activeRoom.id);
-    if (bObj) {
-      switchCameraToInterior(bObj.layout);
-    }
-  };
-
-  const handleReturnToBuilding = () => {
-    const bObj = buildingsMapRef.current.get(activeRoom.id);
-    if (bObj) {
-      switchCameraToBuilding(bObj.layout);
-    }
-  };
-
   return (
-    <div className="relative w-full h-[540px] overflow-hidden bg-radial-vignette select-none">
-      {/* 3D WebGL Canvas */}
+    <div className="relative w-full h-full">
       <div ref={mountRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
 
-      {/* Floating Hover Tooltip */}
-      {hoveredRoom && (
-        <div
-          className="fixed pointer-events-none z-50 p-2.5 rounded-xl bg-[#0B1320]/95 backdrop-blur-md border border-[#36D7E7]/50 shadow-2xl shadow-black/80 text-xs font-mono transition-transform"
-          style={{
-            left: Math.min(window.innerWidth - 240, hoveredRoom.x + 14),
-            top: Math.max(10, hoveredRoom.y - 70)
-          }}
-        >
-          <div className="flex items-center space-x-1.5 text-white font-bold">
-            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: hoveredRoom.room.color }} />
-            <span className="truncate max-w-[180px]">{hoveredRoom.room.displayName || hoveredRoom.room.name}</span>
-          </div>
-          <div className="text-[11px] text-[#36D7E7] mt-1 flex items-center justify-between space-x-2">
-            <span>Observed Agents:</span>
-            <strong className="text-white font-bold">{hoveredRoom.room.activeAgentsCount}</strong>
-          </div>
-          <div className="text-[9px] text-[#95A4B8] mt-1 pt-1 border-t border-[#1B2A3D] leading-tight">
-            Visual density represents observed agent activity.
-          </div>
-        </div>
-      )}
-
-      {/* Top Controls: Visual Scale Switcher [ CITY ] [ BUILDING ] [ INTERIOR ] */}
-      <div className="absolute top-4 right-4 z-20 flex flex-wrap items-center gap-2">
-        <div className="flex items-center p-1 rounded-xl bg-[#050A12]/90 backdrop-blur-md border border-[#1B2A3D] shadow-inner text-xs font-mono">
-          <button
-            onClick={switchCameraToCity}
-            className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg font-bold transition-all ${
-              viewLevel === 'city'
-                ? 'bg-[#36D7E7] text-[#050A12] shadow-sm shadow-[#36D7E7]/20'
-                : 'text-[#95A4B8] hover:text-white'
-            }`}
-            title="City Overview Scale"
-          >
-            <span>CITY</span>
-          </button>
-
-          <button
-            onClick={() => {
-              const bObj = buildingsMapRef.current.get(activeRoom.id);
-              if (bObj) switchCameraToBuilding(bObj.layout);
-            }}
-            className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg font-bold transition-all ${
-              viewLevel === 'building'
-                ? 'bg-[#36D7E7] text-[#050A12] shadow-sm shadow-[#36D7E7]/20'
-                : 'text-[#95A4B8] hover:text-white'
-            }`}
-            title="Selected Tower Scale & Cutaway"
-          >
-            <Building2 className="w-3 h-3" />
-            <span>BUILDING</span>
-          </button>
-
-          <button
-            onClick={handleEnterOffice}
-            className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg font-bold transition-all ${
-              viewLevel === 'interior'
-                ? 'bg-[#36D7E7] text-[#050A12] shadow-sm shadow-[#36D7E7]/20'
-                : 'text-[#95A4B8] hover:text-white'
-            }`}
-            title="Agent Office Interior & Laptops"
-          >
-            <Monitor className="w-3 h-3" />
-            <span>INTERIOR</span>
-          </button>
-        </div>
-
-        {viewLevel === 'city' && (
-          <button
-            onClick={() => setIsAutoRotate(!isAutoRotate)}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-mono transition-all border ${
-              isAutoRotate
-                ? 'bg-[#36D7E7]/15 text-[#36D7E7] border-[#36D7E7]/40'
-                : 'bg-[#101A2A] text-[#95A4B8] border-[#1B2A3D] hover:text-white'
-            }`}
-            title="Toggle Autonomous Orbital Camera"
-          >
-            <RefreshCw className={`w-3 h-3 ${isAutoRotate ? 'animate-spin' : ''}`} />
-            <span>{isAutoRotate ? 'Orbit On' : 'Orbit Paused'}</span>
-          </button>
-        )}
-      </div>
-
-      {/* Selected Room Interactive Action HUD */}
-      {viewLevel !== 'city' && (
-        <div className="absolute top-16 right-4 z-20 flex flex-col space-y-2 p-3.5 rounded-xl bg-[#0B1320]/95 backdrop-blur-md border border-[#36D7E7]/40 shadow-2xl shadow-black/80 text-xs font-mono max-w-xs">
-          <div className="flex items-center justify-between border-b border-[#1B2A3D] pb-2">
-            <div className="flex items-center space-x-1.5">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: activeRoom.color }} />
-              <strong className="text-white font-bold">{activeRoom.displayName || activeRoom.name}</strong>
-            </div>
-            <span className="text-[10px] px-2 py-0.5 rounded bg-[#101A2A] text-[#2FD27F] border border-[#2FD27F]/30 uppercase font-bold">
-              {activeRoom.status}
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 text-[11px] py-1">
-            <div>
-              <span className="text-[#6F8096]">Workforce:</span>
-              <div className="text-white font-bold flex items-center space-x-1">
-                <Users className="w-3 h-3 text-[#36D7E7]" />
-                <span>{activeRoom.activeAgentsCount} Agents</span>
-              </div>
-            </div>
-            <div>
-              <span className="text-[#6F8096]">Last Probe:</span>
-              <div className="text-[#F0A824] font-bold uppercase truncate">
-                {activeRoom.lastProbeArm || 'None'}
-              </div>
-            </div>
-          </div>
-
-          {/* Action Navigation Buttons */}
-          <div className="flex items-center space-x-2 pt-1 border-t border-[#1B2A3D]">
-            {viewLevel === 'building' ? (
-              <button
-                onClick={handleEnterOffice}
-                className="flex-1 flex items-center justify-center space-x-1.5 py-1.5 px-2.5 rounded-lg bg-[#36D7E7] text-[#050A12] font-bold hover:bg-[#36D7E7]/90 transition-all shadow-md shadow-[#36D7E7]/25"
-              >
-                <Monitor className="w-3.5 h-3.5" />
-                <span>ENTER OFFICE</span>
-              </button>
-            ) : (
-              <button
-                onClick={handleReturnToBuilding}
-                className="flex-1 flex items-center justify-center space-x-1.5 py-1.5 px-2.5 rounded-lg bg-[#101A2A] text-[#36D7E7] border border-[#36D7E7]/40 hover:bg-[#1B2A3D] transition-all"
-              >
-                <Building2 className="w-3.5 h-3.5" />
-                <span>BUILDING VIEW</span>
-              </button>
-            )}
-
-            <button
-              onClick={switchCameraToCity}
-              className="flex items-center justify-center p-1.5 rounded-lg bg-[#101A2A] text-[#95A4B8] hover:text-white border border-[#1B2A3D]"
-              title="Return to City Overview"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          <div className="text-[9px] text-[#6F8096] pt-1 leading-tight">
-            Interior workers are an aggregate visualization of observed room activity, not a one-to-one identity map.
-          </div>
-        </div>
-      )}
-
-      {/* City Legend & Protocol Disclaimer */}
-      <div className="absolute top-4 left-4 z-20 hidden md:flex flex-col space-y-1.5 p-3 rounded-xl bg-[#0B1320]/80 backdrop-blur-md border border-[#1B2A3D] text-[10px] font-mono text-[#95A4B8] max-w-xs">
+      {/* City Legend & Protocol Disclaimer (Safely placed at top-20 left-4 below header) */}
+      <div className="absolute top-20 left-4 z-10 hidden md:flex flex-col space-y-1.5 p-3 rounded-xl bg-[#0B1320]/85 backdrop-blur-md border border-[#1B2A3D] text-[10px] font-mono text-[#95A4B8] max-w-xs shadow-xl pointer-events-none">
         <div className="flex items-center space-x-2 text-[#36D7E7] font-semibold uppercase tracking-wider">
           <Sparkles className="w-3 h-3" />
           <span>Agent City Legend</span>
@@ -647,10 +508,20 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       </div>
 
       {/* Floating Status Ticker */}
-      <div className="absolute bottom-4 right-4 z-20 hidden sm:flex items-center space-x-2 text-[11px] font-mono text-[#95A4B8] bg-[#0B1320]/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-[#1B2A3D]">
+      <div className="absolute bottom-4 right-4 z-10 hidden sm:flex items-center space-x-2 text-[11px] font-mono text-[#95A4B8] bg-[#0B1320]/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-[#1B2A3D]">
         <Radio className="w-3 h-3 text-[#36D7E7] animate-pulse flex-shrink-0" />
         <span className="truncate max-w-xs">{pulseLog}</span>
       </div>
+
+      {/* Hovered Room Tooltip */}
+      {hoveredRoom && (
+        <div
+          className="fixed pointer-events-none z-30 px-2.5 py-1 bg-[#0B1320]/90 border border-[#36D7E7]/50 rounded shadow-lg text-[11px] font-mono text-[#36D7E7] -translate-x-1/2 -translate-y-full mb-2"
+          style={{ left: hoveredRoom.x, top: hoveredRoom.y - 10 }}
+        >
+          #{hoveredRoom.room.id}
+        </div>
+      )}
     </div>
   );
 };

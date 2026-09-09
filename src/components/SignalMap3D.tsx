@@ -3,8 +3,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { useData } from '../context/DataContext';
 import type { RoomCluster, ProbeArm } from '../types/probe';
-import { Radio, RefreshCw, Sparkles, Building2, Network } from 'lucide-react';
+import { Radio, RefreshCw, Sparkles, Building2, Network, Monitor } from 'lucide-react';
 import { AgentCity3D } from './agent-city/AgentCity3D';
+import type { CameraViewLevel } from './agent-city/CityLODManager';
 
 interface SignalMap3DProps {
   onSelectRoom?: (room: RoomCluster) => void;
@@ -34,6 +35,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
   const { activeRoomClusters } = useData();
   const mountRef = useRef<HTMLDivElement>(null);
   const [viewMode, setViewMode] = useState<'topology' | 'city'>('city');
+  const [cityViewLevel, setCityViewLevel] = useState<CameraViewLevel>('city');
   const [selectedRoom, setSelectedRoom] = useState<RoomCluster>(activeRoomClusters[0] || DEFAULT_ROOM);
   const [isAutoRotate, setIsAutoRotate] = useState<boolean>(true);
   const [pulseLog, setPulseLog] = useState<string>('System nominal. Tracking active clusters.');
@@ -367,7 +369,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
         </div>
 
         {/* View Mode Toggle & 3D Controls */}
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           {/* Prominent View Mode Switcher: TOPOLOGY vs AGENT CITY */}
           <div className="flex items-center p-1 rounded-xl bg-[#050A12] border border-[#1B2A3D] shadow-inner">
             <button
@@ -393,6 +395,49 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
               <span>AGENT CITY</span>
             </button>
           </div>
+
+          {/* Visual Scales for Agent City: CITY | BUILDING | INTERIOR */}
+          {viewMode === 'city' && (
+            <div className="flex items-center p-1 rounded-xl bg-[#050A12] border border-[#1B2A3D] shadow-inner text-xs font-mono">
+              <button
+                onClick={() => setCityViewLevel('city')}
+                className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg font-bold transition-all ${
+                  cityViewLevel === 'city'
+                    ? 'bg-[#36D7E7] text-[#050A12] shadow-sm shadow-[#36D7E7]/20'
+                    : 'text-[#6F8096] hover:text-[#95A4B8]'
+                }`}
+                title="Metropolitan City Overview"
+              >
+                <span>CITY</span>
+              </button>
+
+              <button
+                onClick={() => setCityViewLevel('building')}
+                className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg font-bold transition-all ${
+                  cityViewLevel === 'building'
+                    ? 'bg-[#36D7E7] text-[#050A12] shadow-sm shadow-[#36D7E7]/20'
+                    : 'text-[#6F8096] hover:text-[#95A4B8]'
+                }`}
+                title="Building Tower View & Cutaway"
+              >
+                <Building2 className="w-3 h-3" />
+                <span>BUILDING</span>
+              </button>
+
+              <button
+                onClick={() => setCityViewLevel('interior')}
+                className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg font-bold transition-all ${
+                  cityViewLevel === 'interior'
+                    ? 'bg-[#36D7E7] text-[#050A12] shadow-sm shadow-[#36D7E7]/20'
+                    : 'text-[#6F8096] hover:text-[#95A4B8]'
+                }`}
+                title="Agent Office Interior & Laptops"
+              >
+                <Monitor className="w-3 h-3" />
+                <span>INTERIOR</span>
+              </button>
+            </div>
+          )}
 
           {viewMode === 'topology' && (
             <button
@@ -425,6 +470,8 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
         <AgentCity3D
           activeRoomClusters={activeRoomClusters}
           selectedRoom={activeDisplayRoom}
+          viewLevel={cityViewLevel}
+          onViewLevelChange={setCityViewLevel}
           onSelectRoom={(room) => {
             setSelectedRoom(room);
             if (onSelectRoom) onSelectRoom(room);
@@ -493,6 +540,39 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
           </div>
         </div>
 
+        {/* Agent City Mode Actions: Quick Jump to Office Interior or Building View */}
+        {viewMode === 'city' && (
+          <div className="mt-3 pt-3 border-t border-[#1B2A3D] flex items-center space-x-2">
+            {cityViewLevel !== 'interior' ? (
+              <button
+                onClick={() => setCityViewLevel('interior')}
+                className="flex-1 flex items-center justify-center space-x-2 py-2 px-3 rounded-lg bg-[#36D7E7] text-[#050A12] font-mono font-bold text-xs hover:bg-[#36D7E7]/90 active:scale-95 transition-all shadow-lg shadow-[#36D7E7]/25"
+              >
+                <Monitor className="w-3.5 h-3.5" />
+                <span>ENTER OFFICE INTERIOR</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setCityViewLevel('building')}
+                className="flex-1 flex items-center justify-center space-x-2 py-2 px-3 rounded-lg bg-[#101A2A] text-[#36D7E7] border border-[#36D7E7]/40 font-mono font-bold text-xs hover:bg-[#1B2A3D] active:scale-95 transition-all"
+              >
+                <Building2 className="w-3.5 h-3.5" />
+                <span>BUILDING CUTAWAY</span>
+              </button>
+            )}
+
+            {cityViewLevel !== 'city' && (
+              <button
+                onClick={() => setCityViewLevel('city')}
+                className="px-3 py-2 rounded-lg bg-[#101A2A] text-[#95A4B8] hover:text-white border border-[#1B2A3D] font-mono text-xs transition-all"
+                title="Return to City Overview"
+              >
+                <span>RESET</span>
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Status Log Footer */}
         <div className="mt-3 flex items-center space-x-2 text-[11px] font-mono text-[#95A4B8] bg-[#101A2A]/60 px-2.5 py-1.5 rounded-md border border-[#1B2A3D]">
           <Radio className="w-3 h-3 text-[#36D7E7] animate-pulse" />
@@ -500,31 +580,33 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
         </div>
       </div>
 
-      {/* Helper Legend / Hint */}
-      <div className="absolute top-18 right-4 hidden md:flex flex-col space-y-2 p-3 rounded-xl bg-[#0B1320]/80 backdrop-blur-md border border-[#1B2A3D] text-[11px] font-mono text-[#95A4B8]">
-        <div className="text-[10px] font-bold uppercase tracking-wider text-[#6F8096] border-b border-[#1B2A3D] pb-1">
-          Cluster Categories
+      {/* Helper Legend / Hint (Only in Topology view) */}
+      {viewMode === 'topology' && (
+        <div className="absolute top-18 right-4 hidden md:flex flex-col space-y-2 p-3 rounded-xl bg-[#0B1320]/80 backdrop-blur-md border border-[#1B2A3D] text-[11px] font-mono text-[#95A4B8]">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-[#6F8096] border-b border-[#1B2A3D] pb-1">
+            Cluster Categories
+          </div>
+          <div className="flex items-center space-x-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#36D7E7]" />
+            <span>Coordination</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#A855F7]" />
+            <span>Compute Relay</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#4DA3FF]" />
+            <span>Settlement Prep</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#2FD27F]" />
+            <span>Agent Social</span>
+          </div>
+          <div className="pt-2 text-[10px] text-[#6F8096] border-t border-[#1B2A3D]">
+            * Click node to inspect details. Drag to orbit.
+          </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#36D7E7]" />
-          <span>Coordination</span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#A855F7]" />
-          <span>Compute Relay</span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#4DA3FF]" />
-          <span>Settlement Prep</span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#2FD27F]" />
-          <span>Agent Social</span>
-        </div>
-        <div className="pt-2 text-[10px] text-[#6F8096] border-t border-[#1B2A3D]">
-          * Click node to inspect details. Drag to orbit.
-        </div>
-      </div>
+      )}
     </div>
   );
 };
