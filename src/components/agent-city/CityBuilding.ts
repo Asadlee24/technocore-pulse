@@ -3,6 +3,7 @@ import type { RoomCluster } from '../../types/probe';
 import type { BuildingLayout } from './cityLayout';
 import type { CityMaterials } from './cityMaterials';
 import { OfficeInterior } from './OfficeInterior';
+import { AgentWorker } from './AgentWorker';
 
 export class CityBuilding {
   public group: THREE.Group;
@@ -11,6 +12,7 @@ export class CityBuilding {
   public beaconGlowMesh: THREE.Mesh | null = null;
   public windowMesh: THREE.InstancedMesh | null = null;
   public interior: OfficeInterior;
+  public rooftopAgents: AgentWorker[] = [];
   public isCutaway: boolean = false;
 
   private buildingMesh: THREE.Mesh;
@@ -100,9 +102,9 @@ export class CityBuilding {
     const hasSetback = layout.height >= 16;
     const towerBaseY = podiumH + 0.28;
     const totalTowerHeight = layout.height - towerBaseY;
+    const lowerH = totalTowerHeight * 0.68;
 
     if (hasSetback) {
-      const lowerH = totalTowerHeight * 0.68;
       const upperH = totalTowerHeight * 0.32;
 
       // Lower main body
@@ -156,7 +158,10 @@ export class CityBuilding {
     // 6. Rooftop Beacon & Antenna
     this.createRooftopBeacon(layout);
 
-    // 7. Living Agent Office Interior
+    // 7. Rooftop & Setback Observation Deck Agents
+    this.createRooftopAgents(layout, hasSetback, towerBaseY, lowerH);
+
+    // 8. Living Agent Office Interior
     this.interior = new OfficeInterior(layout);
     this.group.add(this.interior.group);
   }
@@ -269,6 +274,107 @@ export class CityBuilding {
     }
 
     this.group.add(this.crownGroup);
+  }
+
+  /**
+   * Spawns animated autonomous agent workers on rooftop observation decks & setbacks
+   */
+  private createRooftopAgents(
+    layout: BuildingLayout,
+    hasSetback: boolean,
+    towerBaseY: number,
+    lowerH: number
+  ) {
+    const roofY = layout.height;
+    const districtCol = new THREE.Color(layout.color);
+
+    // 1. Observation deck floor pad
+    const deckGeo = new THREE.BoxGeometry(layout.width * 0.72, 0.16, layout.depth * 0.72);
+    const deckMat = new THREE.MeshStandardMaterial({
+      color: 0x111D2E,
+      roughness: 0.4,
+      metalness: 0.6
+    });
+    const deck = new THREE.Mesh(deckGeo, deckMat);
+    deck.position.y = roofY + 0.08;
+    deck.receiveShadow = true;
+    this.group.add(deck);
+
+    // Glass safety railing along deck edge
+    const railGeo = new THREE.BoxGeometry(layout.width * 0.74, 0.5, layout.depth * 0.74);
+    const railMat = new THREE.MeshStandardMaterial({
+      color: 0x38BDF8,
+      transparent: true,
+      opacity: 0.35,
+      roughness: 0.1,
+      metalness: 0.9
+    });
+    const rail = new THREE.Mesh(railGeo, railMat);
+    rail.position.y = roofY + 0.32;
+    this.group.add(rail);
+
+    // Glowing perimeter neon line on roof railing
+    const railEdges = new THREE.EdgesGeometry(railGeo);
+    const railLine = new THREE.LineSegments(
+      railEdges,
+      new THREE.LineBasicMaterial({ color: districtCol, transparent: true, opacity: 0.75 })
+    );
+    railLine.position.y = roofY + 0.32;
+    this.group.add(railLine);
+
+    // 2. Standing lookout agent gazing over the skyline
+    const lookout = new AgentWorker({
+      x: layout.width * 0.22,
+      y: roofY + 0.16,
+      z: layout.depth * 0.22,
+      rotationY: Math.PI / 4,
+      activityState: layout.room.status === 'surge' ? 'surge' : 'active'
+    });
+    this.rooftopAgents.push(lookout);
+    this.group.add(lookout.group);
+
+    // Small glowing holographic terminal next to the lookout
+    const termGeo = new THREE.BoxGeometry(0.35, 0.6, 0.25);
+    const termMat = new THREE.MeshStandardMaterial({ color: 0x0E1724, metalness: 0.8 });
+    const term = new THREE.Mesh(termGeo, termMat);
+    term.position.set(layout.width * 0.22 - 0.35, roofY + 0.46, layout.depth * 0.22);
+    this.group.add(term);
+
+    const screenGeo = new THREE.PlaneGeometry(0.28, 0.18);
+    const screenMat = new THREE.MeshBasicMaterial({ color: districtCol });
+    const screen = new THREE.Mesh(screenGeo, screenMat);
+    screen.position.set(layout.width * 0.22 - 0.35, roofY + 0.66, layout.depth * 0.22 + 0.13);
+    this.group.add(screen);
+
+    // 3. Pacing / Patrolling agent walking across the roof deck
+    const patroller = new AgentWorker({
+      x: -layout.width * 0.2,
+      y: roofY + 0.16,
+      z: 0,
+      isWalking: true,
+      walkPath: {
+        start: new THREE.Vector3(-layout.width * 0.2, roofY + 0.16, -layout.depth * 0.2),
+        end: new THREE.Vector3(-layout.width * 0.2, roofY + 0.16, layout.depth * 0.2),
+        speed: 0.5 + Math.random() * 0.2
+      },
+      activityState: 'active'
+    });
+    this.rooftopAgents.push(patroller);
+    this.group.add(patroller.group);
+
+    // 4. If skyscraper has a mid-tier setback, add an agent on the mid-level terrace balcony!
+    if (hasSetback) {
+      const terraceY = towerBaseY + lowerH;
+      const terraceAgent = new AgentWorker({
+        x: layout.width * 0.42,
+        y: terraceY + 0.05,
+        z: 0,
+        rotationY: Math.PI / 2,
+        activityState: 'active'
+      });
+      this.rooftopAgents.push(terraceAgent);
+      this.group.add(terraceAgent.group);
+    }
   }
 
   private createWindows(layout: BuildingLayout) {
@@ -439,6 +545,11 @@ export class CityBuilding {
       this.buildingMesh.scale.set(1.0, 1.0, 1.0);
       if (this.setbackMesh) this.setbackMesh.scale.set(1.0, 1.0, 1.0);
     }
+
+    // Animate rooftop and terrace agents
+    this.rooftopAgents.forEach((agent) => {
+      agent.update(time);
+    });
 
     if (this.isCutaway) {
       this.interior.update(time);
