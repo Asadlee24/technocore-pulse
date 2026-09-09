@@ -1,69 +1,119 @@
 import * as THREE from 'three';
 import type { CityMaterials } from './cityMaterials';
+import { PublicPlaza } from './PublicPlaza';
 
 export class CityDistrictManager {
   public group: THREE.Group;
+  public plaza: PublicPlaza;
+
   private materials: CityMaterials;
-  private coreRingMesh: THREE.Mesh | null = null;
+  private coreRings: THREE.Mesh[] = [];
   private coreBeamMesh: THREE.Mesh | null = null;
+  private dataParticles: THREE.Points | null = null;
 
   constructor(materials: CityMaterials) {
     this.materials = materials;
     this.group = new THREE.Group();
     this.group.name = 'city-districts-and-core';
 
+    this.plaza = new PublicPlaza();
+    this.group.add(this.plaza.group);
+
     this.buildTechnocoreCore();
     this.buildGroundGrid();
+    this.buildDistrictBridges();
   }
 
   /**
-   * Builds the central landmark: TECHNOCORE CORE
-   * Minimalist dark tower with cyan vertical energy core and floating orbital ring
+   * Builds the iconic central landmark: TECHNOCORE CORE
+   * Central light column, three rotating protocol rings, internal data particles
    */
   private buildTechnocoreCore() {
     const coreGroup = new THREE.Group();
     coreGroup.name = 'technocore-core';
 
-    const coreHeight = 34;
+    const coreHeight = 36;
 
     // 1. Sleek dark hexagonal base tower
-    const towerGeo = new THREE.CylinderGeometry(1.8, 2.6, coreHeight, 6);
+    const towerGeo = new THREE.CylinderGeometry(1.6, 2.8, coreHeight, 6);
     const towerMesh = new THREE.Mesh(towerGeo, this.materials.coreColumn);
     towerMesh.position.y = coreHeight / 2;
     coreGroup.add(towerMesh);
 
-    // 2. Cyan vertical energy beam running up the center
-    const beamGeo = new THREE.CylinderGeometry(0.3, 0.3, coreHeight + 6, 8);
+    // 2. Cyan vertical energy beam running through the tower center
+    const beamGeo = new THREE.CylinderGeometry(0.35, 0.35, coreHeight + 10, 8);
     const beamMat = new THREE.MeshBasicMaterial({
       color: 0x36D7E7,
       transparent: true,
       opacity: 0.85
     });
     this.coreBeamMesh = new THREE.Mesh(beamGeo, beamMat);
-    this.coreBeamMesh.position.y = (coreHeight + 6) / 2;
+    this.coreBeamMesh.position.y = (coreHeight + 10) / 2;
     coreGroup.add(this.coreBeamMesh);
 
-    // 3. Floating orbital ring around upper section
-    const ringGeo = new THREE.TorusGeometry(3.6, 0.12, 8, 32);
-    this.coreRingMesh = new THREE.Mesh(ringGeo, this.materials.coreRing);
-    this.coreRingMesh.position.y = coreHeight - 4;
-    this.coreRingMesh.rotation.x = Math.PI / 2.3;
-    coreGroup.add(this.coreRingMesh);
+    // 3. Three rotating protocol rings around the upper tower
+    const ringSpecs = [
+      { radius: 3.8, tube: 0.12, y: coreHeight - 4, rotX: Math.PI / 2.3, rotZ: 0 },
+      { radius: 4.8, tube: 0.08, y: coreHeight - 6, rotX: -Math.PI / 2.6, rotZ: Math.PI / 4 },
+      { radius: 6.0, tube: 0.06, y: coreHeight - 8, rotX: Math.PI / 2.1, rotZ: -Math.PI / 3 }
+    ];
 
-    // 4. Second outer accent ring
-    const outerRingGeo = new THREE.TorusGeometry(4.8, 0.06, 6, 24);
-    const outerRing = new THREE.Mesh(outerRingGeo, this.materials.coreRing);
-    outerRing.position.y = coreHeight - 5;
-    outerRing.rotation.x = Math.PI / 2.1;
-    coreGroup.add(outerRing);
+    ringSpecs.forEach((spec) => {
+      const ringGeo = new THREE.TorusGeometry(spec.radius, spec.tube, 8, 36);
+      const ringMesh = new THREE.Mesh(ringGeo, this.materials.coreRing);
+      ringMesh.position.y = spec.y;
+      ringMesh.rotation.set(spec.rotX, 0, spec.rotZ);
+      coreGroup.add(ringMesh);
+      this.coreRings.push(ringMesh);
+    });
+
+    // 4. Internal data particles ascending the light column
+    const particleCount = 40;
+    const particleGeo = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    for (let i = 0; i < particleCount; i++) {
+      positions[i * 3] = (Math.random() - 0.5) * 0.8;
+      positions[i * 3 + 1] = Math.random() * coreHeight;
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 0.8;
+    }
+    particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const particleMat = new THREE.PointsMaterial({
+      color: 0x36D7E7,
+      size: 0.35,
+      transparent: true,
+      opacity: 0.9
+    });
+    this.dataParticles = new THREE.Points(particleGeo, particleMat);
+    coreGroup.add(this.dataParticles);
 
     // 5. Base podium plinth
-    const plinthGeo = new THREE.CylinderGeometry(5.0, 5.8, 1.2, 8);
+    const plinthGeo = new THREE.CylinderGeometry(5.2, 6.2, 1.4, 8);
     const plinthMesh = new THREE.Mesh(plinthGeo, this.materials.facadeBase);
-    plinthMesh.position.y = 0.6;
+    plinthMesh.position.y = 0.7;
     coreGroup.add(plinthMesh);
 
     this.group.add(coreGroup);
+  }
+
+  /**
+   * Elevated bridges connecting the central plaza to surrounding districts
+   */
+  private buildDistrictBridges() {
+    const bridgeDirections = [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2];
+    const bridgeGeo = new THREE.BoxGeometry(1.6, 0.2, 12);
+    const bridgeMat = new THREE.MeshStandardMaterial({
+      color: 0x101A2A,
+      roughness: 0.5,
+      metalness: 0.7
+    });
+
+    bridgeDirections.forEach((angle) => {
+      const bridge = new THREE.Mesh(bridgeGeo, bridgeMat);
+      bridge.rotation.y = angle;
+      const dist = 14;
+      bridge.position.set(Math.sin(angle) * dist, 0.4, Math.cos(angle) * dist);
+      this.group.add(bridge);
+    });
   }
 
   /**
@@ -92,12 +142,34 @@ export class CityDistrictManager {
   }
 
   public update(time: number) {
-    if (this.coreRingMesh) {
-      this.coreRingMesh.rotation.z = time * 0.4;
-    }
+    // Animate rotating protocol rings
+    this.coreRings.forEach((ring, idx) => {
+      const speed = (idx % 2 === 0 ? 0.35 : -0.28) * (1 + idx * 0.2);
+      ring.rotation.z = time * speed;
+    });
+
+    // Beam pulse
     if (this.coreBeamMesh) {
       const pulse = 0.75 + Math.sin(time * 4) * 0.2;
       (this.coreBeamMesh.material as THREE.MeshBasicMaterial).opacity = pulse;
     }
+
+    // Ascending data particles
+    if (this.dataParticles) {
+      const posAttr = this.dataParticles.geometry.attributes.position;
+      const arr = posAttr.array as Float32Array;
+      for (let i = 0; i < arr.length; i += 3) {
+        arr[i + 1] += 0.12;
+        if (arr[i + 1] > 36) arr[i + 1] = 0;
+      }
+      posAttr.needsUpdate = true;
+    }
+
+    // Update public plaza agents
+    this.plaza.update(time);
+  }
+
+  public dispose() {
+    this.plaza.dispose();
   }
 }

@@ -4,6 +4,7 @@ export interface CityMaterials {
   facadeBase: THREE.MeshStandardMaterial;
   facadeActive: THREE.MeshStandardMaterial;
   facadeSurge: THREE.MeshStandardMaterial;
+  facadeCutaway: THREE.MeshStandardMaterial;
   windowEmissive: THREE.MeshBasicMaterial;
   windowSigned: THREE.MeshBasicMaterial;
   edgeLine: THREE.LineBasicMaterial;
@@ -38,6 +39,14 @@ export function createCityMaterials(): CityMaterials {
       metalness: 0.6,
       emissive: 0x2FD27F,
       emissiveIntensity: 0.25
+    }),
+    facadeCutaway: new THREE.MeshStandardMaterial({
+      color: 0x0E1A2C,
+      roughness: 0.1,
+      metalness: 0.9,
+      transparent: true,
+      opacity: 0.18,
+      depthWrite: false
     }),
     windowEmissive: new THREE.MeshBasicMaterial({
       color: 0x36D7E7,

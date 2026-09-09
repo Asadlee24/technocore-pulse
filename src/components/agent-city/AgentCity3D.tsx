@@ -2,13 +2,15 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import type { RoomCluster } from '../../types/probe';
 import { generateCityLayout, type BuildingLayout } from './cityLayout';
-import { createCityMaterials, disposeCityMaterials } from './cityMaterials';
+import { createCityMaterials, disposeCityMaterials, type CityMaterials } from './cityMaterials';
 import { CityBuilding } from './CityBuilding';
 import { CityDistrictManager } from './CityDistrict';
 import { CityRoutes } from './CityRoutes';
 import { AgentParticles } from './AgentParticles';
 import { ProbePulseSystem } from './ProbePulseSystem';
-import { Radio, RefreshCw, ZoomIn, Sparkles } from 'lucide-react';
+import { CityTransportManager } from './CityTransport';
+import { CityLODManager, type CameraViewLevel } from './CityLODManager';
+import { Radio, RefreshCw, Sparkles, Building2, Monitor, ArrowLeft, Users } from 'lucide-react';
 
 interface AgentCity3DProps {
   activeRoomClusters: RoomCluster[];
@@ -40,27 +42,118 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   onPulseComplete
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
+  
+  // Visual scale state: 'city' | 'building' | 'interior'
+  const [viewLevel, setViewLevel] = useState<CameraViewLevel>('city');
   const [isAutoRotate, setIsAutoRotate] = useState<boolean>(true);
-  const [isFocusedOnBuilding, setIsFocusedOnBuilding] = useState<boolean>(false);
   const [hoveredRoom, setHoveredRoom] = useState<{ room: RoomCluster; x: number; y: number } | null>(null);
-  const [pulseLog, setPulseLog] = useState<string>('City online. Autonomous agent districts synchronized.');
+  const [pulseLog, setPulseLog] = useState<string>('Technocore Metropolis online. Autonomous agent districts active.');
 
-  // Three.js References
+  // Persistent Three.js References
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const materialsRef = useRef<CityMaterials | null>(null);
   const pulseSystemRef = useRef<ProbePulseSystem | null>(null);
+  const districtMgrRef = useRef<CityDistrictManager | null>(null);
+  const transportMgrRef = useRef<CityTransportManager | null>(null);
+  const routesRef = useRef<CityRoutes | null>(null);
+  const agentParticlesRef = useRef<AgentParticles | null>(null);
   const buildingsMapRef = useRef<Map<string, CityBuilding>>(new Map());
+  const cityGroupRef = useRef<THREE.Group | null>(null);
+  const interactiveMeshesRef = useRef<THREE.Mesh[]>([]);
+  const lodManagerRef = useRef<CityLODManager>(new CityLODManager());
 
-  // Camera animation target references
+  // Animation & Camera targets
   const cameraTargetPos = useRef<THREE.Vector3>(new THREE.Vector3(34, 28, 38));
   const cameraTargetLookAt = useRef<THREE.Vector3>(new THREE.Vector3(0, 6, 0));
   const cameraCurrentLookAt = useRef<THREE.Vector3>(new THREE.Vector3(0, 6, 0));
 
+  // Refs for animation loop (prevents scene destruction on state changes)
+  const isAutoRotateRef = useRef<boolean>(isAutoRotate);
+  isAutoRotateRef.current = isAutoRotate;
+
+  const viewLevelRef = useRef<CameraViewLevel>(viewLevel);
+  viewLevelRef.current = viewLevel;
+
   const safeClusters = activeRoomClusters.length > 0 ? activeRoomClusters : [DEFAULT_FALLBACK_ROOM];
   const activeRoom = selectedRoom || safeClusters[0] || DEFAULT_FALLBACK_ROOM;
+  const activeRoomRef = useRef<RoomCluster>(activeRoom);
+  activeRoomRef.current = activeRoom;
 
-  // Trigger live shockwave effect when isSimulatingPulse changes
+  const onSelectRoomRef = useRef(onSelectRoom);
+  onSelectRoomRef.current = onSelectRoom;
+
+  // -------------------------------------------------------------
+  // CAMERA VIEW SCALE CONTROLLERS
+  // -------------------------------------------------------------
+
+  const switchCameraToCity = useCallback(() => {
+    setViewLevel('city');
+    setIsAutoRotate(true);
+    lodManagerRef.current.setViewLevel('city', null);
+
+    // Close all cutaways
+    buildingsMapRef.current.forEach(b => b.setCutaway(false));
+
+    cameraTargetPos.current.set(34, 28, 38);
+    cameraTargetLookAt.current.set(0, 6, 0);
+    setPulseLog('Camera returned to Agent City metropolitan overview.');
+  }, []);
+
+  const switchCameraToBuilding = useCallback((building: BuildingLayout) => {
+    setViewLevel('building');
+    setIsAutoRotate(false);
+    lodManagerRef.current.setViewLevel('building', building.room.id);
+
+    // Open cutaway for selected building, close others
+    buildingsMapRef.current.forEach((b) => {
+      b.setCutaway(b.layout.room.id === building.room.id);
+    });
+
+    const bX = building.position[0];
+    const bZ = building.position[2];
+    const bY = Math.min(building.height * 0.5, 12);
+
+    const offsetDist = 13;
+    const angle = Math.atan2(bZ, bX) + 0.35;
+    cameraTargetPos.current.set(
+      bX + Math.cos(angle) * offsetDist,
+      Math.max(6, bY + 4),
+      bZ + Math.sin(angle) * offsetDist
+    );
+    cameraTargetLookAt.current.set(bX, bY, bZ);
+    setPulseLog(`Focusing optical sensor on #${building.room.name}. Office cutaway active.`);
+  }, []);
+
+  const switchCameraToInterior = useCallback((building: BuildingLayout) => {
+    setViewLevel('interior');
+    setIsAutoRotate(false);
+    lodManagerRef.current.setViewLevel('interior', building.room.id);
+
+    // Ensure cutaway is open
+    buildingsMapRef.current.forEach((b) => {
+      b.setCutaway(b.layout.room.id === building.room.id);
+    });
+
+    const bX = building.position[0];
+    const bZ = building.position[2];
+    // Focus close on Floor 1/2 office workstations
+    const bY = 2.4;
+
+    const angle = Math.atan2(bZ, bX) + 0.2;
+    cameraTargetPos.current.set(
+      bX + Math.cos(angle) * 7.5,
+      bY + 2.2,
+      bZ + Math.sin(angle) * 7.5
+    );
+    cameraTargetLookAt.current.set(bX, bY + 1.2, bZ);
+    setPulseLog(`Entering #${building.room.name} office interior. Autonomous agent workers online.`);
+  }, []);
+
+  // -------------------------------------------------------------
+  // SIMULATED / LIVE PROBE EFFECT TRIGGER
+  // -------------------------------------------------------------
   useEffect(() => {
     if (isSimulatingPulse && pulseSystemRef.current && activeRoom) {
       const bObj = buildingsMapRef.current.get(activeRoom.id);
@@ -82,41 +175,29 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     }
   }, [isSimulatingPulse, activeRoom, onPulseComplete]);
 
-  // Focus camera toward selected building
-  const focusOnBuilding = useCallback((building: BuildingLayout) => {
-    setIsFocusedOnBuilding(true);
-    setIsAutoRotate(false);
+  // -------------------------------------------------------------
+  // SEPARATE EFFECT: DATA RECONCILIATION
+  // (Updates buildings & room data without rebuilding the scene)
+  // -------------------------------------------------------------
+  useEffect(() => {
+    if (!cityGroupRef.current || !materialsRef.current) return;
 
-    const bX = building.position[0];
-    const bZ = building.position[2];
-    const bY = building.height * 0.6;
+    safeClusters.forEach((cluster) => {
+      const existingBuilding = buildingsMapRef.current.get(cluster.id);
+      if (existingBuilding) {
+        existingBuilding.updateRoomData(cluster);
+      }
+    });
+  }, [safeClusters]);
 
-    // Position camera offset from building
-    const offsetDist = 14;
-    const angle = Math.atan2(bZ, bX) + 0.35;
-    cameraTargetPos.current.set(
-      bX + Math.cos(angle) * offsetDist,
-      Math.max(8, bY + 5),
-      bZ + Math.sin(angle) * offsetDist
-    );
-    cameraTargetLookAt.current.set(bX, bY, bZ);
-    setPulseLog(`Focusing optical sensor on #${building.room.name} (${building.room.activeAgentsCount} observed agents).`);
-  }, []);
-
-  // Return camera to full city overview
-  const returnToOverview = useCallback(() => {
-    setIsFocusedOnBuilding(false);
-    setIsAutoRotate(true);
-    cameraTargetPos.current.set(34, 28, 38);
-    cameraTargetLookAt.current.set(0, 6, 0);
-    setPulseLog('Sensor returned to Agent City metropolitan overview.');
-  }, []);
-
+  // -------------------------------------------------------------
+  // PRIMARY SCENE INITIALIZATION (Runs ONCE on mount)
+  // -------------------------------------------------------------
   useEffect(() => {
     const container = mountRef.current;
     if (!container) return;
 
-    // 1. Scene & Atmosphere Setup
+    // 1. Scene & Atmospheric Fog
     const scene = new THREE.Scene();
     sceneRef.current = scene;
     scene.fog = new THREE.FogExp2(0x050A12, 0.012);
@@ -128,7 +209,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     camera.position.copy(cameraTargetPos.current);
     cameraRef.current = camera;
 
-    // 3. Renderer Setup
+    // 3. WebGL Renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -139,23 +220,32 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
 
-    // 4. City Materials & Shared Systems
+    // 4. Shared Materials & Pulse System
     const materials = createCityMaterials();
+    materialsRef.current = materials;
+
     const pulseSystem = new ProbePulseSystem();
     pulseSystemRef.current = pulseSystem;
     scene.add(pulseSystem.group);
 
-    // 5. Technocore Core & District Ground
+    // 5. Central Technocore Core Landmark & Public Plaza
     const districtMgr = new CityDistrictManager(materials);
+    districtMgrRef.current = districtMgr;
     scene.add(districtMgr.group);
 
-    // 6. Procedural Buildings
+    // 6. Elevated Autonomous Sky Transport & Rails
+    const transportMgr = new CityTransportManager();
+    transportMgrRef.current = transportMgr;
+    scene.add(transportMgr.group);
+
+    // 7. Procedural Buildings & Cutaway Interiors
     const { buildings } = generateCityLayout(safeClusters);
     buildingsMapRef.current.clear();
-    const interactiveMeshes: THREE.Mesh[] = [];
+    interactiveMeshesRef.current = [];
 
     const cityGroup = new THREE.Group();
     cityGroup.name = 'city-buildings-group';
+    cityGroupRef.current = cityGroup;
 
     buildings.forEach((bLayout) => {
       const bObj = new CityBuilding(bLayout, materials);
@@ -165,33 +255,35 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       // Collect meshes for raycasting
       bObj.group.traverse((child) => {
         if ((child as THREE.Mesh).isMesh && child.userData.room) {
-          interactiveMeshes.push(child as THREE.Mesh);
+          interactiveMeshesRef.current.push(child as THREE.Mesh);
         }
       });
     });
     scene.add(cityGroup);
 
-    // 7. Elevated Network Routes & Data Packets
+    // 8. Elevated Network Routes & Moving Data Packets
     const routes = new CityRoutes(buildings, materials);
+    routesRef.current = routes;
     scene.add(routes.group);
 
-    // 8. Autonomous Agent Particles
+    // 9. Autonomous Drone Particles
     const agentParticles = new AgentParticles(buildings);
+    agentParticlesRef.current = agentParticles;
     scene.add(agentParticles.group);
 
-    // 9. Lighting Setup
-    const ambientLight = new THREE.AmbientLight(0x0E1724, 1.4);
+    // 10. Ambient & Key Lighting
+    const ambientLight = new THREE.AmbientLight(0x0E1724, 1.5);
     scene.add(ambientLight);
 
-    const coreLight = new THREE.PointLight(0x36D7E7, 3.5, 45, 1.2);
+    const coreLight = new THREE.PointLight(0x36D7E7, 3.8, 55, 1.2);
     coreLight.position.set(0, 18, 0);
     scene.add(coreLight);
 
-    const dirLight = new THREE.DirectionalLight(0x4DA3FF, 1.2);
-    dirLight.position.set(25, 40, 20);
+    const dirLight = new THREE.DirectionalLight(0x4DA3FF, 1.3);
+    dirLight.position.set(25, 45, 20);
     scene.add(dirLight);
 
-    // 10. Mouse Interaction & Raycasting
+    // 11. Mouse / Pointer Controls
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2(-100, -100);
     let isDragging = false;
@@ -209,7 +301,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
-      if (isDragging && !isFocusedOnBuilding) {
+      if (isDragging && viewLevelRef.current === 'city') {
         const deltaX = e.clientX - prevMouseX;
         const deltaY = e.clientY - prevMouseY;
         prevMouseX = e.clientX;
@@ -225,7 +317,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       } else if (!isDragging) {
         // Hover raycast check
         raycaster.setFromCamera(mouse, camera);
-        const intersects = raycaster.intersectObjects(interactiveMeshes, false);
+        const intersects = raycaster.intersectObjects(interactiveMeshesRef.current, false);
         if (intersects.length > 0) {
           const hit = intersects[0].object;
           const room: RoomCluster = hit.userData.room;
@@ -245,7 +337,9 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       const zoomFactor = 1 + Math.sign(e.deltaY) * 0.08;
       const targetLook = cameraTargetLookAt.current;
       const dir = cameraTargetPos.current.clone().sub(targetLook);
-      const newLen = THREE.MathUtils.clamp(dir.length() * zoomFactor, 14, 90);
+      const minZoom = viewLevelRef.current === 'interior' ? 6 : 14;
+      const maxZoom = 95;
+      const newLen = THREE.MathUtils.clamp(dir.length() * zoomFactor, minZoom, maxZoom);
       dir.setLength(newLen);
       cameraTargetPos.current.copy(targetLook.clone().add(dir));
     };
@@ -257,16 +351,16 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 
     const handleClick = () => {
       raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(interactiveMeshes, false);
+      const intersects = raycaster.intersectObjects(interactiveMeshesRef.current, false);
 
       if (intersects.length > 0) {
         const hit = intersects[0].object;
         const room: RoomCluster = hit.userData.room;
         if (room) {
-          onSelectRoom(room);
+          onSelectRoomRef.current(room);
           const bObj = buildingsMapRef.current.get(room.id);
           if (bObj) {
-            focusOnBuilding(bObj.layout);
+            switchCameraToBuilding(bObj.layout);
           }
         }
       }
@@ -279,7 +373,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     domElement.addEventListener('wheel', handleWheel, { passive: false });
     domElement.addEventListener('click', handleClick);
 
-    // 11. Animation Loop
+    // 12. Animation Loop (60 FPS)
     let animationFrameId: number;
     let clock = new THREE.Clock();
 
@@ -293,8 +387,8 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       cameraCurrentLookAt.current.lerp(cameraTargetLookAt.current, 0.045);
       camera.lookAt(cameraCurrentLookAt.current);
 
-      // Auto-rotation in overview mode
-      if (isAutoRotate && !isFocusedOnBuilding && !isDragging) {
+      // Auto-rotation in city overview mode
+      if (isAutoRotateRef.current && viewLevelRef.current === 'city' && !isDragging) {
         const rotSpeed = 0.12 * delta;
         const radius = Math.hypot(camera.position.x, camera.position.z);
         const angle = Math.atan2(camera.position.z, camera.position.x) + rotSpeed;
@@ -302,15 +396,17 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
         cameraTargetPos.current.z = Math.sin(angle) * radius;
       }
 
-      // Update sub-systems
+      // Update Sub-systems
       districtMgr.update(time);
+      transportMgr.update(delta);
       routes.update(time);
       agentParticles.update(time);
       pulseSystem.update(delta);
 
-      // Update individual buildings
+      // Update individual buildings & interiors
+      const currentActiveId = activeRoomRef.current.id;
       buildingsMapRef.current.forEach((bObj) => {
-        bObj.update(time, bObj.layout.room.id === activeRoom.id);
+        bObj.update(time, bObj.layout.room.id === currentActiveId);
       });
 
       renderer.render(scene, camera);
@@ -318,7 +414,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 
     animate();
 
-    // 12. Resize Observer
+    // 13. Responsive Resize Observer
     const handleResize = () => {
       if (!container || !rendererRef.current || !cameraRef.current) return;
       const w = container.clientWidth;
@@ -343,14 +439,34 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       domElement.removeEventListener('click', handleClick);
 
       pulseSystem.dispose();
+      districtMgr.dispose();
+      transportMgr.dispose();
       disposeCityMaterials(materials);
+
+      buildingsMapRef.current.forEach(b => b.dispose());
+      buildingsMapRef.current.clear();
 
       if (container && renderer.domElement && container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }
       renderer.dispose();
     };
-  }, [safeClusters, onSelectRoom, focusOnBuilding, isAutoRotate, isFocusedOnBuilding, activeRoom.id]);
+  }, [switchCameraToBuilding]);
+
+  // Handler to enter office interior from HUD
+  const handleEnterOffice = () => {
+    const bObj = buildingsMapRef.current.get(activeRoom.id);
+    if (bObj) {
+      switchCameraToInterior(bObj.layout);
+    }
+  };
+
+  const handleReturnToBuilding = () => {
+    const bObj = buildingsMapRef.current.get(activeRoom.id);
+    if (bObj) {
+      switchCameraToBuilding(bObj.layout);
+    }
+  };
 
   return (
     <div className="relative w-full h-[540px] overflow-hidden bg-radial-vignette select-none">
@@ -380,34 +496,132 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
         </div>
       )}
 
-      {/* Floating City Overlay Controls */}
-      <div className="absolute top-4 right-4 z-20 flex items-center space-x-2">
-        {isFocusedOnBuilding && (
+      {/* Top Controls: Visual Scale Switcher [ CITY ] [ BUILDING ] [ INTERIOR ] */}
+      <div className="absolute top-4 right-4 z-20 flex flex-wrap items-center gap-2">
+        <div className="flex items-center p-1 rounded-xl bg-[#050A12]/90 backdrop-blur-md border border-[#1B2A3D] shadow-inner text-xs font-mono">
           <button
-            onClick={returnToOverview}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-[#36D7E7] text-[#050A12] font-mono text-xs font-bold hover:bg-[#36D7E7]/90 transition-all shadow-lg shadow-[#36D7E7]/20"
-            title="Reset Camera to City Overview"
+            onClick={switchCameraToCity}
+            className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg font-bold transition-all ${
+              viewLevel === 'city'
+                ? 'bg-[#36D7E7] text-[#050A12] shadow-sm shadow-[#36D7E7]/20'
+                : 'text-[#95A4B8] hover:text-white'
+            }`}
+            title="City Overview Scale"
           >
-            <ZoomIn className="w-3.5 h-3.5" />
-            <span>Return to City</span>
+            <span>CITY</span>
+          </button>
+
+          <button
+            onClick={() => {
+              const bObj = buildingsMapRef.current.get(activeRoom.id);
+              if (bObj) switchCameraToBuilding(bObj.layout);
+            }}
+            className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg font-bold transition-all ${
+              viewLevel === 'building'
+                ? 'bg-[#36D7E7] text-[#050A12] shadow-sm shadow-[#36D7E7]/20'
+                : 'text-[#95A4B8] hover:text-white'
+            }`}
+            title="Selected Tower Scale & Cutaway"
+          >
+            <Building2 className="w-3 h-3" />
+            <span>BUILDING</span>
+          </button>
+
+          <button
+            onClick={handleEnterOffice}
+            className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg font-bold transition-all ${
+              viewLevel === 'interior'
+                ? 'bg-[#36D7E7] text-[#050A12] shadow-sm shadow-[#36D7E7]/20'
+                : 'text-[#95A4B8] hover:text-white'
+            }`}
+            title="Agent Office Interior & Laptops"
+          >
+            <Monitor className="w-3 h-3" />
+            <span>INTERIOR</span>
+          </button>
+        </div>
+
+        {viewLevel === 'city' && (
+          <button
+            onClick={() => setIsAutoRotate(!isAutoRotate)}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-mono transition-all border ${
+              isAutoRotate
+                ? 'bg-[#36D7E7]/15 text-[#36D7E7] border-[#36D7E7]/40'
+                : 'bg-[#101A2A] text-[#95A4B8] border-[#1B2A3D] hover:text-white'
+            }`}
+            title="Toggle Autonomous Orbital Camera"
+          >
+            <RefreshCw className={`w-3 h-3 ${isAutoRotate ? 'animate-spin' : ''}`} />
+            <span>{isAutoRotate ? 'Orbit On' : 'Orbit Paused'}</span>
           </button>
         )}
-
-        <button
-          onClick={() => setIsAutoRotate(!isAutoRotate)}
-          className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-mono transition-all border ${
-            isAutoRotate
-              ? 'bg-[#36D7E7]/15 text-[#36D7E7] border-[#36D7E7]/40'
-              : 'bg-[#101A2A] text-[#95A4B8] border-[#1B2A3D] hover:text-white'
-          }`}
-          title="Toggle Autonomous Orbital Camera"
-        >
-          <RefreshCw className={`w-3 h-3 ${isAutoRotate ? 'animate-spin' : ''}`} />
-          <span>{isAutoRotate ? 'Orbit On' : 'Orbit Paused'}</span>
-        </button>
       </div>
 
-      {/* City Legend & Disclaimer */}
+      {/* Selected Room Interactive Action HUD */}
+      {viewLevel !== 'city' && (
+        <div className="absolute top-16 right-4 z-20 flex flex-col space-y-2 p-3.5 rounded-xl bg-[#0B1320]/95 backdrop-blur-md border border-[#36D7E7]/40 shadow-2xl shadow-black/80 text-xs font-mono max-w-xs">
+          <div className="flex items-center justify-between border-b border-[#1B2A3D] pb-2">
+            <div className="flex items-center space-x-1.5">
+              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: activeRoom.color }} />
+              <strong className="text-white font-bold">{activeRoom.displayName || activeRoom.name}</strong>
+            </div>
+            <span className="text-[10px] px-2 py-0.5 rounded bg-[#101A2A] text-[#2FD27F] border border-[#2FD27F]/30 uppercase font-bold">
+              {activeRoom.status}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-[11px] py-1">
+            <div>
+              <span className="text-[#6F8096]">Workforce:</span>
+              <div className="text-white font-bold flex items-center space-x-1">
+                <Users className="w-3 h-3 text-[#36D7E7]" />
+                <span>{activeRoom.activeAgentsCount} Agents</span>
+              </div>
+            </div>
+            <div>
+              <span className="text-[#6F8096]">Last Probe:</span>
+              <div className="text-[#F0A824] font-bold uppercase truncate">
+                {activeRoom.lastProbeArm || 'None'}
+              </div>
+            </div>
+          </div>
+
+          {/* Action Navigation Buttons */}
+          <div className="flex items-center space-x-2 pt-1 border-t border-[#1B2A3D]">
+            {viewLevel === 'building' ? (
+              <button
+                onClick={handleEnterOffice}
+                className="flex-1 flex items-center justify-center space-x-1.5 py-1.5 px-2.5 rounded-lg bg-[#36D7E7] text-[#050A12] font-bold hover:bg-[#36D7E7]/90 transition-all shadow-md shadow-[#36D7E7]/25"
+              >
+                <Monitor className="w-3.5 h-3.5" />
+                <span>ENTER OFFICE</span>
+              </button>
+            ) : (
+              <button
+                onClick={handleReturnToBuilding}
+                className="flex-1 flex items-center justify-center space-x-1.5 py-1.5 px-2.5 rounded-lg bg-[#101A2A] text-[#36D7E7] border border-[#36D7E7]/40 hover:bg-[#1B2A3D] transition-all"
+              >
+                <Building2 className="w-3.5 h-3.5" />
+                <span>BUILDING VIEW</span>
+              </button>
+            )}
+
+            <button
+              onClick={switchCameraToCity}
+              className="flex items-center justify-center p-1.5 rounded-lg bg-[#101A2A] text-[#95A4B8] hover:text-white border border-[#1B2A3D]"
+              title="Return to City Overview"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="text-[9px] text-[#6F8096] pt-1 leading-tight">
+            Interior workers are an aggregate visualization of observed room activity, not a one-to-one identity map.
+          </div>
+        </div>
+      )}
+
+      {/* City Legend & Protocol Disclaimer */}
       <div className="absolute top-4 left-4 z-20 hidden md:flex flex-col space-y-1.5 p-3 rounded-xl bg-[#0B1320]/80 backdrop-blur-md border border-[#1B2A3D] text-[10px] font-mono text-[#95A4B8] max-w-xs">
         <div className="flex items-center space-x-2 text-[#36D7E7] font-semibold uppercase tracking-wider">
           <Sparkles className="w-3 h-3" />
@@ -415,7 +629,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
         </div>
         <div className="flex flex-col space-y-1 pt-1 text-[10px]">
           <div>🏢 <strong className="text-white">Building</strong> = Room</div>
-          <div>💡 <strong className="text-white">Windows</strong> = Observed agent activity</div>
+          <div>💻 <strong className="text-white">Interior</strong> = Agent Desks & Laptops</div>
           <div>📡 <strong className="text-white">Beacon</strong> = Probe state</div>
           <div>⚡ <strong className="text-white">Pulse</strong> = 120s observation event</div>
           <div>🌐 <strong className="text-white">Routes</strong> = Network topology</div>

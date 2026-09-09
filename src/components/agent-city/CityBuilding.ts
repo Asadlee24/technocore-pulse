@@ -1,6 +1,8 @@
 import * as THREE from 'three';
+import type { RoomCluster } from '../../types/probe';
 import type { BuildingLayout } from './cityLayout';
 import type { CityMaterials } from './cityMaterials';
+import { OfficeInterior } from './OfficeInterior';
 
 export class CityBuilding {
   public group: THREE.Group;
@@ -8,8 +10,12 @@ export class CityBuilding {
   public beaconMesh: THREE.Mesh | null = null;
   public beaconGlowMesh: THREE.Mesh | null = null;
   public windowMesh: THREE.InstancedMesh | null = null;
+  public interior: OfficeInterior;
+  public isCutaway: boolean = false;
+
   private materials: CityMaterials;
   private buildingMesh: THREE.Mesh;
+  private baseFacadeMat: THREE.Material;
 
   constructor(layout: BuildingLayout, materials: CityMaterials) {
     this.layout = layout;
@@ -20,13 +26,13 @@ export class CityBuilding {
 
     // 1. Facade Box
     const facadeGeo = new THREE.BoxGeometry(layout.width, layout.height, layout.depth);
-    const facadeMat = layout.room.status === 'surge'
+    this.baseFacadeMat = layout.room.status === 'surge'
       ? this.materials.facadeSurge
       : layout.room.status === 'active'
         ? this.materials.facadeActive
         : this.materials.facadeBase;
 
-    this.buildingMesh = new THREE.Mesh(facadeGeo, facadeMat);
+    this.buildingMesh = new THREE.Mesh(facadeGeo, this.baseFacadeMat);
     this.buildingMesh.position.y = layout.height / 2;
     this.buildingMesh.castShadow = true;
     this.buildingMesh.receiveShadow = true;
@@ -44,6 +50,10 @@ export class CityBuilding {
 
     // 4. Rooftop Beacon & Antenna
     this.createRooftopBeacon(layout);
+
+    // 5. Living Agent Office Interior
+    this.interior = new OfficeInterior(layout);
+    this.group.add(this.interior.group);
   }
 
   private createWindows(layout: BuildingLayout) {
@@ -140,6 +150,19 @@ export class CityBuilding {
     this.group.add(this.beaconGlowMesh);
   }
 
+  public setCutaway(cutaway: boolean) {
+    this.isCutaway = cutaway;
+    this.interior.setCutawayVisible(cutaway);
+
+    if (cutaway) {
+      this.buildingMesh.material = this.materials.facadeCutaway;
+      if (this.windowMesh) this.windowMesh.visible = false;
+    } else {
+      this.buildingMesh.material = this.baseFacadeMat;
+      if (this.windowMesh) this.windowMesh.visible = true;
+    }
+  }
+
   public update(time: number, isSelected: boolean) {
     if (this.beaconGlowMesh) {
       const scale = 1 + Math.sin(time * 3) * 0.18;
@@ -152,11 +175,25 @@ export class CityBuilding {
     } else {
       this.buildingMesh.scale.set(1.0, 1.0, 1.0);
     }
+
+    // Update office interior if cutaway is active
+    if (this.isCutaway) {
+      this.interior.update(time);
+    }
+  }
+
+  public updateRoomData(room: RoomCluster) {
+    this.layout.room = room;
+    this.interior.updateRoomData(room);
   }
 
   public triggerProbeEffect() {
     if (this.beaconGlowMesh) {
       this.beaconGlowMesh.scale.set(2.5, 2.5, 2.5);
     }
+  }
+
+  public dispose() {
+    this.interior.dispose();
   }
 }
