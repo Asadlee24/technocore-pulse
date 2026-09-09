@@ -9,9 +9,19 @@ interface TransportVehicle {
   direction: number;
 }
 
+interface AerialDrone {
+  group: THREE.Group;
+  baseRadius: number;
+  height: number;
+  speed: number;
+  angle: number;
+  bobFreq: number;
+}
+
 export class CityTransportManager {
   public group: THREE.Group;
   private vehicles: TransportVehicle[] = [];
+  private drones: AerialDrone[] = [];
   private skyRailsGroup: THREE.Group;
 
   constructor() {
@@ -23,6 +33,7 @@ export class CityTransportManager {
 
     this.buildElevatedRails();
     this.spawnAutonomousPods();
+    this.spawnAerialDrones();
   }
 
   /**
@@ -45,7 +56,7 @@ export class CityTransportManager {
       const railLine = new THREE.LineLoop(railGeo, railMat);
       this.skyRailsGroup.add(railLine);
 
-      // Add a few slim vertical support pylons
+      // Support pylons
       const pylonGeo = new THREE.CylinderGeometry(0.08, 0.08, h, 6);
       const pylonMat = new THREE.MeshBasicMaterial({ color: 0x101A2A });
       for (let j = 0; j < 6; j++) {
@@ -61,8 +72,7 @@ export class CityTransportManager {
    * Spawns futuristic sleek autonomous transit pods gliding on elevated rails
    */
   private spawnAutonomousPods() {
-    // Pod geometry: elongated minimal capsule/wedge
-    const podGeo = new THREE.BoxGeometry(0.8, 0.25, 0.4);
+    const podGeo = new THREE.BoxGeometry(0.9, 0.28, 0.42);
     const podMat = new THREE.MeshStandardMaterial({
       color: 0x101A2A,
       roughness: 0.2,
@@ -84,9 +94,9 @@ export class CityTransportManager {
         const podMesh = new THREE.Mesh(podGeo, podMat);
         
         // Headlight glow strip
-        const glowGeo = new THREE.PlaneGeometry(0.1, 0.3);
+        const glowGeo = new THREE.PlaneGeometry(0.12, 0.3);
         const glow = new THREE.Mesh(glowGeo, podGlowMat);
-        glow.position.set(0.41, 0, 0);
+        glow.position.set(0.46, 0, 0);
         glow.rotation.y = Math.PI / 2;
         podMesh.add(glow);
 
@@ -105,17 +115,70 @@ export class CityTransportManager {
     });
   }
 
-  public update(delta: number) {
+  /**
+   * Aerial Autonomous Drones cruising between upper towers
+   */
+  private spawnAerialDrones() {
+    const droneBodyGeo = new THREE.BoxGeometry(0.5, 0.12, 0.5);
+    const droneMat = new THREE.MeshStandardMaterial({
+      color: 0x050A12,
+      metalness: 0.9,
+      roughness: 0.2
+    });
+
+    const navLightMat = new THREE.MeshBasicMaterial({ color: 0xF0A824 });
+
+    const droneConfigs = [
+      { radius: 22, height: 15, speed: 0.28, count: 3 },
+      { radius: 34, height: 21, speed: 0.20, count: 4 }
+    ];
+
+    droneConfigs.forEach((cfg) => {
+      for (let i = 0; i < cfg.count; i++) {
+        const droneGroup = new THREE.Group();
+        const body = new THREE.Mesh(droneBodyGeo, droneMat);
+        droneGroup.add(body);
+
+        // Blinking amber nav beacon
+        const lightGeo = new THREE.SphereGeometry(0.08, 6, 6);
+        const light = new THREE.Mesh(lightGeo, navLightMat);
+        light.position.y = 0.1;
+        droneGroup.add(light);
+
+        this.group.add(droneGroup);
+        this.drones.push({
+          group: droneGroup,
+          baseRadius: cfg.radius,
+          height: cfg.height,
+          speed: cfg.speed,
+          angle: (i / cfg.count) * Math.PI * 2,
+          bobFreq: 2.0 + Math.random() * 1.5
+        });
+      }
+    });
+  }
+
+  public update(delta: number, time: number = 0) {
+    // Update rail pods
     this.vehicles.forEach((v) => {
       v.angle += v.speed * v.direction * delta;
       const x = Math.cos(v.angle) * v.pathRadius;
       const z = Math.sin(v.angle) * (v.pathRadius * 0.95);
       v.mesh.position.set(x, v.height, z);
 
-      // Orient pod along trajectory
       const tangentX = -Math.sin(v.angle) * v.direction;
       const tangentZ = Math.cos(v.angle) * 0.95 * v.direction;
       v.mesh.rotation.y = Math.atan2(tangentX, tangentZ) + Math.PI / 2;
+    });
+
+    // Update aerial drones
+    this.drones.forEach((d) => {
+      d.angle += d.speed * delta;
+      const x = Math.cos(d.angle) * d.baseRadius;
+      const z = Math.sin(d.angle) * d.baseRadius;
+      const y = d.height + Math.sin(time * d.bobFreq) * 0.6;
+      d.group.position.set(x, y, z);
+      d.group.rotation.y = -d.angle;
     });
   }
 
@@ -125,5 +188,19 @@ export class CityTransportManager {
       (v.mesh.material as THREE.Material).dispose();
     });
     this.vehicles = [];
+
+    this.drones.forEach(d => {
+      d.group.traverse(obj => {
+        if (obj instanceof THREE.Mesh) {
+          obj.geometry.dispose();
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach(m => m.dispose());
+          } else {
+            obj.material.dispose();
+          }
+        }
+      });
+    });
+    this.drones = [];
   }
 }

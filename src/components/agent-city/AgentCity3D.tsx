@@ -6,6 +6,9 @@ import { generateCityLayout, type BuildingLayout } from './cityLayout';
 import { createCityMaterials, disposeCityMaterials, type CityMaterials } from './cityMaterials';
 import { CityBuilding } from './CityBuilding';
 import { CityDistrictManager } from './CityDistrict';
+import { CityRoads } from './CityRoads';
+import { CitySkyline } from './CitySkyline';
+import { CityEnvironment } from './CityEnvironment';
 import { CityRoutes } from './CityRoutes';
 import { AgentParticles } from './AgentParticles';
 import { ProbePulseSystem } from './ProbePulseSystem';
@@ -79,8 +82,8 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   // Animation & Camera targets
   const controlsRef = useRef<OrbitControls | null>(null);
   const isTransitioningRef = useRef<boolean>(false);
-  const cameraTargetPos = useRef<THREE.Vector3>(new THREE.Vector3(34, 28, 38));
-  const cameraTargetLookAt = useRef<THREE.Vector3>(new THREE.Vector3(0, 6, 0));
+  const cameraTargetPos = useRef<THREE.Vector3>(new THREE.Vector3(44, 34, 48));
+  const cameraTargetLookAt = useRef<THREE.Vector3>(new THREE.Vector3(0, 8, 0));
 
   // Refs for animation loop (prevents scene destruction on state changes)
   const isAutoRotateRef = useRef<boolean>(isAutoRotate);
@@ -110,8 +113,8 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // Close all cutaways
     buildingsMapRef.current.forEach(b => b.setCutaway(false));
 
-    cameraTargetPos.current.set(34, 28, 38);
-    cameraTargetLookAt.current.set(0, 6, 0);
+    cameraTargetPos.current.set(44, 34, 48);
+    cameraTargetLookAt.current.set(0, 8, 0);
     setPulseLog('Camera returned to Agent City metropolitan overview.');
   }, []);
 
@@ -258,18 +261,30 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     pulseSystemRef.current = pulseSystem;
     scene.add(pulseSystem.group);
 
-    // 5. Central Technocore Core Landmark & Public Plaza
+    // 5. Foundational Digital Platform & Cyber Flora
+    const environment = new CityEnvironment();
+    scene.add(environment.group);
+
+    // 6. Central Technocore Core Landmark & 8 District Bridges
     const districtMgr = new CityDistrictManager(materials);
     districtMgrRef.current = districtMgr;
     scene.add(districtMgr.group);
 
-    // 6. Elevated Autonomous Sky Transport & Rails
+    // 7. Full 8-District Layout & Metropolitan Road Network
+    const { buildings, roadWaypoints } = generateCityLayout(safeClusters);
+
+    const roads = new CityRoads(roadWaypoints);
+    scene.add(roads.group);
+
+    const skyline = new CitySkyline();
+    scene.add(skyline.group);
+
+    // 8. Elevated Autonomous Sky Transport, Rails & Aerial Drones
     const transportMgr = new CityTransportManager();
     transportMgrRef.current = transportMgr;
     scene.add(transportMgr.group);
 
-    // 7. Procedural Buildings & Cutaway Interiors
-    const { buildings } = generateCityLayout(safeClusters);
+    // 9. Procedural District Buildings & Cutaway Interiors
     buildingsMapRef.current.clear();
     interactiveMeshesRef.current = [];
 
@@ -430,7 +445,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 
       // Update Sub-systems
       districtMgr.update(time);
-      transportMgr.update(delta);
+      transportMgr.update(delta, time);
       routes.update(time);
       agentParticles.update(time);
       pulseSystem.update(delta);
@@ -473,6 +488,9 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       pulseSystem.dispose();
       districtMgr.dispose();
       transportMgr.dispose();
+      roads.dispose();
+      skyline.dispose();
+      environment.dispose();
       disposeCityMaterials(materials);
 
       buildingsMapRef.current.forEach(b => b.dispose());
