@@ -231,30 +231,30 @@ export function generateCityLayout(rooms: RoomCluster[]): {
     const cfg = DISTRICT_CONFIGS[distType];
     const baseAngle = cfg.sectorIndex * sectorAngleStep;
     
-    // Set to 0: Only authentic room clusters exist, keeping city wide open, bright, and completely visible
-    const infillCount = 0;
+    // 3 supporting towers per district in a stepped amphitheater layout
+    const infillCount = 3;
     for (let i = 0; i < infillCount; i++) {
-      const angleOffset = (i - 1.5) * 0.12;
+      const angleOffset = (i - 1) * 0.15;
       const angle = baseAngle + angleOffset;
-      const radius = 22 + (i % 2) * 8 + (i * 2);
+      const radius = 20 + (i * 5.8);
       
       const x = Math.cos(angle) * radius;
       const z = Math.sin(angle) * radius;
       
-      // Deterministic pseudo-random height
+      // Deterministic stepped amphitheater height (shorter in front, taller in back)
       const seed = Math.sin(cfg.sectorIndex * 13 + i * 7.7);
-      const infillHeight = 10 + Math.abs(seed) * 16;
-      const infillAgents = Math.floor(4 + Math.abs(seed) * 20);
+      const infillHeight = 8 + (i * 4.5) + Math.abs(seed) * 4;
+      const infillAgents = Math.floor(12 + Math.abs(seed) * 16);
 
       const fakeRoom: RoomCluster = {
         id: `${distType}-sector-${i + 1}`,
-        name: `${cfg.name} Sub-Unit ${i + 1}`,
-        displayName: `${cfg.name.split(' ')[0]} Hub ${i + 1}`,
+        name: `${cfg.name} Sector ${i + 1}`,
+        displayName: `${cfg.name.split(' ')[0]} ${i + 1}`,
         category: (distType === 'compute' ? 'compute-relay' : distType === 'settlement' ? 'settlement-prep' : distType === 'social' ? 'agent-social' : 'coordination') as any,
         activeAgentsCount: infillAgents,
-        totalProbesReceived: Math.floor(Math.abs(seed) * 12),
-        averageResponseLatency: 1.2 + Math.abs(seed) * 3,
-        status: seed > 0.4 ? 'active' : 'nominal',
+        totalProbesReceived: Math.floor(4 + Math.abs(seed) * 14),
+        averageResponseLatency: 1.1 + Math.abs(seed) * 2.2,
+        status: 'active',
         color: cfg.color,
         coordinates: [x, 0, z]
       };
@@ -262,14 +262,14 @@ export function generateCityLayout(rooms: RoomCluster[]): {
       const infillBuilding: BuildingLayout = {
         room: fakeRoom,
         position: [x, 0, z],
-        width: 3.2 + (i % 2) * 1.0,
-        depth: 3.2 + ((i + 1) % 2) * 1.0,
+        width: 3.4 + (i % 2) * 0.8,
+        depth: 3.4 + ((i + 1) % 2) * 0.8,
         height: infillHeight,
         district: distType,
         archetype: cfg.archetype,
         color: cfg.color,
         beaconColor: getBeaconColor(i % 3 === 0 ? 'question' : i % 3 === 1 ? 'offer' : 'statement'),
-        windowDensity: Math.floor(infillAgents / 2),
+        windowDensity: 14 + i * 4,
         rotationY: angle + Math.PI / 2,
         isPrimaryRoom: false
       };
