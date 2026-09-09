@@ -297,7 +297,13 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     cameraRef.current = camera;
 
     // 3. WebGL Renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    // 3. WebGL Renderer (with preserveDrawingBuffer for thumbnails & crisp rendering)
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      preserveDrawingBuffer: true,
+      powerPreference: 'high-performance'
+    });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setClearColor(isLight ? 0xE8EEF5 : 0x050A12, 1);
@@ -371,28 +377,42 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     agentParticlesRef.current = agentParticles;
     scene.add(agentParticles.group);
 
-    // 10. Ambient & Key Lighting
+    // 10. Ambient, Hemisphere & Key Directional Lighting
     const ambientLight = new THREE.AmbientLight(
-      isLight ? 0xFFFFFF : 0x0E1724,
-      isLight ? 1.9 : 1.5
+      isLight ? 0xFFFFFF : 0x1E3554,
+      isLight ? 2.2 : 2.0
     );
     scene.add(ambientLight);
 
+    const hemiLight = new THREE.HemisphereLight(
+      isLight ? 0xF0F9FF : 0x38BDF8,
+      isLight ? 0xE2E8F0 : 0x0A1526,
+      1.8
+    );
+    scene.add(hemiLight);
+
     const coreLight = new THREE.PointLight(
       isLight ? 0x0284C7 : 0x36D7E7,
-      isLight ? 4.5 : 3.8,
-      55,
-      1.2
+      isLight ? 5.5 : 4.8,
+      160,
+      1.1
     );
-    coreLight.position.set(0, 18, 0);
+    coreLight.position.set(0, 24, 0);
     scene.add(coreLight);
 
-    const dirLight = new THREE.DirectionalLight(
-      isLight ? 0x38BDF8 : 0x4DA3FF,
-      isLight ? 1.8 : 1.3
+    const dirLight1 = new THREE.DirectionalLight(
+      isLight ? 0x38BDF8 : 0x60A5FA,
+      isLight ? 2.2 : 1.8
     );
-    dirLight.position.set(25, 45, 20);
-    scene.add(dirLight);
+    dirLight1.position.set(45, 65, 40);
+    scene.add(dirLight1);
+
+    const dirLight2 = new THREE.DirectionalLight(
+      isLight ? 0x60A5FA : 0x38BDF8,
+      isLight ? 1.6 : 1.4
+    );
+    dirLight2.position.set(-45, 55, -40);
+    scene.add(dirLight2);
 
     // 11. OrbitControls & User Interaction (Smooth Damping, Pan, Orbit, Wheel Zoom)
     const controls = new OrbitControls(camera, renderer.domElement);

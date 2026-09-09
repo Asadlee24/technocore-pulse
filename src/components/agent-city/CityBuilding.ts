@@ -48,10 +48,12 @@ export class CityBuilding {
     // 1. Street-Level Lobby Podium with Entrance Glass
     const podiumH = 2.2;
     const podiumGeo = new THREE.BoxGeometry(layout.width * 1.16, podiumH, layout.depth * 1.16);
+    const districtCol = new THREE.Color(layout.color);
     const podiumMat = new THREE.MeshStandardMaterial({
-      color: 0x0E1724,
-      roughness: 0.25,
-      metalness: 0.8
+      color: districtCol.clone().lerp(new THREE.Color(0x132238), 0.6),
+      emissive: districtCol.clone().multiplyScalar(0.2),
+      roughness: 0.3,
+      metalness: 0.7
     });
     this.podiumMesh = new THREE.Mesh(podiumGeo, podiumMat);
     this.podiumMesh.position.y = podiumH / 2 + 0.28;
@@ -65,7 +67,7 @@ export class CityBuilding {
     const lobbyMat = new THREE.MeshBasicMaterial({
       color: 0xFDE047,
       transparent: true,
-      opacity: 0.85
+      opacity: 0.95
     });
     const lobbyFront = new THREE.Mesh(lobbyGeo, lobbyMat);
     lobbyFront.position.set(0, 1.1 + 0.28, (layout.depth * 1.16) / 2 + 0.04);
@@ -77,22 +79,21 @@ export class CityBuilding {
     canopyMesh.position.set(0, 2.0 + 0.28, (layout.depth * 1.16) / 2 + 0.55);
     this.group.add(canopyMesh);
 
-    // 2. District-Themed Facade Material & Accent Edge Lines
-    const districtCol = new THREE.Color(layout.color);
-    const darkBaseCol = districtCol.clone().multiplyScalar(0.12);
-    const emissiveCol = districtCol.clone().multiplyScalar(layout.room.status === 'surge' ? 0.35 : 0.18);
+    // 2. Vibrant, Distinct District-Themed Facade & Bright Accent Lines
+    const facadeBaseCol = districtCol.clone().lerp(new THREE.Color(0x1B2C46), 0.45);
+    const emissiveCol = districtCol.clone().multiplyScalar(layout.room.status === 'surge' ? 0.48 : 0.32);
 
     this.baseFacadeMat = new THREE.MeshStandardMaterial({
-      color: darkBaseCol,
+      color: facadeBaseCol,
       emissive: emissiveCol,
-      roughness: 0.32,
-      metalness: 0.75
+      roughness: 0.25,
+      metalness: 0.65
     });
 
     const lineMat = new THREE.LineBasicMaterial({
       color: districtCol,
       transparent: true,
-      opacity: 0.65
+      opacity: 0.9
     });
 
     // 3. Main Tower Shaft with Architectural Setback for High-Rises
