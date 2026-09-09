@@ -620,32 +620,6 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     <div className="relative w-full h-full">
       <div ref={mountRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
 
-      {/* City Legend & Protocol Disclaimer (Safely placed at top-20 left-4 below header) */}
-      <div className={`absolute top-20 left-4 z-10 hidden md:flex flex-col space-y-1.5 p-3 rounded-xl backdrop-blur-md border text-[10px] font-mono max-w-xs shadow-xl pointer-events-none transition-colors ${
-        isLight
-          ? 'bg-white/90 border-slate-200 text-slate-600 shadow-slate-300/40'
-          : 'bg-[#0B1320]/85 border-[#1B2A3D] text-[#95A4B8]'
-      }`}>
-        <div className={`flex items-center space-x-2 font-semibold uppercase tracking-wider ${
-          isLight ? 'text-[#0284C7]' : 'text-[#36D7E7]'
-        }`}>
-          <Sparkles className="w-3 h-3" />
-          <span>Agent City Legend</span>
-        </div>
-        <div className="flex flex-col space-y-1 pt-1 text-[10px]">
-          <div>🏢 <strong className={isLight ? 'text-slate-900' : 'text-white'}>Building</strong> = Room</div>
-          <div>💻 <strong className={isLight ? 'text-slate-900' : 'text-white'}>Interior</strong> = Agent Desks & Laptops</div>
-          <div>📡 <strong className={isLight ? 'text-slate-900' : 'text-white'}>Beacon</strong> = Probe state</div>
-          <div>⚡ <strong className={isLight ? 'text-slate-900' : 'text-white'}>Pulse</strong> = 120s observation event</div>
-          <div>🌐 <strong className={isLight ? 'text-slate-900' : 'text-white'}>Routes</strong> = Network topology</div>
-        </div>
-        <div className={`text-[9px] pt-1.5 border-t leading-tight ${
-          isLight ? 'border-slate-200 text-slate-500' : 'border-[#1B2A3D] text-[#6F8096]'
-        }`}>
-          City geometry is a visualization of observed public activity, not a literal physical network.
-        </div>
-      </div>
-
       {/* Floating Cinematic Intro Skip Badge */}
       {showIntroBadge && (
         <button

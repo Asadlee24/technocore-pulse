@@ -226,57 +226,67 @@ export function generateCityLayout(rooms: RoomCluster[]): {
     districtsMap[districtType].push(bLayout);
   });
 
-  // 2. Procedural Infill Buildings: Ensure each of the 8 districts has a dense urban cluster
+  // 2. Procedural Infill Buildings: Ensure all 8 districts have dense, vibrant urban blocks
   districtKeys.forEach((distType) => {
     const cfg = DISTRICT_CONFIGS[distType];
     const baseAngle = cfg.sectorIndex * sectorAngleStep;
     
-    // 3 supporting towers per district in a stepped amphitheater layout
-    const infillCount = 3;
-    for (let i = 0; i < infillCount; i++) {
-      const angleOffset = (i - 1) * 0.15;
-      const angle = baseAngle + angleOffset;
-      const radius = 20 + (i * 5.8);
-      
-      const x = Math.cos(angle) * radius;
-      const z = Math.sin(angle) * radius;
-      
-      // Deterministic stepped amphitheater height (shorter in front, taller in back)
-      const seed = Math.sin(cfg.sectorIndex * 13 + i * 7.7);
-      const infillHeight = 8 + (i * 4.5) + Math.abs(seed) * 4;
-      const infillAgents = Math.floor(12 + Math.abs(seed) * 16);
+    // Generate 6 buildings per district across 3 radial tiers (inner, mid, outer) and 2 angular columns
+    // Total: 8 * 6 = 48 district buildings + incoming active rooms = ~56 buildings!
+    const tiers = [
+      { radius: 17, heightBase: 8, heightVar: 4, width: 3.2, depth: 3.2, count: 2 },
+      { radius: 23, heightBase: 13, heightVar: 5, width: 3.6, depth: 3.6, count: 2 },
+      { radius: 29.5, heightBase: 17, heightVar: 7, width: 3.8, depth: 3.8, count: 2 },
+    ];
 
-      const fakeRoom: RoomCluster = {
-        id: `${distType}-sector-${i + 1}`,
-        name: `${cfg.name} Sector ${i + 1}`,
-        displayName: `${cfg.name.split(' ')[0]} ${i + 1}`,
-        category: (distType === 'compute' ? 'compute-relay' : distType === 'settlement' ? 'settlement-prep' : distType === 'social' ? 'agent-social' : 'coordination') as any,
-        activeAgentsCount: infillAgents,
-        totalProbesReceived: Math.floor(4 + Math.abs(seed) * 14),
-        averageResponseLatency: 1.1 + Math.abs(seed) * 2.2,
-        status: 'active',
-        color: cfg.color,
-        coordinates: [x, 0, z]
-      };
+    let bIndex = 0;
+    tiers.forEach((tier, tIdx) => {
+      for (let col = 0; col < tier.count; col++) {
+        bIndex++;
+        // Spread evenly across sector angle (-0.18 to +0.18 radians)
+        const angleOffset = (col === 0 ? -0.18 : 0.18) + (tIdx % 2 === 1 ? 0.05 : -0.05);
+        const angle = baseAngle + angleOffset;
+        const radius = tier.radius + (col * 1.5);
 
-      const infillBuilding: BuildingLayout = {
-        room: fakeRoom,
-        position: [x, 0, z],
-        width: 3.4 + (i % 2) * 0.8,
-        depth: 3.4 + ((i + 1) % 2) * 0.8,
-        height: infillHeight,
-        district: distType,
-        archetype: cfg.archetype,
-        color: cfg.color,
-        beaconColor: getBeaconColor(i % 3 === 0 ? 'question' : i % 3 === 1 ? 'offer' : 'statement'),
-        windowDensity: 14 + i * 4,
-        rotationY: angle + Math.PI / 2,
-        isPrimaryRoom: false
-      };
+        const x = Math.cos(angle) * radius;
+        const z = Math.sin(angle) * radius;
 
-      buildings.push(infillBuilding);
-      districtsMap[distType].push(infillBuilding);
-    }
+        const seed = Math.sin(cfg.sectorIndex * 17 + bIndex * 8.3);
+        const infillHeight = tier.heightBase + Math.abs(seed) * tier.heightVar;
+        const infillAgents = Math.floor(10 + Math.abs(seed) * 18);
+
+        const fakeRoom: RoomCluster = {
+          id: `${distType}-sector-${bIndex}`,
+          name: `${cfg.name} Sector ${bIndex}`,
+          displayName: `${cfg.name.split(' ')[0]} ${bIndex}`,
+          category: (distType === 'compute' ? 'compute-relay' : distType === 'settlement' ? 'settlement-prep' : distType === 'social' ? 'agent-social' : 'coordination') as any,
+          activeAgentsCount: infillAgents,
+          totalProbesReceived: Math.floor(4 + Math.abs(seed) * 14),
+          averageResponseLatency: 1.0 + Math.abs(seed) * 2.0,
+          status: 'active',
+          color: cfg.color,
+          coordinates: [x, 0, z]
+        };
+
+        const infillBuilding: BuildingLayout = {
+          room: fakeRoom,
+          position: [x, 0, z],
+          width: tier.width,
+          depth: tier.depth,
+          height: infillHeight,
+          district: distType,
+          archetype: cfg.archetype,
+          color: cfg.color,
+          beaconColor: getBeaconColor(bIndex % 3 === 0 ? 'question' : bIndex % 3 === 1 ? 'offer' : 'statement'),
+          windowDensity: 14 + tIdx * 4,
+          rotationY: angle + Math.PI / 2,
+          isPrimaryRoom: false
+        };
+
+        buildings.push(infillBuilding);
+        districtsMap[distType].push(infillBuilding);
+      }
+    });
   });
 
   // 3. Construct District Metadata
