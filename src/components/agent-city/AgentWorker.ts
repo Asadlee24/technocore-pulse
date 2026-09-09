@@ -9,6 +9,7 @@ export interface AgentWorkerConfig {
   activityState?: 'idle' | 'active' | 'surge';
   isWalking?: boolean;
   walkPath?: { start: THREE.Vector3; end: THREE.Vector3; speed: number };
+  visorColor?: string | number;
 }
 
 export class AgentWorker {
@@ -69,9 +70,11 @@ export class AgentWorker {
     this.group.position.set(config.x, config.y, config.z);
     if (config.rotationY) this.group.rotation.y = config.rotationY;
 
-    const vMat = config.activityState === 'surge' 
-      ? AgentWorker.visorSurgeMat! 
-      : AgentWorker.visorMat!;
+    const vMat = config.visorColor
+      ? new THREE.MeshBasicMaterial({ color: new THREE.Color(config.visorColor) })
+      : config.activityState === 'surge' 
+        ? AgentWorker.visorSurgeMat! 
+        : AgentWorker.visorMat!;
 
     // 1. Torso
     this.bodyMesh = new THREE.Mesh(AgentWorker.bodyGeo!, AgentWorker.bodyMat!);

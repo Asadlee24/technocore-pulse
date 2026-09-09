@@ -13,6 +13,7 @@ import { CityRoutes } from './CityRoutes';
 import { AgentParticles } from './AgentParticles';
 import { ProbePulseSystem } from './ProbePulseSystem';
 import { CityTransportManager } from './CityTransport';
+import { CityPedestrians } from './CityPedestrians';
 import { CityLODManager, type CameraViewLevel } from './CityLODManager';
 import { Radio, Sparkles } from 'lucide-react';
 
@@ -81,6 +82,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   const transportMgrRef = useRef<CityTransportManager | null>(null);
   const routesRef = useRef<CityRoutes | null>(null);
   const agentParticlesRef = useRef<AgentParticles | null>(null);
+  const pedestriansRef = useRef<CityPedestrians | null>(null);
   const buildingsMapRef = useRef<Map<string, CityBuilding>>(new Map());
   const cityGroupRef = useRef<THREE.Group | null>(null);
   const interactiveMeshesRef = useRef<THREE.Mesh[]>([]);
@@ -377,6 +379,11 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     agentParticlesRef.current = agentParticles;
     scene.add(agentParticles.group);
 
+    // 10. Ground Street Pedestrians & Sidewalk Life
+    const pedestrians = new CityPedestrians(buildings, roadWaypoints);
+    pedestriansRef.current = pedestrians;
+    scene.add(pedestrians.group);
+
     // 10. Ambient, Hemisphere & Key Directional Lighting
     const ambientLight = new THREE.AmbientLight(
       isLight ? 0xFFFFFF : 0x1E3554,
@@ -577,6 +584,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       // Update Sub-systems
       districtMgr.update(time);
       transportMgr.update(delta, time);
+      pedestrians.update(time);
       routes.update(time);
       agentParticles.update(time);
       pulseSystem.update(delta);
@@ -619,6 +627,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       pulseSystem.dispose();
       districtMgr.dispose();
       transportMgr.dispose();
+      pedestrians.dispose();
       roads.dispose();
       skyline.dispose();
       environment.dispose();
