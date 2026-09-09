@@ -51,7 +51,7 @@ export class CityTransportManager {
    * Elevated circular/elliptical sky rails between districts
    */
   private buildElevatedRails() {
-    const railRadii = [18, 28, 38];
+    const railRadii = [21.5, 35.0, 50.0];
     const railHeights = [4.5, 7.0, 9.5];
 
     railRadii.forEach((radius, i) => {
@@ -70,8 +70,8 @@ export class CityTransportManager {
       // Support pylons
       const pylonGeo = new THREE.CylinderGeometry(0.08, 0.08, h, 6);
       const pylonMat = new THREE.MeshBasicMaterial({ color: 0x101A2A });
-      for (let j = 0; j < 6; j++) {
-        const angle = (j / 6) * Math.PI * 2;
+      for (let j = 0; j < 8; j++) {
+        const angle = (j / 8) * Math.PI * 2;
         const pylon = new THREE.Mesh(pylonGeo, pylonMat);
         pylon.position.set(Math.cos(angle) * radius, h / 2, Math.sin(angle) * (radius * 0.95));
         this.skyRailsGroup.add(pylon);
@@ -95,9 +95,9 @@ export class CityTransportManager {
     });
 
     const railConfigs = [
-      { radius: 18, height: 4.6, speed: 0.35, count: 3, dir: 1 },
-      { radius: 28, height: 7.1, speed: 0.22, count: 4, dir: -1 },
-      { radius: 38, height: 9.6, speed: 0.16, count: 3, dir: 1 }
+      { radius: 21.5, height: 4.6, speed: 0.35, count: 4, dir: 1 },
+      { radius: 35.0, height: 7.1, speed: 0.22, count: 5, dir: -1 },
+      { radius: 50.0, height: 9.6, speed: 0.16, count: 4, dir: 1 }
     ];
 
     railConfigs.forEach((cfg) => {
@@ -111,15 +111,13 @@ export class CityTransportManager {
         glow.rotation.y = Math.PI / 2;
         podMesh.add(glow);
 
-        const startAngle = (i / cfg.count) * Math.PI * 2 + Math.random() * 0.5;
         this.group.add(podMesh);
-
         this.vehicles.push({
           mesh: podMesh,
           pathRadius: cfg.radius,
           height: cfg.height,
           speed: cfg.speed,
-          angle: startAngle,
+          angle: (i / cfg.count) * Math.PI * 2,
           direction: cfg.dir
         });
       }
@@ -127,66 +125,66 @@ export class CityTransportManager {
   }
 
   /**
-   * Aerial Autonomous Drones cruising between upper towers
+   * Spawns 8 autonomous survey drones hovering and orbiting overhead
    */
   private spawnAerialDrones() {
-    const droneBodyGeo = new THREE.BoxGeometry(0.5, 0.12, 0.5);
+    const droneGeo = new THREE.OctahedronGeometry(0.3, 0);
     const droneMat = new THREE.MeshStandardMaterial({
-      color: 0x050A12,
+      color: 0x1E293B,
+      roughness: 0.1,
       metalness: 0.9,
-      roughness: 0.2
+      emissive: 0x36D7E7,
+      emissiveIntensity: 0.6
     });
 
-    const navLightMat = new THREE.MeshBasicMaterial({ color: 0xF0A824 });
-
-    const droneConfigs = [
-      { radius: 22, height: 15, speed: 0.28, count: 3 },
-      { radius: 34, height: 21, speed: 0.20, count: 4 }
-    ];
-
-    droneConfigs.forEach((cfg) => {
-      for (let i = 0; i < cfg.count; i++) {
-        const droneGroup = new THREE.Group();
-        const body = new THREE.Mesh(droneBodyGeo, droneMat);
-        droneGroup.add(body);
-
-        // Blinking amber nav beacon
-        const lightGeo = new THREE.SphereGeometry(0.08, 6, 6);
-        const light = new THREE.Mesh(lightGeo, navLightMat);
-        light.position.y = 0.1;
-        droneGroup.add(light);
-
-        this.group.add(droneGroup);
-        this.drones.push({
-          group: droneGroup,
-          baseRadius: cfg.radius,
-          height: cfg.height,
-          speed: cfg.speed,
-          angle: (i / cfg.count) * Math.PI * 2,
-          bobFreq: 2.0 + Math.random() * 1.5
-        });
-      }
+    const haloGeo = new THREE.RingGeometry(0.4, 0.52, 16);
+    const haloMat = new THREE.MeshBasicMaterial({
+      color: 0x36D7E7,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.75
     });
+
+    for (let i = 0; i < 8; i++) {
+      const droneGroup = new THREE.Group();
+      const body = new THREE.Mesh(droneGeo, droneMat);
+      droneGroup.add(body);
+
+      const halo = new THREE.Mesh(haloGeo, haloMat);
+      halo.rotation.x = Math.PI / 2;
+      halo.position.y = -0.15;
+      droneGroup.add(halo);
+
+      this.group.add(droneGroup);
+      this.drones.push({
+        group: droneGroup,
+        baseRadius: 18 + (i % 4) * 11,
+        height: 18 + (i % 3) * 5,
+        speed: 0.15 + (i % 2) * 0.08,
+        angle: (i / 8) * Math.PI * 2,
+        bobFreq: 1.2 + i * 0.2
+      });
+    }
   }
 
   /**
-   * Ground Street-Level Autonomous Maglev Couriers cruising along avenues & beltways
+   * Spawns road couriers cruising along radial grand avenues and concentric circular boulevards
    */
   private spawnHighwayCouriers() {
-    const bodyGeo = new THREE.BoxGeometry(0.7, 0.12, 0.32);
+    const bodyGeo = new THREE.BoxGeometry(0.7, 0.22, 0.36);
     const bodyMat = new THREE.MeshStandardMaterial({
-      color: 0x0E1A2C,
-      roughness: 0.2,
-      metalness: 0.9
+      color: 0x0E1724,
+      roughness: 0.3,
+      metalness: 0.7
     });
 
-    const headlightMat = new THREE.MeshBasicMaterial({ color: 0x38BDF8 });
-    const taillightMat = new THREE.MeshBasicMaterial({ color: 0xF43F5E });
+    const headlightMat = new THREE.MeshBasicMaterial({ color: 0xFDE047 }); // Warm yellow headlights
+    const taillightMat = new THREE.MeshBasicMaterial({ color: 0xEF4444 }); // Red taillights
 
-    // 8 radial couriers darting along the 8 radial grand avenues
+    // 8 couriers traversing radial avenues
     for (let i = 0; i < 8; i++) {
-      const angle = (i / 8) * Math.PI * 2;
       const courierGroup = new THREE.Group();
+      const angle = (i / 8) * Math.PI * 2;
       
       const body = new THREE.Mesh(bodyGeo, bodyMat);
       courierGroup.add(body);
@@ -206,15 +204,16 @@ export class CityTransportManager {
         group: courierGroup,
         type: 'radial',
         avenueAngle: angle,
-        speed: 0.45 + (i % 3) * 0.15,
+        speed: 0.35 + (i % 3) * 0.1,
         offset: i * 0.8
       });
     }
 
-    // 6 ring couriers circling the inner (r=12) and outer (r=26) circular avenues
+    // Concentric ring couriers circling inner (r=14), mid (r=28), and beltway (r=43)
     const ringConfigs = [
-      { radius: 12.5, speed: 0.4, count: 3 },
-      { radius: 26.5, speed: -0.28, count: 3 }
+      { radius: 14.0, speed: 0.35, count: 4 },
+      { radius: 28.0, speed: -0.25, count: 5 },
+      { radius: 43.0, speed: 0.18, count: 5 }
     ];
 
     ringConfigs.forEach((cfg) => {
@@ -269,9 +268,9 @@ export class CityTransportManager {
     // Update ground highway couriers
     this.highwayCouriers.forEach((c) => {
       if (c.type === 'radial' && c.avenueAngle !== undefined) {
-        // Ping-pong along avenue between radius 7 and 32
+        // Ping-pong along avenue between radius 8 and 60
         const progress = Math.sin(time * c.speed + c.offset) * 0.5 + 0.5;
-        const r = 7.5 + progress * 24.5;
+        const r = 8.0 + progress * 52.0;
         const x = Math.cos(c.avenueAngle) * r;
         const z = Math.sin(c.avenueAngle) * r;
         c.group.position.set(x, 0.16, z);

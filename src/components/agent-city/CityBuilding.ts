@@ -13,49 +13,149 @@ export class CityBuilding {
   public interior: OfficeInterior;
   public isCutaway: boolean = false;
 
-  private materials: CityMaterials;
   private buildingMesh: THREE.Mesh;
+  private setbackMesh: THREE.Mesh | null = null;
+  private podiumMesh: THREE.Mesh | null = null;
   private baseFacadeMat: THREE.Material;
   private crownGroup: THREE.Group | null = null;
 
-  constructor(layout: BuildingLayout, materials: CityMaterials) {
+  constructor(layout: BuildingLayout, _materials: CityMaterials) {
     this.layout = layout;
-    this.materials = materials;
     this.group = new THREE.Group();
     this.group.position.set(...layout.position);
     this.group.name = `building-${layout.room.id}`;
 
-    // 1. Facade Box
-    const facadeGeo = new THREE.BoxGeometry(layout.width, layout.height, layout.depth);
-    this.baseFacadeMat = layout.room.status === 'surge'
-      ? this.materials.facadeSurge
-      : layout.room.status === 'active'
-        ? this.materials.facadeActive
-        : this.materials.facadeBase;
+    // 0. Ground Plaza / Sidewalk Parcel Base (Grounds building realistically into the city)
+    const plazaGeo = new THREE.BoxGeometry(layout.width * 1.35, 0.28, layout.depth * 1.35);
+    const plazaMat = new THREE.MeshStandardMaterial({
+      color: 0x09101C,
+      roughness: 0.85,
+      metalness: 0.15
+    });
+    const plaza = new THREE.Mesh(plazaGeo, plazaMat);
+    plaza.position.y = 0.14;
+    plaza.receiveShadow = true;
+    this.group.add(plaza);
 
-    this.buildingMesh = new THREE.Mesh(facadeGeo, this.baseFacadeMat);
-    this.buildingMesh.position.y = layout.height / 2;
-    this.buildingMesh.castShadow = true;
-    this.buildingMesh.receiveShadow = true;
-    this.buildingMesh.userData = { room: layout.room };
-    this.group.add(this.buildingMesh);
+    const curbEdges = new THREE.EdgesGeometry(plazaGeo);
+    const curbLine = new THREE.LineSegments(
+      curbEdges,
+      new THREE.LineBasicMaterial({ color: 0x1B2A3D, transparent: true, opacity: 0.4 })
+    );
+    curbLine.position.y = 0.14;
+    this.group.add(curbLine);
 
-    // 2. Edge Wireframe lines
-    const edges = new THREE.EdgesGeometry(facadeGeo);
-    const line = new THREE.LineSegments(edges, this.materials.edgeLine);
-    line.position.y = layout.height / 2;
-    this.group.add(line);
+    // 1. Street-Level Lobby Podium with Entrance Glass
+    const podiumH = 2.2;
+    const podiumGeo = new THREE.BoxGeometry(layout.width * 1.16, podiumH, layout.depth * 1.16);
+    const podiumMat = new THREE.MeshStandardMaterial({
+      color: 0x0E1724,
+      roughness: 0.25,
+      metalness: 0.8
+    });
+    this.podiumMesh = new THREE.Mesh(podiumGeo, podiumMat);
+    this.podiumMesh.position.y = podiumH / 2 + 0.28;
+    this.podiumMesh.castShadow = true;
+    this.podiumMesh.receiveShadow = true;
+    this.podiumMesh.userData = { room: layout.room };
+    this.group.add(this.podiumMesh);
 
-    // 3. Emissive Windows via InstancedMesh
+    // Warm Illuminated Lobby Glass Front
+    const lobbyGeo = new THREE.BoxGeometry(layout.width * 0.55, 1.4, 0.08);
+    const lobbyMat = new THREE.MeshBasicMaterial({
+      color: 0xFDE047,
+      transparent: true,
+      opacity: 0.85
+    });
+    const lobbyFront = new THREE.Mesh(lobbyGeo, lobbyMat);
+    lobbyFront.position.set(0, 1.1 + 0.28, (layout.depth * 1.16) / 2 + 0.04);
+    this.group.add(lobbyFront);
+
+    // Lobby Entrance Canopy
+    const canopyGeo = new THREE.BoxGeometry(layout.width * 0.65, 0.1, 1.1);
+    const canopyMesh = new THREE.Mesh(canopyGeo, podiumMat);
+    canopyMesh.position.set(0, 2.0 + 0.28, (layout.depth * 1.16) / 2 + 0.55);
+    this.group.add(canopyMesh);
+
+    // 2. District-Themed Facade Material & Accent Edge Lines
+    const districtCol = new THREE.Color(layout.color);
+    const darkBaseCol = districtCol.clone().multiplyScalar(0.12);
+    const emissiveCol = districtCol.clone().multiplyScalar(layout.room.status === 'surge' ? 0.35 : 0.18);
+
+    this.baseFacadeMat = new THREE.MeshStandardMaterial({
+      color: darkBaseCol,
+      emissive: emissiveCol,
+      roughness: 0.32,
+      metalness: 0.75
+    });
+
+    const lineMat = new THREE.LineBasicMaterial({
+      color: districtCol,
+      transparent: true,
+      opacity: 0.65
+    });
+
+    // 3. Main Tower Shaft with Architectural Setback for High-Rises
+    const hasSetback = layout.height >= 16;
+    const towerBaseY = podiumH + 0.28;
+    const totalTowerHeight = layout.height - towerBaseY;
+
+    if (hasSetback) {
+      const lowerH = totalTowerHeight * 0.68;
+      const upperH = totalTowerHeight * 0.32;
+
+      // Lower main body
+      const lowerGeo = new THREE.BoxGeometry(layout.width, lowerH, layout.depth);
+      this.buildingMesh = new THREE.Mesh(lowerGeo, this.baseFacadeMat);
+      this.buildingMesh.position.y = towerBaseY + lowerH / 2;
+      this.buildingMesh.castShadow = true;
+      this.buildingMesh.receiveShadow = true;
+      this.buildingMesh.userData = { room: layout.room };
+      this.group.add(this.buildingMesh);
+
+      const lowerEdges = new THREE.EdgesGeometry(lowerGeo);
+      const lowerLine = new THREE.LineSegments(lowerEdges, lineMat);
+      lowerLine.position.y = towerBaseY + lowerH / 2;
+      this.group.add(lowerLine);
+
+      // Upper setback tower
+      const upperGeo = new THREE.BoxGeometry(layout.width * 0.82, upperH, layout.depth * 0.82);
+      this.setbackMesh = new THREE.Mesh(upperGeo, this.baseFacadeMat);
+      this.setbackMesh.position.y = towerBaseY + lowerH + upperH / 2;
+      this.setbackMesh.castShadow = true;
+      this.setbackMesh.receiveShadow = true;
+      this.setbackMesh.userData = { room: layout.room };
+      this.group.add(this.setbackMesh);
+
+      const upperEdges = new THREE.EdgesGeometry(upperGeo);
+      const upperLine = new THREE.LineSegments(upperEdges, lineMat);
+      upperLine.position.y = towerBaseY + lowerH + upperH / 2;
+      this.group.add(upperLine);
+    } else {
+      const singleGeo = new THREE.BoxGeometry(layout.width, totalTowerHeight, layout.depth);
+      this.buildingMesh = new THREE.Mesh(singleGeo, this.baseFacadeMat);
+      this.buildingMesh.position.y = towerBaseY + totalTowerHeight / 2;
+      this.buildingMesh.castShadow = true;
+      this.buildingMesh.receiveShadow = true;
+      this.buildingMesh.userData = { room: layout.room };
+      this.group.add(this.buildingMesh);
+
+      const edges = new THREE.EdgesGeometry(singleGeo);
+      const line = new THREE.LineSegments(edges, lineMat);
+      line.position.y = towerBaseY + totalTowerHeight / 2;
+      this.group.add(line);
+    }
+
+    // 4. Multi-Hue Illuminated Night Windows
     this.createWindows(layout);
 
-    // 4. Archetype-Specific Architectural Roof Crown
+    // 5. Archetype-Specific Architectural Roof Crown
     this.createArchitecturalCrown(layout);
 
-    // 5. Rooftop Beacon & Antenna
+    // 6. Rooftop Beacon & Antenna
     this.createRooftopBeacon(layout);
 
-    // 6. Living Agent Office Interior
+    // 7. Living Agent Office Interior
     this.interior = new OfficeInterior(layout);
     this.group.add(this.interior.group);
   }
@@ -171,58 +271,103 @@ export class CityBuilding {
   }
 
   private createWindows(layout: BuildingLayout) {
-    const rows = Math.min(14, Math.max(3, Math.floor(layout.height / 2.0)));
+    const startY = 2.8; // Above street-level podium
+    const availableH = Math.max(4, layout.height - startY - 1.2);
+    const rows = Math.min(16, Math.max(4, Math.floor(availableH / 1.8)));
     const colsPerFace = 3;
     const totalWindows = rows * colsPerFace * 4;
 
-    const windowGeo = new THREE.PlaneGeometry(0.4, 0.5);
-    const instancedMat = layout.room.status === 'active' 
-      ? this.materials.windowSigned 
-      : this.materials.windowEmissive;
+    const windowGeo = new THREE.PlaneGeometry(0.42, 0.52);
+    // Basic material that accepts per-instance vertex coloring
+    const instancedMat = new THREE.MeshBasicMaterial({
+      color: 0xFFFFFF,
+      transparent: true,
+      opacity: 0.95
+    });
 
     this.windowMesh = new THREE.InstancedMesh(windowGeo, instancedMat, totalWindows);
-    
+
     const dummy = new THREE.Object3D();
     let instanceIdx = 0;
 
     const halfW = layout.width / 2 + 0.02;
     const halfD = layout.depth / 2 + 0.02;
 
+    const warmGold = new THREE.Color(0xFDE047);
+    const brightWhite = new THREE.Color(0xFFFFFF);
+    const districtColor = new THREE.Color(layout.color);
+    const warmOrange = new THREE.Color(0xFB923C);
+    const darkGlass = new THREE.Color(0x07111D);
+
     for (let r = 0; r < rows; r++) {
-      const y = 1.5 + r * (layout.height - 2.5) / rows;
+      const y = startY + (r * availableH) / rows;
+      // Inset windows if this floor is in the upper setback
+      const isSetbackFloor = layout.height >= 16 && y > layout.height * 0.68;
+      const curHalfW = isSetbackFloor ? halfW * 0.82 : halfW;
+      const curHalfD = isSetbackFloor ? halfD * 0.82 : halfD;
+      const curW = isSetbackFloor ? layout.width * 0.82 : layout.width;
+      const curD = isSetbackFloor ? layout.depth * 0.82 : layout.depth;
 
       // Front & Back faces
       for (let c = 0; c < colsPerFace; c++) {
-        const xOffset = ((c - 1) * layout.width) / 4;
-        
-        dummy.position.set(xOffset, y, halfD);
+        const xOffset = ((c - 1) * curW) / 3.6;
+
+        // Determine authentic night window light color
+        const hash = Math.sin(layout.position[0] * 7.9 + layout.position[2] * 4.3 + instanceIdx * 1.7);
+        const norm = Math.abs(hash);
+        let winCol = darkGlass;
+        if (norm > 0.80) winCol = brightWhite;
+        else if (norm > 0.48) winCol = warmGold;
+        else if (norm > 0.28) winCol = districtColor;
+        else if (norm > 0.14) winCol = warmOrange;
+
+        dummy.position.set(xOffset, y, curHalfD);
         dummy.rotation.set(0, 0, 0);
         dummy.updateMatrix();
-        this.windowMesh.setMatrixAt(instanceIdx++, dummy.matrix);
+        this.windowMesh.setMatrixAt(instanceIdx, dummy.matrix);
+        this.windowMesh.setColorAt(instanceIdx, winCol);
+        instanceIdx++;
 
-        dummy.position.set(xOffset, y, -halfD);
+        dummy.position.set(xOffset, y, -curHalfD);
         dummy.rotation.set(0, Math.PI, 0);
         dummy.updateMatrix();
-        this.windowMesh.setMatrixAt(instanceIdx++, dummy.matrix);
+        this.windowMesh.setMatrixAt(instanceIdx, dummy.matrix);
+        this.windowMesh.setColorAt(instanceIdx, winCol);
+        instanceIdx++;
       }
 
       // Left & Right faces
       for (let c = 0; c < colsPerFace; c++) {
-        const zOffset = ((c - 1) * layout.depth) / 4;
+        const zOffset = ((c - 1) * curD) / 3.6;
 
-        dummy.position.set(halfW, y, zOffset);
+        const hash = Math.sin(layout.position[0] * 3.1 + layout.position[2] * 9.7 + instanceIdx * 2.3);
+        const norm = Math.abs(hash);
+        let winCol = darkGlass;
+        if (norm > 0.82) winCol = brightWhite;
+        else if (norm > 0.50) winCol = warmGold;
+        else if (norm > 0.30) winCol = districtColor;
+        else if (norm > 0.16) winCol = warmOrange;
+
+        dummy.position.set(curHalfW, y, zOffset);
         dummy.rotation.set(0, Math.PI / 2, 0);
         dummy.updateMatrix();
-        this.windowMesh.setMatrixAt(instanceIdx++, dummy.matrix);
+        this.windowMesh.setMatrixAt(instanceIdx, dummy.matrix);
+        this.windowMesh.setColorAt(instanceIdx, winCol);
+        instanceIdx++;
 
-        dummy.position.set(-halfW, y, zOffset);
+        dummy.position.set(-curHalfW, y, zOffset);
         dummy.rotation.set(0, -Math.PI / 2, 0);
         dummy.updateMatrix();
-        this.windowMesh.setMatrixAt(instanceIdx++, dummy.matrix);
+        this.windowMesh.setMatrixAt(instanceIdx, dummy.matrix);
+        this.windowMesh.setColorAt(instanceIdx, winCol);
+        instanceIdx++;
       }
     }
 
     this.windowMesh.instanceMatrix.needsUpdate = true;
+    if (this.windowMesh.instanceColor) {
+      this.windowMesh.instanceColor.needsUpdate = true;
+    }
     this.group.add(this.windowMesh);
   }
 
@@ -266,11 +411,14 @@ export class CityBuilding {
 
     if (cutaway) {
       this.buildingMesh.visible = false;
+      if (this.setbackMesh) this.setbackMesh.visible = false;
+      if (this.podiumMesh) this.podiumMesh.visible = false;
       if (this.windowMesh) this.windowMesh.visible = false;
       if (this.crownGroup) this.crownGroup.visible = false;
     } else {
       this.buildingMesh.visible = true;
-      this.buildingMesh.material = this.baseFacadeMat;
+      if (this.setbackMesh) this.setbackMesh.visible = true;
+      if (this.podiumMesh) this.podiumMesh.visible = true;
       if (this.windowMesh) this.windowMesh.visible = true;
       if (this.crownGroup) this.crownGroup.visible = true;
     }
@@ -285,8 +433,10 @@ export class CityBuilding {
 
     if (isSelected) {
       this.buildingMesh.scale.set(1.03, 1.0, 1.03);
+      if (this.setbackMesh) this.setbackMesh.scale.set(1.03, 1.0, 1.03);
     } else {
       this.buildingMesh.scale.set(1.0, 1.0, 1.0);
+      if (this.setbackMesh) this.setbackMesh.scale.set(1.0, 1.0, 1.0);
     }
 
     if (this.isCutaway) {

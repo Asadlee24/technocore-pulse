@@ -179,113 +179,106 @@ export function generateCityLayout(rooms: RoomCluster[]): {
   const totalSectors = districtKeys.length; // 8
   const sectorAngleStep = (Math.PI * 2) / totalSectors;
 
-  // 1. First assign incoming real rooms to appropriate districts
+  // Track rooms assigned to each district
+  const districtRoomAssignments: Record<CityDistrictType, RoomCluster[]> = {
+    'coordination': [],
+    'work': [],
+    'research': [],
+    'compute': [],
+    'settlement': [],
+    'social': [],
+    'broadcast': [],
+    'infrastructure': []
+  };
+
   rooms.forEach((room, idx) => {
-    const districtType = mapRoomToDistrict(room, idx);
-    const cfg = DISTRICT_CONFIGS[districtType];
-    const baseAngle = cfg.sectorIndex * sectorAngleStep;
-    
-    // Position inside the primary ring (radius 16 to 26)
-    const angleJitter = (Math.sin(idx * 7.1) * 0.18);
-    const angle = baseAngle + angleJitter;
-    const radius = 16 + ((idx % 3) * 4.5);
-    
-    const x = Math.cos(angle) * radius;
-    const z = Math.sin(angle) * radius;
-    const height = calculateBuildingHeight(room.activeAgentsCount);
-
-    let width = 4.2;
-    let depth = 4.2;
-    if (districtType === 'compute') {
-      width = 5.2;
-      depth = 3.6;
-    } else if (districtType === 'work') {
-      width = 4.6;
-      depth = 4.6;
-    } else if (districtType === 'settlement') {
-      width = 4.8;
-      depth = 4.8;
-    }
-
-    const bLayout: BuildingLayout = {
-      room,
-      position: [x, 0, z],
-      width,
-      depth,
-      height,
-      district: districtType,
-      archetype: cfg.archetype,
-      color: room.color || cfg.color,
-      beaconColor: getBeaconColor(room.lastProbeArm),
-      windowDensity: Math.min(28, Math.max(8, Math.floor(room.activeAgentsCount / 2))),
-      rotationY: angle + Math.PI / 2,
-      isPrimaryRoom: true
-    };
-
-    buildings.push(bLayout);
-    districtsMap[districtType].push(bLayout);
+    const dType = mapRoomToDistrict(room, idx);
+    districtRoomAssignments[dType].push(room);
   });
 
-  // 2. Procedural Infill Buildings: Ensure all 8 districts have dense, vibrant urban blocks
+  // Master Planned Lots for each of the 8 districts:
+  // 6 perfectly spaced building parcels per district across 3 concentric rings:
+  // Ring 1 (Downtown Hub): radius 21.5, angular offsets [-0.20, +0.20]
+  // Ring 2 (Flagship Commercial Center): radius 35.0, angular offsets [-0.24, 0.0 (flagship), +0.24]
+  // Ring 3 (Outer Metropolitan Boulevard): radius 50.0, angular offsets [-0.20, +0.20]
+  // Between rings are 13-15 unit wide boulevards with zero building overlap!
   districtKeys.forEach((distType) => {
     const cfg = DISTRICT_CONFIGS[distType];
     const baseAngle = cfg.sectorIndex * sectorAngleStep;
-    
-    // Generate 6 buildings per district across 3 radial tiers (inner, mid, outer) and 2 angular columns
-    // Total: 8 * 6 = 48 district buildings + incoming active rooms = ~56 buildings!
-    const tiers = [
-      { radius: 17, heightBase: 8, heightVar: 4, width: 3.2, depth: 3.2, count: 2 },
-      { radius: 23, heightBase: 13, heightVar: 5, width: 3.6, depth: 3.6, count: 2 },
-      { radius: 29.5, heightBase: 17, heightVar: 7, width: 3.8, depth: 3.8, count: 2 },
+    const assignedRooms = districtRoomAssignments[distType];
+
+    // 6 discrete lot definitions per sector
+    const sectorLots = [
+      // Ring 1: Inner Downtown (medium-rise)
+      { ring: 1, radius: 21.5, angleOffset: -0.21, width: 4.4, depth: 4.4, heightBase: 10, heightVar: 4 },
+      { ring: 1, radius: 21.5, angleOffset: 0.21, width: 4.4, depth: 4.4, heightBase: 12, heightVar: 4 },
+      // Ring 2: Flagship Center (the district centerpiece skyscraper)
+      { ring: 2, radius: 35.0, angleOffset: 0.00, width: 5.2, depth: 5.2, heightBase: 24, heightVar: 8, isFlagship: true },
+      // Ring 2: Commercial flanks
+      { ring: 2, radius: 35.0, angleOffset: -0.25, width: 4.8, depth: 4.8, heightBase: 16, heightVar: 6 },
+      { ring: 2, radius: 35.0, angleOffset: 0.25, width: 4.8, depth: 4.8, heightBase: 17, heightVar: 6 },
+      // Ring 3: Outer High-Rise
+      { ring: 3, radius: 50.0, angleOffset: -0.22, width: 5.4, depth: 5.4, heightBase: 20, heightVar: 9 },
+      { ring: 3, radius: 50.0, angleOffset: 0.22, width: 5.4, depth: 5.4, heightBase: 22, heightVar: 9 }
     ];
 
-    let bIndex = 0;
-    tiers.forEach((tier, tIdx) => {
-      for (let col = 0; col < tier.count; col++) {
-        bIndex++;
-        // Spread evenly across sector angle (-0.18 to +0.18 radians)
-        const angleOffset = (col === 0 ? -0.18 : 0.18) + (tIdx % 2 === 1 ? 0.05 : -0.05);
-        const angle = baseAngle + angleOffset;
-        const radius = tier.radius + (col * 1.5);
+    sectorLots.forEach((lot, lotIdx) => {
+      const angle = baseAngle + lot.angleOffset;
+      const x = Math.cos(angle) * lot.radius;
+      const z = Math.sin(angle) * lot.radius;
 
-        const x = Math.cos(angle) * radius;
-        const z = Math.sin(angle) * radius;
+      // Assign real room if available for this lot (flagship gets first assigned room)
+      let roomForLot: RoomCluster;
+      let isPrimary = false;
+      const seed = Math.sin(cfg.sectorIndex * 19 + lotIdx * 7.7);
+      let calculatedHeight = lot.heightBase + Math.abs(seed) * lot.heightVar;
 
-        const seed = Math.sin(cfg.sectorIndex * 17 + bIndex * 8.3);
-        const infillHeight = tier.heightBase + Math.abs(seed) * tier.heightVar;
-        const infillAgents = Math.floor(10 + Math.abs(seed) * 18);
+      if (lot.isFlagship && assignedRooms.length > 0) {
+        roomForLot = assignedRooms[0];
+        isPrimary = true;
+        calculatedHeight = calculateBuildingHeight(roomForLot.activeAgentsCount);
+      } else if (lotIdx === 0 && assignedRooms.length > 1) {
+        roomForLot = assignedRooms[1];
+        isPrimary = true;
+        calculatedHeight = calculateBuildingHeight(roomForLot.activeAgentsCount);
+      } else if (lotIdx === 1 && assignedRooms.length > 2) {
+        roomForLot = assignedRooms[2];
+        isPrimary = true;
+        calculatedHeight = calculateBuildingHeight(roomForLot.activeAgentsCount);
+      } else {
+        // Procedural infill building
+        const infillAgents = Math.floor(12 + Math.abs(seed) * 20);
 
-        const fakeRoom: RoomCluster = {
-          id: `${distType}-sector-${bIndex}`,
-          name: `${cfg.name} Sector ${bIndex}`,
-          displayName: `${cfg.name.split(' ')[0]} ${bIndex}`,
-          category: (distType === 'compute' ? 'compute-relay' : distType === 'settlement' ? 'settlement-prep' : distType === 'social' ? 'agent-social' : 'coordination') as any,
+        roomForLot = {
+          id: `${distType}-lot-${lotIdx + 1}`,
+          name: `${cfg.name.split(' ')[0]} ${lot.isFlagship ? 'Tower' : 'Block ' + (lotIdx + 1)}`,
           activeAgentsCount: infillAgents,
-          totalProbesReceived: Math.floor(4 + Math.abs(seed) * 14),
-          averageResponseLatency: 1.0 + Math.abs(seed) * 2.0,
-          status: 'active',
+          category: distType === 'compute' ? 'compute-relay' : distType === 'settlement' ? 'settlement-prep' : 'coordination',
+          status: Math.abs(seed) > 0.65 ? 'surge' : 'active',
           color: cfg.color,
-          coordinates: [x, 0, z]
-        };
-
-        const infillBuilding: BuildingLayout = {
-          room: fakeRoom,
-          position: [x, 0, z],
-          width: tier.width,
-          depth: tier.depth,
-          height: infillHeight,
-          district: distType,
-          archetype: cfg.archetype,
-          color: cfg.color,
-          beaconColor: getBeaconColor(bIndex % 3 === 0 ? 'question' : bIndex % 3 === 1 ? 'offer' : 'statement'),
-          windowDensity: 14 + tIdx * 4,
-          rotationY: angle + Math.PI / 2,
-          isPrimaryRoom: false
-        };
-
-        buildings.push(infillBuilding);
-        districtsMap[distType].push(infillBuilding);
+          lastProbeArm: Math.abs(seed) > 0.5 ? 'question' : 'offer'
+        } as any;
       }
+
+      const height = Math.round(calculatedHeight);
+
+      const bLayout: BuildingLayout = {
+        room: roomForLot,
+        position: [x, 0, z],
+        width: lot.width,
+        depth: lot.depth,
+        height: Math.max(8, height),
+        district: distType,
+        archetype: cfg.archetype,
+        color: roomForLot.color || cfg.color,
+        beaconColor: getBeaconColor(roomForLot.lastProbeArm),
+        windowDensity: 16 + lot.ring * 4,
+        rotationY: angle + Math.PI / 2,
+        isPrimaryRoom: isPrimary
+      };
+
+      buildings.push(bLayout);
+      districtsMap[distType].push(bLayout);
     });
   });
 
@@ -293,8 +286,8 @@ export function generateCityLayout(rooms: RoomCluster[]): {
   const districts: CityDistrictLayout[] = districtKeys.map((distType) => {
     const cfg = DISTRICT_CONFIGS[distType];
     const bList = districtsMap[distType];
-    const avgX = bList.length > 0 ? bList.reduce((sum, b) => sum + b.position[0], 0) / bList.length : Math.cos(cfg.sectorIndex * sectorAngleStep) * 22;
-    const avgZ = bList.length > 0 ? bList.reduce((sum, b) => sum + b.position[2], 0) / bList.length : Math.sin(cfg.sectorIndex * sectorAngleStep) * 22;
+    const avgX = bList.length > 0 ? bList.reduce((sum, b) => sum + b.position[0], 0) / bList.length : Math.cos(cfg.sectorIndex * sectorAngleStep) * 35;
+    const avgZ = bList.length > 0 ? bList.reduce((sum, b) => sum + b.position[2], 0) / bList.length : Math.sin(cfg.sectorIndex * sectorAngleStep) * 35;
 
     return {
       type: distType,
@@ -307,15 +300,21 @@ export function generateCityLayout(rooms: RoomCluster[]): {
     };
   });
 
-  // 4. Road Waypoints Data
+  // 4. Road Waypoints: Concentric Boulevards and Inter-District Radial Avenues
+  // Rings run between the building rings so roads never intersect buildings!
+  // Inner ring: radius 14 (between central core and Ring 1)
+  // Mid Boulevard: radius 28 (between Ring 1 at 21.5 and Ring 2 at 35)
+  // Beltway Highway: radius 43 (between Ring 2 at 35 and Ring 3 at 50)
+  // Outer Beltway: radius 60 (framing the outer perimeter)
   const roadWaypoints: RoadWaypoints = {
-    innerRingRadius: 11,
-    outerRingRadius: 27,
-    beltwayRadius: 42,
-    radialAvenues: districtKeys.map(d => ({
-      angle: DISTRICT_CONFIGS[d].sectorIndex * sectorAngleStep,
-      startRadius: 11,
-      endRadius: 44
+    innerRingRadius: 14,
+    outerRingRadius: 28,
+    beltwayRadius: 43,
+    radialAvenues: districtKeys.map((_, i) => ({
+      // Avenues are placed precisely halfway between districts (inter-district avenues)
+      angle: (i + 0.5) * sectorAngleStep,
+      startRadius: 8,
+      endRadius: 65
     }))
   };
 

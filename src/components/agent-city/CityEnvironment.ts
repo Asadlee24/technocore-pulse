@@ -55,13 +55,13 @@ export class CityEnvironment {
     this.group.add(gridHelper);
 
     // 4. District Boundary Circular Glow Accents
-    [12, 28, 44].forEach((radius) => {
+    [14, 28, 43, 60].forEach((radius) => {
       const ringGeo = new THREE.RingGeometry(radius - 0.08, radius + 0.08, 64);
       const ringMat = new THREE.MeshBasicMaterial({
         color: isLight ? 0x94A3B8 : 0x1B2A3D,
         side: THREE.DoubleSide,
         transparent: true,
-        opacity: isLight ? 0.6 : 0.5
+        opacity: isLight ? 0.6 : 0.4
       });
       const ring = new THREE.Mesh(ringGeo, ringMat);
       ring.rotation.x = -Math.PI / 2;
@@ -72,8 +72,8 @@ export class CityEnvironment {
 
   private buildStreetLanterns(theme: 'dark' | 'light') {
     const isLight = theme === 'light';
-    const lanternCount = 32;
-    const lampGeo = new THREE.CylinderGeometry(0.04, 0.04, 1.8, 6);
+    const lanternCount = 48;
+    const lampGeo = new THREE.CylinderGeometry(0.05, 0.05, 1.8, 6);
     const lampMat = new THREE.MeshStandardMaterial({
       color: isLight ? 0x64748B : 0x1B2A3D
     });
@@ -82,7 +82,8 @@ export class CityEnvironment {
     const dummy = new THREE.Object3D();
     for (let i = 0; i < lanternCount; i++) {
       const angle = (i / lanternCount) * Math.PI * 2;
-      const radius = i % 2 === 0 ? 12.8 : 28.6;
+      const ringChoice = i % 3;
+      const radius = ringChoice === 0 ? 12.8 : ringChoice === 1 ? 26.8 : 41.6;
       const x = Math.cos(angle) * radius;
       const z = Math.sin(angle) * radius;
 

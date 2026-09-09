@@ -36,7 +36,7 @@ export class CityRoads {
     innerRoad.receiveShadow = true;
     this.group.add(innerRoad);
 
-    // 2. Outer Ring Boulevard
+    // 2. Mid Boulevard (Ring 2)
     const outerRoadGeo = new THREE.RingGeometry(
       waypoints.outerRingRadius - 1.4,
       waypoints.outerRingRadius + 1.4,
@@ -48,7 +48,27 @@ export class CityRoads {
     outerRoad.receiveShadow = true;
     this.group.add(outerRoad);
 
-    // 3. 8 Radial Grand Avenues
+    // 3. Beltway Highway (Ring 3)
+    const beltwayRoadGeo = new THREE.RingGeometry(
+      waypoints.beltwayRadius - 1.5,
+      waypoints.beltwayRadius + 1.5,
+      64
+    );
+    const beltwayRoad = new THREE.Mesh(beltwayRoadGeo, roadMat);
+    beltwayRoad.rotation.x = -Math.PI / 2;
+    beltwayRoad.position.y = 0.03;
+    beltwayRoad.receiveShadow = true;
+    this.group.add(beltwayRoad);
+
+    // 4. Perimeter Ring Road (Radius 60)
+    const perimeterRoadGeo = new THREE.RingGeometry(59, 61.6, 64);
+    const perimeterRoad = new THREE.Mesh(perimeterRoadGeo, roadMat);
+    perimeterRoad.rotation.x = -Math.PI / 2;
+    perimeterRoad.position.y = 0.03;
+    perimeterRoad.receiveShadow = true;
+    this.group.add(perimeterRoad);
+
+    // 5. 8 Radial Grand Avenues
     const avenueWidth = 2.4;
     waypoints.radialAvenues.forEach((ave) => {
       const length = ave.endRadius - ave.startRadius;
@@ -96,7 +116,7 @@ export class CityRoads {
     innerDivider.position.y = 0.045;
     this.group.add(innerDivider);
 
-    // Outer ring glowing divider
+    // Mid ring glowing divider
     const outerDividerGeo = new THREE.RingGeometry(
       waypoints.outerRingRadius - 0.05,
       waypoints.outerRingRadius + 0.05,
@@ -106,6 +126,17 @@ export class CityRoads {
     outerDivider.rotation.x = -Math.PI / 2;
     outerDivider.position.y = 0.045;
     this.group.add(outerDivider);
+
+    // Beltway glowing divider
+    const beltwayDividerGeo = new THREE.RingGeometry(
+      waypoints.beltwayRadius - 0.05,
+      waypoints.beltwayRadius + 0.05,
+      64
+    );
+    const beltwayDivider = new THREE.Mesh(beltwayDividerGeo, laneMat);
+    beltwayDivider.rotation.x = -Math.PI / 2;
+    beltwayDivider.position.y = 0.045;
+    this.group.add(beltwayDivider);
 
     // Radial avenue centerlines
     waypoints.radialAvenues.forEach((ave) => {

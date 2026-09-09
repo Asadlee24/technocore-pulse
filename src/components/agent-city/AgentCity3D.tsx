@@ -89,10 +89,10 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   // Cinematic Intro & Perspective references
   const isIntroRef = useRef<boolean>(true);
   const introProgressRef = useRef<number>(0);
-  const INTRO_START_POS = useRef<THREE.Vector3>(new THREE.Vector3(68, 56, 72));
-  const INTRO_END_POS = useRef<THREE.Vector3>(new THREE.Vector3(42, 30, 46));
-  const INTRO_START_LOOK = useRef<THREE.Vector3>(new THREE.Vector3(0, 12, 0));
-  const INTRO_END_LOOK = useRef<THREE.Vector3>(new THREE.Vector3(0, 5, 0));
+  const INTRO_START_POS = useRef<THREE.Vector3>(new THREE.Vector3(78, 52, 84));
+  const INTRO_END_POS = useRef<THREE.Vector3>(new THREE.Vector3(56, 36, 62));
+  const INTRO_START_LOOK = useRef<THREE.Vector3>(new THREE.Vector3(0, 10, 0));
+  const INTRO_END_LOOK = useRef<THREE.Vector3>(new THREE.Vector3(0, 6, 0));
 
   const cameraPerspectiveRef = useRef<'orbit' | 'drone' | 'plaza'>(cameraPerspective);
   cameraPerspectiveRef.current = cameraPerspective;
@@ -103,8 +103,8 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   // Animation & Camera targets
   const controlsRef = useRef<OrbitControls | null>(null);
   const isTransitioningRef = useRef<boolean>(false);
-  const cameraTargetPos = useRef<THREE.Vector3>(new THREE.Vector3(42, 30, 46));
-  const cameraTargetLookAt = useRef<THREE.Vector3>(new THREE.Vector3(0, 5, 0));
+  const cameraTargetPos = useRef<THREE.Vector3>(new THREE.Vector3(56, 36, 62));
+  const cameraTargetLookAt = useRef<THREE.Vector3>(new THREE.Vector3(0, 6, 0));
 
   // Refs for animation loop (prevents scene destruction on state changes)
   const isAutoRotateRef = useRef<boolean>(isAutoRotate);
@@ -145,8 +145,8 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // Close all cutaways
     buildingsMapRef.current.forEach(b => b.setCutaway(false));
 
-    cameraTargetPos.current.set(42, 30, 46);
-    cameraTargetLookAt.current.set(0, 5, 0);
+    cameraTargetPos.current.set(56, 36, 62);
+    cameraTargetLookAt.current.set(0, 6, 0);
     setPulseLog('Camera returned to Agent City metropolitan overview.');
   }, []);
 
@@ -226,8 +226,8 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     } else if (cameraPerspective === 'orbit') {
       if (viewLevelRef.current === 'city') {
         isTransitioningRef.current = true;
-        cameraTargetPos.current.set(42, 30, 46);
-        cameraTargetLookAt.current.set(0, 5, 0);
+        cameraTargetPos.current.set(56, 36, 62);
+        cameraTargetLookAt.current.set(0, 6, 0);
       }
       setPulseLog('Camera switched to Free Orbit mode.');
     } else if (cameraPerspective === 'drone') {
@@ -403,7 +403,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     controls.screenSpacePanning = true;
     controls.maxPolarAngle = Math.PI / 2 - 0.04; // Keep camera above ground
     controls.minDistance = 4;
-    controls.maxDistance = 115;
+    controls.maxDistance = 145;
     controls.rotateSpeed = 0.85;
     controls.zoomSpeed = 1.15;
     controls.panSpeed = 0.8;
@@ -637,61 +637,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
         </button>
       )}
 
-      {/* Floating Interactive District Teleport Dock (Bottom-Center) */}
-      <div className={`absolute bottom-4 left-1/2 -translate-x-1/2 z-20 hidden lg:flex items-center space-x-1 px-2.5 py-1.5 rounded-2xl backdrop-blur-xl border shadow-2xl transition-all ${
-        isLight
-          ? 'bg-white/95 border-slate-200/90 shadow-slate-300/60 text-slate-700'
-          : 'bg-[#0B1320]/90 border-[#1B2A3D] text-[#95A4B8] shadow-black/80'
-      }`}>
-        <div className={`text-[10px] font-mono uppercase font-bold px-2 py-0.5 border-r mr-1 ${
-          isLight ? 'border-slate-200 text-[#0284C7]' : 'border-[#1B2A3D] text-[#36D7E7]'
-        }`}>
-          Districts
-        </div>
-        {[
-          { id: 'core', label: 'Core', icon: '🏛️', color: '#36D7E7', angle: null },
-          { id: 'work', label: 'Work', icon: '🏢', color: '#4DA3FF', angle: (1 * Math.PI * 2) / 8 },
-          { id: 'research', label: 'Research', icon: '🧪', color: '#38BDF8', angle: (2 * Math.PI * 2) / 8 },
-          { id: 'compute', label: 'Compute', icon: '⚡', color: '#A855F7', angle: (3 * Math.PI * 2) / 8 },
-          { id: 'settlement', label: 'Settlement', icon: '🔒', color: '#2FD27F', angle: (4 * Math.PI * 2) / 8 },
-          { id: 'social', label: 'Social', icon: '💬', color: '#F472B6', angle: (5 * Math.PI * 2) / 8 },
-          { id: 'broadcast', label: 'Broadcast', icon: '📡', color: '#F0A824', angle: (6 * Math.PI * 2) / 8 },
-          { id: 'infrastructure', label: 'Infra', icon: '🌐', color: '#818CF8', angle: (7 * Math.PI * 2) / 8 }
-        ].map((dist) => (
-          <button
-            key={dist.id}
-            onClick={() => {
-              if (dist.angle === null) {
-                cameraTargetPos.current.set(18, 14, 20);
-                cameraTargetLookAt.current.set(0, 8, 0);
-                isTransitioningRef.current = true;
-                setPulseLog('Teleported optical sensor to Central Core Landmark.');
-              } else {
-                const r = 24;
-                const dX = Math.cos(dist.angle) * r;
-                const dZ = Math.sin(dist.angle) * r;
-                cameraTargetPos.current.set(
-                  dX + Math.cos(dist.angle + 0.35) * 14,
-                  11,
-                  dZ + Math.sin(dist.angle + 0.35) * 14
-                );
-                cameraTargetLookAt.current.set(dX, 5, dZ);
-                isTransitioningRef.current = true;
-                setPulseLog(`Teleported camera to ${dist.label} District.`);
-              }
-            }}
-            className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-xl text-xs font-mono font-medium transition-all hover:scale-105 active:scale-95 ${
-              isLight
-                ? 'hover:bg-slate-100 hover:text-slate-900'
-                : 'hover:bg-[#101A2A] hover:text-white border border-transparent hover:border-[#36D7E7]/30'
-            }`}
-            title={`Teleport camera to ${dist.label} District`}
-          >
-            <span className="text-sm">{dist.icon}</span>
-            <span>{dist.label}</span>
-          </button>
-        ))}
-      </div>
+
 
       {/* Floating Status Ticker */}
       <div className={`absolute bottom-4 right-4 z-10 hidden sm:flex items-center space-x-2 text-[11px] font-mono backdrop-blur-md px-3 py-1.5 rounded-lg border transition-colors ${
