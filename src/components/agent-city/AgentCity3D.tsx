@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { RoomCluster } from '../../types/probe';
 import { generateCityLayout, type BuildingLayout } from './cityLayout';
 import { createCityMaterials, disposeCityMaterials, type CityMaterials } from './cityMaterials';
@@ -65,9 +66,10 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   const lodManagerRef = useRef<CityLODManager>(new CityLODManager());
 
   // Animation & Camera targets
+  const controlsRef = useRef<OrbitControls | null>(null);
+  const isTransitioningRef = useRef<boolean>(false);
   const cameraTargetPos = useRef<THREE.Vector3>(new THREE.Vector3(34, 28, 38));
   const cameraTargetLookAt = useRef<THREE.Vector3>(new THREE.Vector3(0, 6, 0));
-  const cameraCurrentLookAt = useRef<THREE.Vector3>(new THREE.Vector3(0, 6, 0));
 
   // Refs for animation loop (prevents scene destruction on state changes)
   const isAutoRotateRef = useRef<boolean>(isAutoRotate);
@@ -91,6 +93,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   const switchCameraToCity = useCallback(() => {
     setViewLevel('city');
     setIsAutoRotate(true);
+    isTransitioningRef.current = true;
     lodManagerRef.current.setViewLevel('city', null);
 
     // Close all cutaways
@@ -104,6 +107,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   const switchCameraToBuilding = useCallback((building: BuildingLayout) => {
     setViewLevel('building');
     setIsAutoRotate(false);
+    isTransitioningRef.current = true;
     lodManagerRef.current.setViewLevel('building', building.room.id);
 
     // Open cutaway for selected building, close others
@@ -129,6 +133,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   const switchCameraToInterior = useCallback((building: BuildingLayout) => {
     setViewLevel('interior');
     setIsAutoRotate(false);
+    isTransitioningRef.current = true;
     lodManagerRef.current.setViewLevel('interior', building.room.id);
 
     // Ensure cutaway is open
@@ -283,17 +288,64 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     dirLight.position.set(25, 45, 20);
     scene.add(dirLight);
 
-    // 11. Mouse / Pointer Controls
+    // 11. OrbitControls & User Interaction (Smooth Damping, Pan, Orbit, Wheel Zoom)
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controlsRef.current = controls;
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.screenSpacePanning = true;
+    controls.maxPolarAngle = Math.PI / 2 - 0.04; // Keep camera above ground
+    controls.minDistance = 4;
+    controls.maxDistance = 115;
+    controls.rotateSpeed = 0.85;
+    controls.zoomSpeed = 1.15;
+    controls.panSpeed = 0.8;
+    controls.autoRotateSpeed = 0.6;
+
+    // Interrupt any automated sweep when the user touches controls
+    controls.addEventListener('start', () => {
+      isTransitioningRef.current = false;
+      if (isAutoRotateRef.current) {
+        setIsAutoRotate(false);
+      }
+    });
+
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2(-100, -100);
-    let isDragging = false;
-    let prevMouseX = 0;
-    let prevMouseY = 0;
+
+    let pointerDownPos = { x: 0, y: 0 };
+    let pointerDownTime = 0;
 
     const handlePointerDown = (e: MouseEvent) => {
-      isDragging = true;
-      prevMouseX = e.clientX;
-      prevMouseY = e.clientY;
+      pointerDownPos = { x: e.clientX, y: e.clientY };
+      pointerDownTime = performance.now();
+    };
+
+    const handlePointerUp = (e: MouseEvent) => {
+      const dist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+      const elapsed = performance.now() - pointerDownTime;
+
+      // Pure click if user moved mouse < 6px and held for < 350ms
+      if (dist < 6 && elapsed < 350) {
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(interactiveMeshesRef.current, false);
+
+        if (intersects.length > 0) {
+          const hit = intersects[0].object;
+          const room: RoomCluster = hit.userData.room;
+          if (room) {
+            onSelectRoomRef.current(room);
+            const bObj = buildingsMapRef.current.get(room.id);
+            if (bObj) {
+              switchCameraToBuilding(bObj.layout);
+            }
+          }
+        }
+      }
     };
 
     const handlePointerMove = (e: MouseEvent) => {
@@ -301,77 +353,25 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
-      if (isDragging && viewLevelRef.current === 'city') {
-        const deltaX = e.clientX - prevMouseX;
-        const deltaY = e.clientY - prevMouseY;
-        prevMouseX = e.clientX;
-        prevMouseY = e.clientY;
-
-        const rotSpeed = 0.005;
-        const radius = Math.hypot(camera.position.x, camera.position.z);
-        let angle = Math.atan2(camera.position.z, camera.position.x) - deltaX * rotSpeed;
-
-        camera.position.x = Math.cos(angle) * radius;
-        camera.position.z = Math.sin(angle) * radius;
-        camera.position.y = Math.max(6, Math.min(55, camera.position.y - deltaY * 0.1));
-      } else if (!isDragging) {
-        // Hover raycast check
-        raycaster.setFromCamera(mouse, camera);
-        const intersects = raycaster.intersectObjects(interactiveMeshesRef.current, false);
-        if (intersects.length > 0) {
-          const hit = intersects[0].object;
-          const room: RoomCluster = hit.userData.room;
-          if (room) {
-            setHoveredRoom({ room, x: e.clientX, y: e.clientY });
-            renderer.domElement.style.cursor = 'pointer';
-            return;
-          }
-        }
-        setHoveredRoom(null);
-        renderer.domElement.style.cursor = 'grab';
-      }
-    };
-
-    const handleWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      const zoomFactor = 1 + Math.sign(e.deltaY) * 0.08;
-      const targetLook = cameraTargetLookAt.current;
-      const dir = cameraTargetPos.current.clone().sub(targetLook);
-      const minZoom = viewLevelRef.current === 'interior' ? 6 : 14;
-      const maxZoom = 95;
-      const newLen = THREE.MathUtils.clamp(dir.length() * zoomFactor, minZoom, maxZoom);
-      dir.setLength(newLen);
-      cameraTargetPos.current.copy(targetLook.clone().add(dir));
-    };
-
-    const handlePointerUp = () => {
-      isDragging = false;
-      renderer.domElement.style.cursor = 'grab';
-    };
-
-    const handleClick = () => {
       raycaster.setFromCamera(mouse, camera);
       const intersects = raycaster.intersectObjects(interactiveMeshesRef.current, false);
-
       if (intersects.length > 0) {
         const hit = intersects[0].object;
         const room: RoomCluster = hit.userData.room;
         if (room) {
-          onSelectRoomRef.current(room);
-          const bObj = buildingsMapRef.current.get(room.id);
-          if (bObj) {
-            switchCameraToBuilding(bObj.layout);
-          }
+          setHoveredRoom({ room, x: e.clientX, y: e.clientY });
+          renderer.domElement.style.cursor = 'pointer';
+          return;
         }
       }
+      setHoveredRoom(null);
+      renderer.domElement.style.cursor = 'grab';
     };
 
     const domElement = renderer.domElement;
     domElement.addEventListener('pointerdown', handlePointerDown);
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
-    domElement.addEventListener('wheel', handleWheel, { passive: false });
-    domElement.addEventListener('click', handleClick);
+    domElement.addEventListener('pointerup', handlePointerUp);
+    domElement.addEventListener('pointermove', handlePointerMove);
 
     // 12. Animation Loop (60 FPS)
     let animationFrameId: number;
@@ -382,18 +382,25 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       const delta = clock.getDelta();
       const time = clock.getElapsedTime();
 
-      // Smooth camera interpolation towards target
-      camera.position.lerp(cameraTargetPos.current, 0.045);
-      cameraCurrentLookAt.current.lerp(cameraTargetLookAt.current, 0.045);
-      camera.lookAt(cameraCurrentLookAt.current);
+      // Smooth camera interpolation towards target when transitioning
+      if (isTransitioningRef.current && controlsRef.current) {
+        camera.position.lerp(cameraTargetPos.current, 0.08);
+        controlsRef.current.target.lerp(cameraTargetLookAt.current, 0.08);
 
-      // Auto-rotation in city overview mode
-      if (isAutoRotateRef.current && viewLevelRef.current === 'city' && !isDragging) {
-        const rotSpeed = 0.12 * delta;
-        const radius = Math.hypot(camera.position.x, camera.position.z);
-        const angle = Math.atan2(camera.position.z, camera.position.x) + rotSpeed;
-        cameraTargetPos.current.x = Math.cos(angle) * radius;
-        cameraTargetPos.current.z = Math.sin(angle) * radius;
+        if (
+          camera.position.distanceTo(cameraTargetPos.current) < 0.25 &&
+          controlsRef.current.target.distanceTo(cameraTargetLookAt.current) < 0.25
+        ) {
+          camera.position.copy(cameraTargetPos.current);
+          controlsRef.current.target.copy(cameraTargetLookAt.current);
+          isTransitioningRef.current = false;
+        }
+      }
+
+      // Update OrbitControls with damping and auto-rotate
+      if (controlsRef.current) {
+        controlsRef.current.autoRotate = isAutoRotateRef.current && viewLevelRef.current === 'city';
+        controlsRef.current.update();
       }
 
       // Update Sub-systems
@@ -433,10 +440,10 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       resizeObserver.disconnect();
 
       domElement.removeEventListener('pointerdown', handlePointerDown);
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-      domElement.removeEventListener('wheel', handleWheel);
-      domElement.removeEventListener('click', handleClick);
+      domElement.removeEventListener('pointerup', handlePointerUp);
+      domElement.removeEventListener('pointermove', handlePointerMove);
+
+      controls.dispose();
 
       pulseSystem.dispose();
       districtMgr.dispose();

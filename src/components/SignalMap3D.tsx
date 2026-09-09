@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { useData } from '../context/DataContext';
 import type { RoomCluster, ProbeArm } from '../types/probe';
 import { Radio, RefreshCw, Sparkles, Building2, Network } from 'lucide-react';
@@ -184,69 +185,69 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
     }
     pulseRingsRef.current = rings;
 
-    // RAYCASTING & INTERACTION
+    // 3D ORBIT CONTROLS & RAYCASTING INTERACTION
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.screenSpacePanning = true;
+    controls.maxPolarAngle = Math.PI / 2 - 0.04;
+    controls.minDistance = 15;
+    controls.maxDistance = 110;
+    controls.rotateSpeed = 0.85;
+    controls.zoomSpeed = 1.15;
+    controls.panSpeed = 0.8;
+    controls.autoRotate = isAutoRotate;
+    controls.autoRotateSpeed = 0.8;
+
+    controls.addEventListener('start', () => {
+      setIsAutoRotate(false);
+    });
+
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
-    let isDragging = false;
-    let previousMousePosition = { x: 0, y: 0 };
-    let cameraAngle = 0;
-    const cameraRadius = 50;
+    let pointerDownPos = { x: 0, y: 0 };
+    let pointerDownTime = 0;
 
-    const onMouseDown = (e: MouseEvent) => {
-      isDragging = true;
-      previousMousePosition = { x: e.clientX, y: e.clientY };
+    const onPointerDown = (e: MouseEvent) => {
+      pointerDownPos = { x: e.clientX, y: e.clientY };
+      pointerDownTime = performance.now();
     };
 
-    const onMouseMove = (e: MouseEvent) => {
-      const rect = container.getBoundingClientRect();
-      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    const onPointerUp = (e: MouseEvent) => {
+      const dist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+      const elapsed = performance.now() - pointerDownTime;
 
-      if (isDragging) {
-        const deltaX = e.clientX - previousMousePosition.x;
-        const deltaY = e.clientY - previousMousePosition.y;
+      // Only treat as room click if movement < 6px and short tap
+      if (dist < 6 && elapsed < 350) {
+        const rect = container.getBoundingClientRect();
+        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
-        cameraAngle += deltaX * 0.005;
-        camera.position.x = Math.sin(cameraAngle) * cameraRadius;
-        camera.position.z = Math.cos(cameraAngle) * cameraRadius;
-        camera.position.y = Math.max(5, Math.min(35, camera.position.y - deltaY * 0.1));
-        camera.lookAt(0, 0, 0);
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(scene.children, true);
 
-        previousMousePosition = { x: e.clientX, y: e.clientY };
-      }
-    };
+        for (let hit of intersects) {
+          let parent = hit.object.parent;
+          if (parent && parent instanceof THREE.Group) {
+            const matchRoom = activeRoomClusters.find(r => {
+              const grp = roomGroups.get(r.id);
+              return grp === parent;
+            });
 
-    const onMouseUp = () => {
-      isDragging = false;
-    };
-
-    const onClick = () => {
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(scene.children, true);
-
-      for (let hit of intersects) {
-        let parent = hit.object.parent;
-        if (parent && parent instanceof THREE.Group) {
-          const matchRoom = activeRoomClusters.find(r => {
-            const grp = roomGroups.get(r.id);
-            return grp === parent;
-          });
-
-          if (matchRoom) {
-            setSelectedRoom(matchRoom);
-            if (onSelectRoom) onSelectRoom(matchRoom);
-            setPulseLog(`Inspecting room ${matchRoom.displayName} (${matchRoom.name}). Latency: ${matchRoom.averageResponseLatency}s.`);
-            break;
+            if (matchRoom) {
+              setSelectedRoom(matchRoom);
+              if (onSelectRoom) onSelectRoom(matchRoom);
+              setPulseLog(`Inspecting room ${matchRoom.displayName} (${matchRoom.name}). Latency: ${matchRoom.averageResponseLatency}s.`);
+              break;
+            }
           }
         }
       }
     };
 
-    container.addEventListener('mousedown', onMouseDown);
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-    container.addEventListener('click', onClick);
+    container.addEventListener('pointerdown', onPointerDown);
+    container.addEventListener('pointerup', onPointerUp);
 
     const handleResize = () => {
       if (!container) return;
@@ -265,13 +266,9 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
       animationFrameId = requestAnimationFrame(animate);
       const elapsed = clock.getElapsedTime();
 
-      // Auto-rotation if enabled
-      if (isAutoRotate && !isDragging) {
-        cameraAngle += 0.0025;
-        camera.position.x = Math.sin(cameraAngle) * cameraRadius;
-        camera.position.z = Math.cos(cameraAngle) * cameraRadius;
-        camera.lookAt(0, 0, 0);
-      }
+      // Update OrbitControls with damping and auto-rotate
+      controls.autoRotate = isAutoRotate;
+      controls.update();
 
       // Rotate room nodes and animate agent orbits
       roomGroups.forEach((group, roomId) => {
@@ -314,11 +311,11 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
 
     return () => {
       cancelAnimationFrame(animationFrameId);
-      container.removeEventListener('mousedown', onMouseDown);
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-      container.removeEventListener('click', onClick);
+      container.removeEventListener('pointerdown', onPointerDown);
+      container.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('resize', handleResize);
+
+      controls.dispose();
 
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
