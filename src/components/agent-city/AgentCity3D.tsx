@@ -364,12 +364,8 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       buildingsMapRef.current.set(bLayout.room.id, bObj);
       cityGroup.add(bObj.group);
 
-      // Collect meshes for raycasting
-      bObj.group.traverse((child) => {
-        if ((child as THREE.Mesh).isMesh && child.userData.room) {
-          interactiveMeshesRef.current.push(child as THREE.Mesh);
-        }
-      });
+      // Register dedicated full-volume building collider for 100% reliable raycasting
+      interactiveMeshesRef.current.push(bObj.hitMesh);
     });
     scene.add(cityGroup);
 
@@ -492,7 +488,19 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
             onSelectRoomRef.current(room);
             const bObj = buildingsMapRef.current.get(room.id);
             if (bObj) {
-              switchCameraToBuilding(bObj.layout);
+              const currentActiveId = activeRoomRef.current?.id;
+              const currentLevel = viewLevelRef.current;
+
+              if (currentActiveId === room.id && currentLevel === 'building') {
+                // Clicking on the currently focused building again steps inside its office interior
+                switchCameraToInterior(bObj.layout);
+              } else if (currentActiveId === room.id && currentLevel === 'interior') {
+                // Already inside office interior, trigger probe pulse highlight
+                bObj.triggerProbeEffect();
+              } else {
+                // Focus on this building
+                switchCameraToBuilding(bObj.layout);
+              }
             }
           }
         }

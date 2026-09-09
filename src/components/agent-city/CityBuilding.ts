@@ -14,6 +14,7 @@ export class CityBuilding {
   public interior: OfficeInterior;
   public rooftopAgents: AgentWorker[] = [];
   public isCutaway: boolean = false;
+  public hitMesh: THREE.Mesh;
 
   private buildingMesh: THREE.Mesh;
   private setbackMesh: THREE.Mesh | null = null;
@@ -26,6 +27,20 @@ export class CityBuilding {
     this.group = new THREE.Group();
     this.group.position.set(...layout.position);
     this.group.name = `building-${layout.room.id}`;
+
+    // Full-Volume Raycast Collider: Envelopes entire building volume (podium to rooftop beacon)
+    // Ensures raycast clicks NEVER pass through to buildings behind, even when cutaway is open!
+    const hitTotalH = layout.height + 3.5;
+    const hitGeo = new THREE.BoxGeometry(layout.width * 1.18, hitTotalH, layout.depth * 1.18);
+    const hitMat = new THREE.MeshBasicMaterial({
+      transparent: true,
+      opacity: 0,
+      depthWrite: false
+    });
+    this.hitMesh = new THREE.Mesh(hitGeo, hitMat);
+    this.hitMesh.position.y = hitTotalH / 2;
+    this.hitMesh.userData = { room: layout.room, buildingId: layout.room.id };
+    this.group.add(this.hitMesh);
 
     // 0. Ground Plaza / Sidewalk Parcel Base (Grounds building realistically into the city)
     const plazaGeo = new THREE.BoxGeometry(layout.width * 1.35, 0.28, layout.depth * 1.35);
@@ -569,6 +584,10 @@ export class CityBuilding {
 
   public dispose() {
     this.interior.dispose();
+    this.hitMesh?.geometry?.dispose();
+    if (this.hitMesh && this.hitMesh.material instanceof THREE.Material) {
+      this.hitMesh.material.dispose();
+    }
     if (this.crownGroup) {
       this.crownGroup.traverse(obj => {
         if (obj instanceof THREE.Mesh) {
