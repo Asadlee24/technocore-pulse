@@ -8,7 +8,7 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ onOpenRawEvents }) => {
-  const { dataMode, setDataMode, observerHealth, isLiveLoading, refreshLiveData } = useData();
+  const { observerHealth, isLiveLoading, refreshLiveData } = useData();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-[#1B2A3D] bg-[#050A12]/90 backdrop-blur-xl transition-all">
@@ -20,8 +20,8 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenRawEvents }) => {
             <div className="relative w-8 h-8 rounded-lg bg-[#0B1320] border border-[#36D7E7]/40 flex items-center justify-center group-hover:border-[#36D7E7] transition-colors shadow-lg shadow-[#36D7E7]/10">
               <Activity className="w-4 h-4 text-[#36D7E7] animate-pulse" />
               <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${dataMode === 'LIVE' ? 'bg-[#2FD27F]' : 'bg-[#F0A824]'} opacity-75`} />
-                <span className={`relative inline-flex rounded-full h-2 w-2 ${dataMode === 'LIVE' ? 'bg-[#2FD27F]' : 'bg-[#F0A824]'}`} />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#2FD27F] opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#2FD27F]" />
               </span>
             </div>
             <div>
@@ -62,56 +62,28 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenRawEvents }) => {
           </a>
         </nav>
 
-        {/* Global Data Mode Switcher (LIVE vs DEMO) & External Links */}
+        {/* Real-Time Live Feed Indicator & Refresh */}
         <div className="flex items-center space-x-3">
           
-          {/* Prominent Global Data Mode Toggle */}
-          <div className="flex items-center p-1 rounded-xl bg-[#0B1320] border border-[#1B2A3D] shadow-inner">
+          <div className="flex items-center space-x-2 px-2.5 py-1 rounded-xl bg-[#0B1320] border border-[#1B2A3D] shadow-inner">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#2FD27F] opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#2FD27F]" />
+            </span>
+            <span className="text-xs font-mono font-bold text-[#2FD27F]">
+              LIVE
+            </span>
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#101A2A] text-[#95A4B8] border border-[#1B2A3D]">
+              {observerHealth}
+            </span>
             <button
-              onClick={() => setDataMode('LIVE')}
-              className={`flex items-center space-x-1.5 px-3 py-1 text-xs font-mono font-bold rounded-lg transition-all ${
-                dataMode === 'LIVE'
-                  ? 'bg-[#2FD27F]/20 text-[#2FD27F] border border-[#2FD27F]/50 shadow-sm shadow-[#2FD27F]/20'
-                  : 'text-[#6F8096] hover:text-[#95A4B8]'
-              }`}
-              title="Switch to Live Public Technocore API"
+              onClick={() => refreshLiveData()}
+              disabled={isLiveLoading}
+              className="p-1 text-[#95A4B8] hover:text-[#36D7E7] transition-colors"
+              title="Refresh Live Data Feed"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-[#2FD27F] animate-pulse" />
-              <span>LIVE</span>
+              <RefreshCw className={`w-3.5 h-3.5 ${isLiveLoading ? 'animate-spin' : ''}`} />
             </button>
-
-            <button
-              onClick={() => setDataMode('DEMO')}
-              className={`flex items-center space-x-1.5 px-3 py-1 text-xs font-mono font-bold rounded-lg transition-all ${
-                dataMode === 'DEMO'
-                  ? 'bg-[#F0A824]/20 text-[#F0A824] border border-[#F0A824]/50 shadow-sm shadow-[#F0A824]/20'
-                  : 'text-[#6F8096] hover:text-[#95A4B8]'
-              }`}
-              title="Switch to Illustrative Demo Baseline"
-            >
-              <span>DEMO</span>
-            </button>
-
-            {dataMode === 'LIVE' && (
-              <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ml-1 border ${
-                observerHealth === 'LIVE' ? 'bg-[#2FD27F]/10 text-[#2FD27F] border-[#2FD27F]/30' :
-                observerHealth === 'RATE LIMITED' ? 'bg-[#F0A824]/10 text-[#F0A824] border-[#F0A824]/30' :
-                'bg-[#A855F7]/10 text-[#A855F7] border-[#A855F7]/30'
-              }`}>
-                {observerHealth}
-              </span>
-            )}
-
-            {dataMode === 'LIVE' && (
-              <button
-                onClick={() => refreshLiveData()}
-                disabled={isLiveLoading}
-                className="p-1 text-[#95A4B8] hover:text-[#36D7E7] transition-colors ml-1"
-                title="Refresh Live Data"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isLiveLoading ? 'animate-spin' : ''}`} />
-              </button>
-            )}
           </div>
 
           {/* Raw Event Drawer Trigger */}

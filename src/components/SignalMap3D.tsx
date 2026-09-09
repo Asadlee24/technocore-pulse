@@ -15,7 +15,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
   selectedRoomId,
   activeFilter: _activeFilter = 'all'
 }) => {
-  const { activeRoomClusters, dataMode } = useData();
+  const { activeRoomClusters } = useData();
   const mountRef = useRef<HTMLDivElement>(null);
   const [selectedRoom, setSelectedRoom] = useState<RoomCluster>(activeRoomClusters[0]);
   const [isAutoRotate, setIsAutoRotate] = useState<boolean>(true);
@@ -346,8 +346,8 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
           <span className="font-mono text-xs uppercase tracking-widest text-[#36D7E7] font-semibold">
             3D Signal Map · Cluster Topology
           </span>
-          <span className="hidden sm:inline-block px-2 py-0.5 text-[10px] font-mono rounded bg-[#101A2A] text-[#95A4B8] border border-[#1B2A3D]">
-            {dataMode === 'LIVE' ? 'Live Public Topology' : 'Demo Baseline Topology'}
+          <span className="hidden sm:inline-block px-2 py-0.5 text-[10px] font-mono rounded bg-[#101A2A] text-[#2FD27F] border border-[#2FD27F]/30">
+            Live Public Topology
           </span>
         </div>
 

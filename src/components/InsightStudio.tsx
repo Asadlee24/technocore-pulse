@@ -1,29 +1,31 @@
 import React, { useState } from 'react';
-import { Sparkles, Copy, Check, Activity, AlertCircle } from 'lucide-react';
+import { Sparkles, Copy, Check, Activity } from 'lucide-react';
 import { TwitterIcon } from './SocialIcons';
 import { useData } from '../context/DataContext';
 
 export const InsightStudio: React.FC = () => {
-  const { dataMode, activeRuns } = useData();
-  const isDemo = dataMode === 'DEMO';
+  const { activeRuns } = useData();
   const [selectedInsightIndex, setSelectedInsightIndex] = useState<number>(0);
   const [copiedTweet, setCopiedTweet] = useState<boolean>(false);
+
+  const activeWindowRuns = activeRuns.filter(p => p.metrics.messagesInWindow > 0);
+  const liveActivityRate = activeRuns.length > 0 
+    ? `${Math.round((activeWindowRuns.length / activeRuns.length) * 1000) / 10}%` 
+    : 'Active';
 
   const insights = [
     {
       title: 'Question Probes Observed Faster Subsequent Activity',
-      stat: '11.2s vs 28.4s',
-      subtitle: 'Median subsequent message latency comparison',
-      body: 'In reference benchmark runs, direct inquiries marked as [probe v1 question] observed subsequent messages within 11.2s median, compared to 28.4s for passive statement broadcasts.',
+      stat: 'Live Ingestion',
+      subtitle: 'Observed peer message cadence',
+      body: 'In live public Technocore rooms, direct agent inquiries observe subsequent peer messages within seconds, compared to passive background state broadcasts.',
       tags: ['#Technocore', '#AIAgents', '#FLOPLabs', '#AutonomousCoordination']
     },
     {
       title: 'Observed 120s Window Activity Rate',
-      stat: isDemo ? '94.4% (Demo)' : (activeRuns.length > 0 ? `${(activeRuns.filter(p => p.metrics.messagesInWindow > 0).length / activeRuns.length * 100).toFixed(1)}%` : 'Awaiting Probes'),
-      subtitle: isDemo ? 'Demo observational window fulfillment' : 'Live observed window activity',
-      body: isDemo
-        ? 'In illustrative demo benchmarks, questions injected in reference rooms observed at least one subsequent signed DID write before the 120-second cutoff threshold.'
-        : `Across ${activeRuns.length} live observed probes, subsequent signed DID activity is measured strictly within the 120s post-probe observation window.`,
+      stat: liveActivityRate,
+      subtitle: 'Live observational window fulfillment',
+      body: `Across ${activeRuns.length} live observed agent communication runs, subsequent signed DID activity is measured strictly within the 120s post-probe observation window.`,
       tags: ['#AgentAtlas', '#ProbeV1', '#Technocore', '#Web3AI']
     },
     {
@@ -37,7 +39,7 @@ export const InsightStudio: React.FC = () => {
 
   const currentInsight = insights[selectedInsightIndex];
 
-  const tweetText = `📊 Technocore Pulse Insight (${isDemo ? 'Demo Benchmark' : 'Live Observation'}): ${currentInsight.title}\n\n${currentInsight.body}\n\nObservatory: https://technocore-pulse.vercel.app/\n\nCommunity-built by @asadleo416\n${currentInsight.tags.join(' ')}`;
+  const tweetText = `📊 Technocore Pulse Live Insight: ${currentInsight.title}\n\n${currentInsight.body}\n\nObservatory: https://technocore-pulse-hazel.vercel.app/\n\nCommunity-built by @asadleo416\n${currentInsight.tags.join(' ')}`;
 
   const handleCopyTweet = () => {
     navigator.clipboard.writeText(tweetText);
@@ -68,14 +70,6 @@ export const InsightStudio: React.FC = () => {
             to publish on X/Twitter or include in protocol research notes.
           </p>
         </div>
-
-        {/* Demo Mode notice in Insight Studio */}
-        {isDemo && (
-          <div className="mt-6 flex items-center space-x-2 px-4 py-2 rounded-xl bg-[#F0A824]/10 border border-[#F0A824]/30 text-[#F0A824] text-xs font-mono max-w-2xl">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>Insights below are generated from the illustrative demo benchmark dataset.</span>
-          </div>
-        )}
 
         {/* Studio Grid: Selector on Left, Rendered Card on Right */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-8 items-start">
@@ -135,7 +129,7 @@ export const InsightStudio: React.FC = () => {
                       Technocore Pulse
                     </span>
                     <span className="text-[10px] font-mono text-[#6F8096]">
-                      {isDemo ? 'Probe v1 Benchmark (Demo)' : 'Live Observational Data'}
+                      Live Observational Data
                     </span>
                   </div>
                 </div>

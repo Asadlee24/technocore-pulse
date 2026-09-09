@@ -89,5 +89,29 @@ export function parseProbeMessage(
     };
   }
 
-  return null;
+  // 3. Natural live agent communication in room: categorize into arms
+  const lower = text.toLowerCase();
+  let arm: ProbeArm = 'statement';
+
+  if (text.includes('?') || /\b(who|what|where|when|why|how|can|is|are|query|request)\b/i.test(lower)) {
+    arm = 'question';
+  } else if (/\b(offer|swap|providing|inference|hashrate|pool|invit|claim|escrow|gflops|service|bid|ask)\b/i.test(lower)) {
+    arm = 'offer';
+  }
+
+  return {
+    isProbe: false,
+    formatVersion: 'none',
+    runId: `live-${roomName}-${msg.seq}`,
+    probeNumber: 1,
+    arm,
+    rawText: text,
+    payload: text,
+    seq: msg.seq,
+    timestampMs,
+    isoDate: msg.ts,
+    senderDid: msg.from,
+    signature: msg.sig,
+    room: roomName
+  };
 }

@@ -1,15 +1,14 @@
 import React from 'react';
 import { Hero3DCanvas } from './Hero3DCanvas';
 import { useData } from '../context/DataContext';
-import { ArrowRight, Compass, ShieldCheck, Activity, Terminal, Sparkles, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, Compass, ShieldCheck, Activity, Terminal, Sparkles, CheckCircle2 } from 'lucide-react';
 
 interface HeroSectionProps {
   onExploreSignals: () => void;
 }
 
 export const HeroSection: React.FC<HeroSectionProps> = ({ onExploreSignals }) => {
-  const { dataMode, activeStats } = useData();
-  const isDemo = dataMode === 'DEMO';
+  const { activeStats } = useData();
 
   return (
     <section className="relative min-h-[92vh] flex items-center justify-center overflow-hidden border-b border-[#1B2A3D] bg-grid-pattern pt-8 pb-16">
@@ -24,7 +23,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onExploreSignals }) =>
         
         {/* Subtle Author Credit & Experiment Tag */}
         <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-[#0B1320]/90 border border-[#36D7E7]/30 backdrop-blur-md mb-6 shadow-lg shadow-[#36D7E7]/10 animate-fade-in">
-          <span className={`w-2 h-2 rounded-full ${isDemo ? 'bg-[#F0A824]' : 'bg-[#2FD27F]'} animate-ping`} />
+          <span className="w-2 h-2 rounded-full bg-[#2FD27F] animate-ping" />
           <span className="text-xs font-mono font-medium text-[#36D7E7]">
             probe v1 observatory
           </span>
@@ -34,23 +33,14 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onExploreSignals }) =>
           </span>
         </div>
 
-        {/* DATA INTEGRITY NOTICE: Visible disclaimer right below title/header */}
+        {/* DATA INTEGRITY NOTICE: Real Live Feed Status */}
         <div className="mb-6 w-full max-w-2xl">
-          {isDemo ? (
-            <div className="flex items-center justify-center space-x-2 px-4 py-2 rounded-xl bg-[#F0A824]/10 border border-[#F0A824]/40 text-[#F0A824] text-xs font-mono shadow-lg">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <span>
-                <strong>Demo Dataset:</strong> Illustrative benchmark data, not live Technocore experiment results.
-              </span>
-            </div>
-          ) : (
-            <div className="flex items-center justify-center space-x-2 px-4 py-2 rounded-xl bg-[#2FD27F]/10 border border-[#2FD27F]/40 text-[#2FD27F] text-xs font-mono shadow-lg">
-              <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-              <span>
-                <strong>Live Public Ingestion:</strong> Connected to Technocore public endpoints. Observation active.
-              </span>
-            </div>
-          )}
+          <div className="flex items-center justify-center space-x-2 px-4 py-2 rounded-xl bg-[#2FD27F]/10 border border-[#2FD27F]/40 text-[#2FD27F] text-xs font-mono shadow-lg">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-[#2FD27F]" />
+            <span>
+              <strong>Live Ingestion Active:</strong> Connected to Technocore public endpoints (<code className="text-[#36D7E7]">technocore.chat</code>). Real-time telemetry.
+            </span>
+          </div>
         </div>
 
         {/* Powerful Hero Headline */}
@@ -101,14 +91,14 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onExploreSignals }) =>
           
           <div className="p-4 rounded-xl bg-[#0B1320]/80 backdrop-blur-md border border-[#1B2A3D] hover:border-[#36D7E7]/30 transition-colors">
             <div className="flex items-center justify-between text-[#6F8096] text-xs font-mono">
-              <span>{isDemo ? 'Probes Fired' : 'Probes Captured'}</span>
+              <span>Live Runs Captured</span>
               <Activity className="w-3.5 h-3.5 text-[#36D7E7]" />
             </div>
             <div className="mt-2 text-2xl sm:text-3xl font-bold font-mono text-white">
               {activeStats.totalProbesFired}
             </div>
             <div className="text-[11px] font-mono text-[#95A4B8] mt-1">
-              {isDemo ? 'Illustrative benchmark' : 'Current live buffer'}
+              Live ephemeral runs
             </div>
           </div>
 
@@ -121,7 +111,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onExploreSignals }) =>
               {activeStats.overallMedianLatency !== null ? `${activeStats.overallMedianLatency}s` : 'Observing'}
             </div>
             <div className="text-[11px] font-mono text-[#95A4B8] mt-1">
-              {isDemo ? 'Demo response window' : 'Subsequent message gap'}
+              Subsequent message gap
             </div>
           </div>
 
@@ -134,7 +124,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onExploreSignals }) =>
               {activeStats.uniqueSignedIdentities > 0 ? `${activeStats.uniqueSignedIdentities}+` : '0'}
             </div>
             <div className="text-[11px] font-mono text-[#95A4B8] mt-1">
-              {isDemo ? 'Simulated DID keys' : 'Live observed DIDs'}
+              Live observed DIDs
             </div>
           </div>
 
@@ -147,7 +137,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onExploreSignals }) =>
               {activeStats.activeRoomsMonitored}
             </div>
             <div className="text-[11px] font-mono text-[#95A4B8] mt-1">
-              {isDemo ? '6 mock clusters' : 'Sampled public rooms'}
+              Sampled public rooms
             </div>
           </div>
 

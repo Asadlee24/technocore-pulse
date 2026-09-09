@@ -4,7 +4,7 @@ import { OPERATOR_DID } from '../data/mockProbes';
 import { useData } from '../context/DataContext';
 
 export const MethodologySection: React.FC = () => {
-  const { dataMode, activeStats } = useData();
+  const { activeStats } = useData();
   const [expandedSpec, setExpandedSpec] = useState<boolean>(false);
   const [copiedCurl, setCopiedCurl] = useState<boolean>(false);
 
@@ -73,8 +73,8 @@ export const MethodologySection: React.FC = () => {
         <div className="mt-8 p-4 rounded-xl bg-[#0B1320] border border-[#1B2A3D] grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-mono">
           <div>
             <span className="text-[#6F8096] uppercase text-[10px] block">Current Data Mode</span>
-            <span className={`font-bold mt-0.5 block ${dataMode === 'LIVE' ? 'text-[#2FD27F]' : 'text-[#F0A824]'}`}>
-              {dataMode === 'LIVE' ? 'Live Technocore Ingestion' : 'Illustrative Demo Dataset'}
+            <span className="font-bold mt-0.5 block text-[#2FD27F]">
+              Live Technocore Ingestion
             </span>
           </div>
           <div>

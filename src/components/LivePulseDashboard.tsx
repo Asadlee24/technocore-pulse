@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import type { ProbeRun, ProbeArm, ObservedMessage } from '../types/probe';
 import { useData } from '../context/DataContext';
 import { 
-  ShieldCheck, Terminal, Copy, Check, Eye, AlertCircle, 
+  ShieldCheck, Terminal, Copy, Check, Eye, 
   CheckCircle2, Radio, RefreshCw 
 } from 'lucide-react';
 
@@ -11,8 +11,7 @@ interface LivePulseDashboardProps {
 }
 
 export const LivePulseDashboard: React.FC<LivePulseDashboardProps> = ({ onOpenInspectorForRun }) => {
-  const { dataMode, setDataMode, observerHealth, activeRuns, activeStats, activeArmSummaries, isLiveLoading, refreshLiveData } = useData();
-  const isDemo = dataMode === 'DEMO';
+  const { observerHealth, activeRuns, activeStats, activeArmSummaries, isLiveLoading, refreshLiveData } = useData();
 
   const [selectedRunId, setSelectedRunId] = useState<string>(activeRuns[0]?.id || '');
   const [armFilter, setArmFilter] = useState<ProbeArm | 'all'>('all');
@@ -45,8 +44,8 @@ export const LivePulseDashboard: React.FC<LivePulseDashboardProps> = ({ onOpenIn
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
             <div className="inline-flex items-center space-x-2 text-xs font-mono text-[#36D7E7] uppercase tracking-widest mb-3">
-              <span className={`w-2 h-2 rounded-full ${isDemo ? 'bg-[#F0A824]' : 'bg-[#2FD27F]'} animate-ping`} />
-              <span>{isDemo ? 'Demo Baseline Mode' : 'Live Observational Stream'}</span>
+              <span className="w-2 h-2 rounded-full bg-[#2FD27F] animate-ping" />
+              <span>Live Observational Stream</span>
             </div>
             <h2 className="text-3xl sm:text-5xl font-heading font-extrabold text-white tracking-tight">
               Live Pulse Dashboard
@@ -76,49 +75,35 @@ export const LivePulseDashboard: React.FC<LivePulseDashboardProps> = ({ onOpenIn
           </div>
         </div>
 
-        {/* DATA HONESTY NOTICE BANNER: Prominently displayed near dashboard metrics */}
-        <div className="mt-8 p-4 rounded-xl border text-xs font-mono flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg transition-all"
+        {/* DATA STATUS BANNER: Real Technocore Ingestion */}
+        <div 
+          className="mt-8 p-4 rounded-xl border text-xs font-mono flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg transition-all"
           style={{
-            backgroundColor: isDemo ? 'rgba(240, 168, 36, 0.08)' : 'rgba(47, 210, 127, 0.08)',
-            borderColor: isDemo ? 'rgba(240, 168, 36, 0.4)' : 'rgba(47, 210, 127, 0.4)'
+            backgroundColor: 'rgba(47, 210, 127, 0.08)',
+            borderColor: 'rgba(47, 210, 127, 0.4)'
           }}
         >
           <div className="flex items-center space-x-3">
-            {isDemo ? (
-              <AlertCircle className="w-5 h-5 text-[#F0A824] flex-shrink-0" />
-            ) : (
-              <CheckCircle2 className="w-5 h-5 text-[#2FD27F] flex-shrink-0" />
-            )}
+            <CheckCircle2 className="w-5 h-5 text-[#2FD27F] flex-shrink-0" />
             <div>
-              <span className={`font-bold ${isDemo ? 'text-[#F0A824]' : 'text-[#2FD27F]'}`}>
-                {isDemo ? 'DEMO DATASET ACTIVE:' : 'LIVE TECHNOCORE INGESTION ACTIVE:'}
+              <span className="font-bold text-[#2FD27F]">
+                LIVE TECHNOCORE INGESTION ACTIVE:
               </span>{' '}
               <span className="text-[#EAF2F7]">
-                {isDemo
-                  ? 'Illustrative baseline data — not live Technocore experiment findings. Switch to LIVE mode to observe public room traffic.'
-                  : `Observation active across sampled public rooms since ${activeStats.observationStartTime}.`}
+                Continuous stream from public Technocore rooms (<code className="text-[#36D7E7]">https://technocore.chat</code>) since {activeStats.observationStartTime}.
               </span>
             </div>
           </div>
 
           <div className="flex items-center space-x-2 flex-shrink-0">
-            {isDemo ? (
-              <button
-                onClick={() => setDataMode('LIVE')}
-                className="px-3 py-1 rounded bg-[#F0A824]/20 hover:bg-[#F0A824]/30 text-[#F0A824] font-bold transition-colors border border-[#F0A824]/40 text-[11px]"
-              >
-                Switch to LIVE
-              </button>
-            ) : (
-              <button
-                onClick={() => refreshLiveData()}
-                disabled={isLiveLoading}
-                className="flex items-center space-x-1 px-3 py-1 rounded bg-[#2FD27F]/20 hover:bg-[#2FD27F]/30 text-[#2FD27F] font-bold transition-colors border border-[#2FD27F]/40 text-[11px]"
-              >
-                <RefreshCw className={`w-3 h-3 ${isLiveLoading ? 'animate-spin' : ''}`} />
-                <span>Refresh Live Ingestion</span>
-              </button>
-            )}
+            <button
+              onClick={() => refreshLiveData()}
+              disabled={isLiveLoading}
+              className="flex items-center space-x-1 px-3 py-1.5 rounded bg-[#2FD27F]/20 hover:bg-[#2FD27F]/30 text-[#2FD27F] font-bold transition-colors border border-[#2FD27F]/40 text-[11px]"
+            >
+              <RefreshCw className={`w-3 h-3 ${isLiveLoading ? 'animate-spin' : ''}`} />
+              <span>Refresh Ingestion</span>
+            </button>
           </div>
         </div>
 
@@ -162,10 +147,12 @@ export const LivePulseDashboard: React.FC<LivePulseDashboardProps> = ({ onOpenIn
 
             <div className="pt-4">
               <button
-                onClick={() => setDataMode('DEMO')}
-                className="px-5 py-2.5 rounded-xl bg-[#36D7E7] text-[#050A12] font-mono text-xs font-bold hover:bg-[#36D7E7]/90 transition-all shadow-lg shadow-[#36D7E7]/20"
+                onClick={() => refreshLiveData()}
+                disabled={isLiveLoading}
+                className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-[#36D7E7] text-[#050A12] font-mono text-xs font-bold hover:bg-[#36D7E7]/90 transition-all shadow-lg shadow-[#36D7E7]/20"
               >
-                Inspect Illustrated Demo Dataset
+                <RefreshCw className={`w-3.5 h-3.5 ${isLiveLoading ? 'animate-spin' : ''}`} />
+                <span>Refresh Live Ingestion</span>
               </button>
             </div>
           </div>
@@ -179,8 +166,8 @@ export const LivePulseDashboard: React.FC<LivePulseDashboardProps> = ({ onOpenIn
                 <span className="text-xs font-mono text-[#6F8096] uppercase tracking-wider">
                   Recorded Probe Runs ({filteredRuns.length})
                 </span>
-                <span className="text-[10px] font-mono text-[#36D7E7]">
-                  {isDemo ? 'Demo Mode' : 'Live Mode'}
+                <span className="text-[10px] font-mono text-[#2FD27F]">
+                  Live Ingestion
                 </span>
               </div>
 
@@ -457,12 +444,10 @@ export const LivePulseDashboard: React.FC<LivePulseDashboardProps> = ({ onOpenIn
                   <div className="flex items-center justify-between pb-4 border-b border-[#1B2A3D]">
                     <div>
                       <h4 className="font-heading font-bold text-lg text-white">
-                        {isDemo ? 'Arm Activity Benchmark Comparison (Demo)' : 'Live Arm Activity Comparison'}
+                        Live Arm Activity Comparison
                       </h4>
                       <p className="text-xs font-mono text-[#95A4B8] mt-0.5">
-                        {isDemo
-                          ? 'Illustrative 120s window activity rates and median subsequent message latencies.'
-                          : 'Aggregated values from live observed probe runs in current session.'}
+                        Aggregated values from live observed probe runs in current session.
                       </p>
                     </div>
                   </div>
@@ -479,7 +464,7 @@ export const LivePulseDashboard: React.FC<LivePulseDashboardProps> = ({ onOpenIn
                             <span>Median Latency: <strong className="text-white">{arm.medianLatency > 0 ? `${arm.medianLatency}s` : 'N/A'}</strong></span>
                             <span>Avg msgs: <strong className="text-white">{arm.avgMessagesInWindow}</strong></span>
                             <span style={{ color: arm.color }}>
-                              {arm.responseRate}% {isDemo ? 'demo window activity rate' : 'window activity rate'}
+                              {arm.responseRate}% 120s window activity rate
                             </span>
                           </div>
                         </div>

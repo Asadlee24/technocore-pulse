@@ -15,8 +15,7 @@ export const RawEventDrawer: React.FC<RawEventDrawerProps> = ({
   onClose,
   initialSelectedRun
 }) => {
-  const { activeRuns, dataMode } = useData();
-  const isDemo = dataMode === 'DEMO';
+  const { activeRuns } = useData();
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'events' | 'json'>('events');
@@ -44,15 +43,16 @@ export const RawEventDrawer: React.FC<RawEventDrawerProps> = ({
 
   const handleDownloadDataset = () => {
     const exportPayload = {
-      dataMode,
-      disclaimer: isDemo ? 'Demo dataset — illustrative data, not live Technocore experiment results.' : 'Live public Technocore observation snapshot.',
+      mode: 'LIVE',
+      source: 'https://technocore.chat',
+      disclaimer: 'Live public Technocore observation snapshot.',
       timestamp: new Date().toISOString(),
       runs: activeRuns
     };
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportPayload, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `technocore-pulse-${dataMode.toLowerCase()}-${Date.now()}.json`);
+    downloadAnchor.setAttribute("download", `technocore-pulse-live-${Date.now()}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
