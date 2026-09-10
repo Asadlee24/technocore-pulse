@@ -67,9 +67,9 @@ export class CityBuilding {
     const podiumGeo = new THREE.BoxGeometry(layout.width * 1.16, podiumH, layout.depth * 1.16);
     const districtCol = new THREE.Color(layout.color);
     const podiumMat = new THREE.MeshStandardMaterial({
-      color: districtCol.clone().lerp(new THREE.Color(0x132238), 0.6),
-      emissive: districtCol.clone().multiplyScalar(0.2),
-      roughness: 0.3,
+      color: districtCol.clone().lerp(new THREE.Color(0x101C2E), 0.4),
+      emissive: districtCol.clone().multiplyScalar(0.28),
+      roughness: 0.25,
       metalness: 0.7
     });
     this.podiumMesh = new THREE.Mesh(podiumGeo, podiumMat);
@@ -96,24 +96,22 @@ export class CityBuilding {
     canopyMesh.position.set(0, 2.0 + 0.28, (layout.depth * 1.16) / 2 + 0.55);
     this.group.add(canopyMesh);
 
-    // 2. Refined Architectural Readable Graphite & Deep Navy Facade (18-25% brightness target)
+    // 2. Vibrant, Distinct District-Themed Facade & Bright Accent Lines
     const isSurge = layout.room.status === 'surge';
-    const facadeBaseCol = new THREE.Color(0x152233).lerp(districtCol, 0.14);
-    const emissiveCol = isSurge
-      ? districtCol.clone().multiplyScalar(0.25)
-      : new THREE.Color(0x0A1422);
+    const facadeBaseCol = districtCol.clone().lerp(new THREE.Color(0x101C2E), 0.35);
+    const emissiveCol = districtCol.clone().multiplyScalar(isSurge ? 0.50 : 0.32);
 
     this.baseFacadeMat = new THREE.MeshStandardMaterial({
       color: facadeBaseCol,
       emissive: emissiveCol,
-      roughness: 0.58,
-      metalness: 0.5
+      roughness: 0.24,
+      metalness: 0.65
     });
 
     const lineMat = new THREE.LineBasicMaterial({
-      color: isSurge ? districtCol : new THREE.Color(0x324A6A),
+      color: districtCol,
       transparent: true,
-      opacity: 0.6
+      opacity: 0.88
     });
 
     // 3. Main Tower Shaft with Architectural Setback for High-Rises
