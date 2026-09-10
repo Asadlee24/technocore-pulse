@@ -46,19 +46,25 @@ export interface ProbeRun {
   };
 }
 
+export type RoomVisualDistrict = 'coordination' | 'settlement-prep' | 'compute-relay' | 'agent-social';
+
 export interface RoomCluster {
   id: string;
   name: string;
   displayName: string;
-  category: 'coordination' | 'settlement-prep' | 'compute-relay' | 'agent-social';
-  activeAgentsCount: number;
+  category: string; // 'unclassified' in LIVE, or explicit category
+  visualDistrict?: RoomVisualDistrict; // purely visual 3D district assignment
+  signedIdentitiesObserved: number | null; // Verified unique signing DIDs observed
+  activeAgentsCount?: number | null; // deprecated / legacy alias
   totalProbesReceived: number;
-  averageResponseLatency?: number | null;
-  status: 'active' | 'nominal' | 'surge';
+  medianSubsequentLatencySeconds: number | null; // measured subsequent activity latency or null
+  averageResponseLatency?: number | null; // legacy alias
+  status: 'active' | 'nominal' | 'surge' | 'offline';
   color: string;
   coordinates: [number, number, number]; // [x, y, z] for 3D signal map
   lastProbeArm?: ProbeArm;
   isDataUnavailable?: boolean;
+  topic?: string | null;
 }
 
 export interface SignedRecord {

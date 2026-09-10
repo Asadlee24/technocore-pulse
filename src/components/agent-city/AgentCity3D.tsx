@@ -37,14 +37,16 @@ const DEFAULT_FALLBACK_ROOM: RoomCluster = {
   id: 'live-room-technocore',
   name: 'technocore',
   displayName: '#technocore',
-  category: 'coordination',
-  activeAgentsCount: 16,
-  totalProbesReceived: 8,
-  averageResponseLatency: 1.8,
+  category: 'unclassified',
+  visualDistrict: 'coordination',
+  signedIdentitiesObserved: null,
+  activeAgentsCount: null,
+  totalProbesReceived: 0,
+  medianSubsequentLatencySeconds: null,
+  averageResponseLatency: null,
   status: 'active',
   color: '#36D7E7',
-  coordinates: [0, 0, 0],
-  lastProbeArm: 'question'
+  coordinates: [0, 0, 0]
 };
 
 export const AgentCity3D: React.FC<AgentCity3DProps> = ({
@@ -305,10 +307,10 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       pulseSystemRef.current.triggerPulse(pos);
       if (bObj) bObj.triggerProbeEffect();
 
-      setPulseLog(`Live probe v1 wave dispatched to #${activeRoom.name}. Observing 120s activity window.`);
+      setPulseLog(`Visual demonstration signal emitted across #${activeRoom.name}.`);
       
       const timer = setTimeout(() => {
-        setPulseLog(`Subsequent agent activity recorded in #${activeRoom.name}.`);
+        setPulseLog(`Visual demonstration pulse complete. (No protocol write performed).`);
         if (onPulseComplete) onPulseComplete();
       }, 2600);
 

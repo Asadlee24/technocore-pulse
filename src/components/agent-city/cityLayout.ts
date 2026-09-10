@@ -118,11 +118,14 @@ export const DISTRICT_CONFIGS: Record<CityDistrictType, {
 };
 
 /**
- * Calculates building height based on active agent density:
- * height = clamp(6 + log2(activeAgentsCount + 1) * 4.5, 7, 34)
+ * Calculates building height based on observed metric:
+ * height = clamp(6 + log2(activityMetric + 1) * 4.5, 7, 34)
  */
-export function calculateBuildingHeight(activeAgentsCount: number): number {
-  const calculated = 6 + Math.log2(Math.max(0, activeAgentsCount) + 1) * 4.5;
+export function calculateBuildingHeight(activityMetric?: number | null, fallbackIndex: number = 0): number {
+  const metric = (typeof activityMetric === 'number' && activityMetric > 0)
+    ? activityMetric
+    : 8 + (fallbackIndex % 5) * 4;
+  const calculated = 6 + Math.log2(metric + 1) * 4.5;
   return Math.min(34, Math.max(7, Math.round(calculated * 10) / 10));
 }
 
@@ -139,14 +142,15 @@ export function getBeaconColor(lastProbeArm?: string): string {
 }
 
 /**
- * Maps a RoomCluster category or id to one of the 8 canonical districts
+ * Maps a RoomCluster to one of the 8 canonical visual districts
  */
 export function mapRoomToDistrict(room: RoomCluster, index: number): CityDistrictType {
-  const cat = room.category;
-  if (cat === 'coordination') return index % 2 === 0 ? 'coordination' : 'work';
-  if (cat === 'compute-relay') return 'compute';
-  if (cat === 'settlement-prep') return 'settlement';
-  if (cat === 'agent-social') return index % 2 === 0 ? 'social' : 'broadcast';
+  if (room.visualDistrict) {
+    if (room.visualDistrict === 'coordination') return index % 2 === 0 ? 'coordination' : 'work';
+    if (room.visualDistrict === 'compute-relay') return 'compute';
+    if (room.visualDistrict === 'settlement-prep') return 'settlement';
+    if (room.visualDistrict === 'agent-social') return index % 2 === 0 ? 'social' : 'broadcast';
+  }
   
   const allDistricts: CityDistrictType[] = [
     'coordination', 'work', 'research', 'compute',
@@ -236,31 +240,32 @@ export function generateCityLayout(rooms: RoomCluster[]): {
       if (lot.isFlagship && assignedRooms.length > 0) {
         roomForLot = assignedRooms[0];
         isPrimary = true;
-        calculatedHeight = calculateBuildingHeight(roomForLot.activeAgentsCount);
+        calculatedHeight = calculateBuildingHeight(roomForLot.signedIdentitiesObserved, 0);
       } else if (lotIdx === 0 && assignedRooms.length > 1) {
         roomForLot = assignedRooms[1];
         isPrimary = true;
-        calculatedHeight = calculateBuildingHeight(roomForLot.activeAgentsCount);
+        calculatedHeight = calculateBuildingHeight(roomForLot.signedIdentitiesObserved, 1);
       } else if (lotIdx === 1 && assignedRooms.length > 2) {
         roomForLot = assignedRooms[2];
         isPrimary = true;
-        calculatedHeight = calculateBuildingHeight(roomForLot.activeAgentsCount);
+        calculatedHeight = calculateBuildingHeight(roomForLot.signedIdentitiesObserved, 2);
       } else {
-        // Procedural infill building
-        const infillAgents = Math.floor(12 + Math.abs(seed) * 20);
-
+        // Procedural infill building - clearly marked as visual backdrop without fabricated metrics
         roomForLot = {
           id: `${distType}-lot-${lotIdx + 1}`,
           name: `${cfg.name.split(' ')[0]} ${lot.isFlagship ? 'Tower' : 'Block ' + (lotIdx + 1)}`,
           displayName: `${cfg.name.split(' ')[0]} ${lot.isFlagship ? 'Tower' : 'Block ' + (lotIdx + 1)}`,
-          activeAgentsCount: infillAgents,
-          totalProbesReceived: Math.floor(6 + Math.abs(seed) * 14),
-          averageResponseLatency: Number((1.2 + Math.abs(seed) * 1.5).toFixed(1)),
-          category: distType === 'compute' ? 'compute-relay' : distType === 'settlement' ? 'settlement-prep' : distType === 'social' ? 'agent-social' : 'coordination',
-          status: Math.abs(seed) > 0.65 ? 'surge' : 'active',
+          signedIdentitiesObserved: null,
+          activeAgentsCount: null,
+          totalProbesReceived: 0,
+          medianSubsequentLatencySeconds: null,
+          averageResponseLatency: null,
+          category: 'unclassified',
+          visualDistrict: distType === 'compute' ? 'compute-relay' : distType === 'settlement' ? 'settlement-prep' : distType === 'social' ? 'agent-social' : 'coordination',
+          status: 'nominal',
           color: cfg.color,
           coordinates: [x, 0, z],
-          lastProbeArm: Math.abs(seed) > 0.5 ? 'question' : 'offer'
+          isDataUnavailable: true
         };
       }
 

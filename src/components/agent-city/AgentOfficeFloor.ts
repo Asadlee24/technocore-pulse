@@ -124,7 +124,7 @@ export class AgentOfficeFloor {
     });
 
     // Add 1 walking agent patrolling the office central aisle if room is active
-    if (count >= 6) {
+    if (typeof count === 'number' && count >= 6) {
       const walkingWorker = new AgentWorker({
         x: -spacingX * 0.9,
         y: 0.15,
@@ -204,16 +204,19 @@ export class AgentOfficeFloor {
     // Data Rows
     ctx.fillStyle = '#95A4B8';
     ctx.font = '16px monospace';
-    ctx.fillText(`ACTIVE WORKFORCE:`, 24, 90);
+    ctx.fillText(`SIGNED IDENTITIES:`, 24, 90);
     ctx.fillStyle = '#FFFFFF';
     ctx.font = 'bold 20px monospace';
-    ctx.fillText(`${room.activeAgentsCount} AUTONOMOUS AGENTS`, 220, 90);
+    const didsText = typeof room.signedIdentitiesObserved === 'number'
+      ? `${room.signedIdentitiesObserved} DIDs`
+      : 'AGGREGATE (VISUAL)';
+    ctx.fillText(didsText, 220, 90);
 
     ctx.fillStyle = '#95A4B8';
     ctx.font = '16px monospace';
-    ctx.fillText(`CATEGORY:`, 24, 130);
+    ctx.fillText(`VISUAL DISTRICT:`, 24, 130);
     ctx.fillStyle = '#36D7E7';
-    ctx.fillText(room.category.toUpperCase(), 220, 130);
+    ctx.fillText((room.visualDistrict || room.category).toUpperCase(), 220, 130);
 
     ctx.fillStyle = '#95A4B8';
     ctx.font = '16px monospace';
@@ -223,10 +226,12 @@ export class AgentOfficeFloor {
 
     ctx.fillStyle = '#95A4B8';
     ctx.font = '16px monospace';
-    ctx.fillText(`OBSERVED LATENCY:`, 24, 210);
+    ctx.fillText(`SUBSEQUENT LATENCY:`, 24, 210);
     ctx.fillStyle = '#2FD27F';
-    const latencyVal = typeof room.averageResponseLatency === 'number' ? room.averageResponseLatency : 1.4;
-    ctx.fillText(`${latencyVal.toFixed(1)}s (120s WINDOW)`, 220, 210);
+    const latencyVal = typeof room.medianSubsequentLatencySeconds === 'number' 
+      ? `${room.medianSubsequentLatencySeconds.toFixed(1)}s (120s WINDOW)`
+      : 'NOT MEASURED';
+    ctx.fillText(latencyVal, 220, 210);
 
     // Bottom telemetry ticker
     ctx.fillStyle = '#1B2A3D';

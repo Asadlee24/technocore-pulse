@@ -121,7 +121,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onExploreSignals }) =>
               <ShieldCheck className="w-3.5 h-3.5 text-[#2FD27F]" />
             </div>
             <div className="mt-2 text-2xl sm:text-3xl font-bold font-mono text-[#2FD27F]">
-              {activeStats.uniqueSignedIdentities > 0 ? `${activeStats.uniqueSignedIdentities}+` : '0'}
+              {typeof activeStats.uniqueSignedIdentities === 'number' && activeStats.uniqueSignedIdentities > 0 
+                ? `${activeStats.uniqueSignedIdentities}+` 
+                : activeStats.uniqueSignedIdentities === 0 
+                ? '0' 
+                : 'DATA UNAVAILABLE'}
             </div>
             <div className="text-[11px] font-mono text-[#95A4B8] mt-1">
               Live observed DIDs

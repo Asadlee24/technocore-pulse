@@ -52,9 +52,13 @@ export const CityBottomSheets: React.FC<CityBottomSheetsProps> = ({
   // 1. BUILDING & ROOM INSPECTION BOTTOM SHEET
   // -------------------------------------------------------------
   if (activeSheet === 'room' && selectedRoom) {
-    const latencyText = typeof selectedRoom.averageResponseLatency === 'number' 
-      ? `${selectedRoom.averageResponseLatency.toFixed(1)}s (120s window)`
-      : isDemoMode ? '1.8s (DEMO)' : 'DATA UNAVAILABLE';
+    const latencyText = typeof selectedRoom.medianSubsequentLatencySeconds === 'number' 
+      ? `${selectedRoom.medianSubsequentLatencySeconds.toFixed(1)}s (120s window)`
+      : isDemoMode ? '1.8s (DEMO)' : 'NOT MEASURED';
+
+    const signedIdentitiesText = typeof selectedRoom.signedIdentitiesObserved === 'number'
+      ? `${selectedRoom.signedIdentitiesObserved} DIDs`
+      : isDemoMode ? '3 DIDs (DEMO)' : '0 OBSERVED';
 
     return (
       <div className="fixed inset-x-0 bottom-0 z-40 p-2 sm:p-4 max-w-xl mx-auto animate-in slide-in-from-bottom-6 duration-200">
@@ -71,8 +75,8 @@ export const CityBottomSheets: React.FC<CityBottomSheetsProps> = ({
                   <h3 className="font-mono font-bold text-base sm:text-lg text-white">
                     #{selectedRoom.name}
                   </h3>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#101E31] text-[#36D7E7] border border-[#36D7E7]/30 uppercase tracking-wide">
-                    {selectedRoom.category}
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#101E31] text-[#95A4B8] border border-[#1B2A3D] uppercase tracking-wide">
+                    VISUAL DISTRICT: {selectedRoom.visualDistrict || selectedRoom.category}
                   </span>
                 </div>
                 <p className="text-xs text-[#6F8096] font-mono mt-0.5">
@@ -91,29 +95,29 @@ export const CityBottomSheets: React.FC<CityBottomSheetsProps> = ({
           {/* Metrics Grid */}
           <div className="grid grid-cols-2 gap-2.5 my-3 text-xs font-mono">
             <div className="p-2.5 rounded-xl bg-[#060D18] border border-[#142337]">
-              <span className="text-[#6F8096] block text-[10px] uppercase">Active Workforce</span>
+              <span className="text-[#6F8096] block text-[10px] uppercase">Signed Identities</span>
               <span className="text-sm font-bold text-white mt-0.5 block">
-                {selectedRoom.activeAgentsCount} Autonomous
+                {signedIdentitiesText}
               </span>
               <span className="text-[10px] text-[#6F8096] block mt-0.5">
-                Aggregate room activity
+                Observed in public messages
               </span>
             </div>
 
             <div className="p-2.5 rounded-xl bg-[#060D18] border border-[#142337]">
-              <span className="text-[#6F8096] block text-[10px] uppercase">Observed Latency</span>
+              <span className="text-[#6F8096] block text-[10px] uppercase">Subsequent Latency</span>
               <span className="text-sm font-bold text-[#36D7E7] mt-0.5 block">
                 {latencyText}
               </span>
               <span className="text-[10px] text-[#6F8096] block mt-0.5">
-                Subsequent participation
+                First subsequent activity
               </span>
             </div>
           </div>
 
           {/* Scientific Honesty Disclaimer */}
           <div className="px-3 py-2 rounded-lg bg-[#060D18]/80 border border-[#142337] text-[10px] font-mono text-[#6F8096] mb-3">
-            💡 <strong className="text-[#95A4B8]">Scientific Attribution:</strong> Visual workers represent aggregate observed room activity. One visual worker does not claim a 1:1 real human identity.
+            💡 <strong className="text-[#95A4B8]">Scientific Attribution:</strong> Visual workers represent aggregate observed room activity. Rooms are categorized visually for 3D exploration and do not represent protocol-level classifications.
           </div>
 
           {/* Action Buttons */}
@@ -137,9 +141,10 @@ export const CityBottomSheets: React.FC<CityBottomSheetsProps> = ({
             <button
               onClick={() => onTriggerPulse(selectedRoom)}
               className="flex items-center justify-center space-x-1.5 py-2.5 px-3 rounded-xl bg-[#101E31] text-[#EAF2F7] border border-[#1E3048] font-mono text-xs font-bold hover:border-[#36D7E7]/40 active:scale-95 transition-all"
+              title="Visual demonstration pulse wave (does not write to Technocore network)"
             >
               <Sparkles className="w-3.5 h-3.5 text-[#F0A824]" />
-              <span>Probe Pulse</span>
+              <span>Demo Wave</span>
             </button>
           </div>
         </div>

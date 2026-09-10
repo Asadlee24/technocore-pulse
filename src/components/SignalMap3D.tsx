@@ -30,14 +30,16 @@ const DEFAULT_ROOM: RoomCluster = {
   id: 'live-room-technocore',
   name: 'technocore',
   displayName: '#technocore',
-  category: 'coordination',
-  activeAgentsCount: 16,
-  totalProbesReceived: 8,
-  averageResponseLatency: 1.8,
+  category: 'unclassified',
+  visualDistrict: 'coordination',
+  signedIdentitiesObserved: null,
+  activeAgentsCount: null,
+  totalProbesReceived: 0,
+  medianSubsequentLatencySeconds: null,
+  averageResponseLatency: null,
   status: 'active',
   color: '#36D7E7',
-  coordinates: [0, 0, 0],
-  lastProbeArm: 'question'
+  coordinates: [0, 0, 0]
 };
 
 export const SignalMap3D: React.FC<SignalMap3DProps> = ({
@@ -349,15 +351,15 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
             <span className="truncate max-w-[90px]">{activeDisplayRoom.displayName}</span>
           </button>
 
-          {/* Pulse Simulator Button */}
+          {/* Visual Demonstration Pulse Wave */}
           <button
             onClick={() => handleTriggerPulse(activeDisplayRoom)}
             disabled={isSimulatingPulse}
             className="flex items-center space-x-1.5 min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition-all bg-[#36D7E7] text-[#050A12] hover:bg-[#36D7E7]/90 active:scale-95 disabled:opacity-50 shadow-lg shadow-[#36D7E7]/25"
-            title="Dispatch a Probe Wave into the District"
+            title="Visual demonstration signal wave (does not write to Technocore network)"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{isSimulatingPulse ? 'PULSING...' : 'PULSE'}</span>
+            <span className="hidden sm:inline">{isSimulatingPulse ? 'DEMO WAVE...' : 'DEMO SIGNAL'}</span>
           </button>
         </div>
       </div>
