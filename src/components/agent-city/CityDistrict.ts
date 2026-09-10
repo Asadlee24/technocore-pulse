@@ -35,31 +35,161 @@ export class CityDistrictManager {
    * - Ascending data particles
    * - Multi-tier base plinth with stepped plaza
    */
+  private kineticShuttle: THREE.Mesh | null = null;
+  private dataChamberGlass: THREE.Mesh[] = [];
+
+  /**
+   * Builds the iconic central landmark: TECHNOCORE KINETIC CORE
+   * A sophisticated architectural monument representing autonomous coordination.
+   * Features:
+   * - Segmented quad-pylon graphite tower with vertical light channels
+   * - Transparent data chambers at base with glowing lattice
+   * - Moving kinetic data elevator shuttle gliding up and down
+   * - Counter-rotating holographic protocol gimbals
+   * - Skyway access bridges radiating to the avenues
+   * - Scientific honesty: Clearly designed as an architectural visual representation.
+   */
   private buildTechnocoreCore() {
     const coreGroup = new THREE.Group();
     coreGroup.name = 'technocore-core';
 
-    const coreHeight = 44;
+    const coreHeight = 46;
 
-    // 1. Sleek dark hexagonal base tower
-    const towerGeo = new THREE.CylinderGeometry(1.8, 3.4, coreHeight, 6);
-    const towerMesh = new THREE.Mesh(towerGeo, this.materials.coreColumn);
-    towerMesh.position.y = coreHeight / 2;
-    coreGroup.add(towerMesh);
+    // 1. Stepped Multi-Tiered Graphite Base Plinth
+    const baseMat = new THREE.MeshStandardMaterial({
+      color: 0x070E18,
+      roughness: 0.65,
+      metalness: 0.75
+    });
 
-    // 2. Cyan vertical energy beam running through the tower center
-    const beamGeo = new THREE.CylinderGeometry(0.4, 0.4, coreHeight + 12, 8);
+    const tier1 = new THREE.Mesh(new THREE.CylinderGeometry(7.5, 8.2, 0.8, 8), baseMat);
+    tier1.position.y = 0.4;
+    tier1.receiveShadow = true;
+    coreGroup.add(tier1);
+
+    const tier2 = new THREE.Mesh(new THREE.CylinderGeometry(5.8, 6.4, 0.9, 8), baseMat);
+    tier2.position.y = 1.25;
+    tier2.receiveShadow = true;
+    coreGroup.add(tier2);
+
+    // 2. Four Transparent Glass Data Chambers around the base
+    const chamberGeo = new THREE.BoxGeometry(2.0, 2.2, 1.8);
+    const chamberMat = new THREE.MeshStandardMaterial({
+      color: 0x0F253E,
+      roughness: 0.15,
+      metalness: 0.85,
+      transparent: true,
+      opacity: 0.65
+    });
+    const chamberCoreMat = new THREE.MeshBasicMaterial({
+      color: 0x36D7E7,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.5
+    });
+
+    [
+      [3.8, 0],
+      [-3.8, 0],
+      [0, 3.8],
+      [0, -3.8]
+    ].forEach(([cx, cz]) => {
+      const chamber = new THREE.Mesh(chamberGeo, chamberMat);
+      chamber.position.set(cx, 2.8, cz);
+      coreGroup.add(chamber);
+      this.dataChamberGlass.push(chamber);
+
+      const chamberInner = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.6, 1.2), chamberCoreMat);
+      chamberInner.position.set(cx, 2.8, cz);
+      coreGroup.add(chamberInner);
+    });
+
+    // 3. Segmented Quad-Pylon Graphite Tower Body (leaves central vertical channel open)
+    const pylonGeo = new THREE.BoxGeometry(0.85, coreHeight, 0.85);
+    const pylonMat = new THREE.MeshStandardMaterial({
+      color: 0x0B1524,
+      roughness: 0.35,
+      metalness: 0.85
+    });
+
+    const pylonOffsets = [
+      [-1.1, -1.1],
+      [1.1, -1.1],
+      [-1.1, 1.1],
+      [1.1, 1.1]
+    ];
+
+    pylonOffsets.forEach(([px, pz]) => {
+      const pylon = new THREE.Mesh(pylonGeo, pylonMat);
+      pylon.position.set(px, coreHeight / 2 + 1.8, pz);
+      pylon.castShadow = true;
+      pylon.receiveShadow = true;
+      coreGroup.add(pylon);
+    });
+
+    // Horizontal structural tie-bars bracing the 4 pylons at intervals
+    const tieBarMat = new THREE.MeshStandardMaterial({ color: 0x1A283D, metalness: 0.9 });
+    for (let y = 8; y < coreHeight; y += 9) {
+      const ringBar = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.25, 3.2), tieBarMat);
+      ringBar.position.y = y;
+      coreGroup.add(ringBar);
+    }
+
+    // 4. Central Vertical Light Channel Beam
+    const beamGeo = new THREE.CylinderGeometry(0.35, 0.35, coreHeight + 8, 8);
     const beamMat = new THREE.MeshBasicMaterial({
       color: 0x36D7E7,
       transparent: true,
-      opacity: 0.85
+      opacity: 0.75
     });
     this.coreBeamMesh = new THREE.Mesh(beamGeo, beamMat);
-    this.coreBeamMesh.position.y = (coreHeight + 12) / 2;
+    this.coreBeamMesh.position.y = (coreHeight + 8) / 2 + 1.8;
     coreGroup.add(this.coreBeamMesh);
 
-    // 3. Holographic communication sphere atop the central spire
-    const sphereGeo = new THREE.IcosahedronGeometry(1.4, 2);
+    // 5. Kinetic Data Elevator Shuttle moving along the vertical channel
+    const shuttleGeo = new THREE.CylinderGeometry(0.7, 0.7, 1.2, 8);
+    const shuttleMat = new THREE.MeshStandardMaterial({
+      color: 0x10233B,
+      emissive: 0x36D7E7,
+      emissiveIntensity: 0.6,
+      roughness: 0.2,
+      metalness: 0.9
+    });
+    this.kineticShuttle = new THREE.Mesh(shuttleGeo, shuttleMat);
+    this.kineticShuttle.position.y = 8;
+    coreGroup.add(this.kineticShuttle);
+
+    // 6. Kinetic Protocol Gimbals & Rotating Datum Rings
+    const ringSpecs = [
+      { radius: 3.8, tube: 0.09, y: coreHeight - 3, rotX: Math.PI / 2.2, rotZ: 0 },
+      { radius: 5.2, tube: 0.07, y: coreHeight - 6, rotX: -Math.PI / 2.5, rotZ: Math.PI / 4 },
+      { radius: 6.8, tube: 0.05, y: coreHeight - 10, rotX: Math.PI / 2.1, rotZ: -Math.PI / 3 }
+    ];
+
+    ringSpecs.forEach((spec) => {
+      const ringGeo = new THREE.TorusGeometry(spec.radius, spec.tube, 8, 48);
+      const ringMesh = new THREE.Mesh(ringGeo, this.materials.coreRing);
+      ringMesh.position.y = spec.y + 1.8;
+      ringMesh.rotation.set(spec.rotX, 0, spec.rotZ);
+      coreGroup.add(ringMesh);
+      this.coreRings.push(ringMesh);
+    });
+
+    // 7. Celestial Gimbal Spire Halo atop the landmark
+    const skyRingMat = new THREE.MeshBasicMaterial({
+      color: 0x38BDF8,
+      transparent: true,
+      opacity: 0.45,
+      wireframe: true
+    });
+    const skyRing1 = new THREE.Mesh(new THREE.TorusGeometry(8.5, 0.06, 6, 48), skyRingMat);
+    skyRing1.position.y = coreHeight + 8;
+    skyRing1.rotation.x = Math.PI / 2;
+    coreGroup.add(skyRing1);
+    this.coreRings.push(skyRing1);
+
+    // Holographic Communication Sphere at summit
+    const sphereGeo = new THREE.IcosahedronGeometry(1.3, 2);
     const sphereMat = new THREE.MeshBasicMaterial({
       color: 0x36D7E7,
       wireframe: true,
@@ -67,11 +197,10 @@ export class CityDistrictManager {
       opacity: 0.85
     });
     this.holoSphere = new THREE.Mesh(sphereGeo, sphereMat);
-    this.holoSphere.position.y = coreHeight + 6.5;
+    this.holoSphere.position.y = coreHeight + 7.5;
     coreGroup.add(this.holoSphere);
 
-    // Inner glow core for sphere
-    const innerSphereGeo = new THREE.SphereGeometry(0.7, 16, 16);
+    const innerSphereGeo = new THREE.SphereGeometry(0.65, 16, 16);
     const innerSphereMat = new THREE.MeshBasicMaterial({
       color: 0x4DA3FF,
       transparent: true,
@@ -79,35 +208,6 @@ export class CityDistrictManager {
     });
     const innerSphere = new THREE.Mesh(innerSphereGeo, innerSphereMat);
     this.holoSphere.add(innerSphere);
-
-    // 4. Three rotating protocol rings around the upper tower
-    const ringSpecs = [
-      { radius: 4.2, tube: 0.12, y: coreHeight - 4, rotX: Math.PI / 2.3, rotZ: 0 },
-      { radius: 5.4, tube: 0.08, y: coreHeight - 7, rotX: -Math.PI / 2.6, rotZ: Math.PI / 4 },
-      { radius: 6.8, tube: 0.06, y: coreHeight - 10, rotX: Math.PI / 2.1, rotZ: -Math.PI / 3 }
-    ];
-
-    ringSpecs.forEach((spec) => {
-      const ringGeo = new THREE.TorusGeometry(spec.radius, spec.tube, 8, 48);
-      const ringMesh = new THREE.Mesh(ringGeo, this.materials.coreRing);
-      ringMesh.position.y = spec.y;
-      ringMesh.rotation.set(spec.rotX, 0, spec.rotZ);
-      coreGroup.add(ringMesh);
-      this.coreRings.push(ringMesh);
-    });
-
-    // Monumental Celestial Sky Gimbal Rings floating above the spire
-    const skyRingMat = new THREE.MeshBasicMaterial({
-      color: 0x38BDF8,
-      transparent: true,
-      opacity: 0.5,
-      wireframe: true
-    });
-    const skyRing1 = new THREE.Mesh(new THREE.TorusGeometry(11.5, 0.08, 6, 64), skyRingMat);
-    skyRing1.position.y = coreHeight + 8;
-    skyRing1.rotation.x = Math.PI / 2;
-    coreGroup.add(skyRing1);
-    this.coreRings.push(skyRing1);
 
     const skyRing2 = new THREE.Mesh(new THREE.TorusGeometry(15.5, 0.05, 6, 64), skyRingMat);
     skyRing2.position.y = coreHeight + 11;
@@ -251,6 +351,20 @@ export class CityDistrictManager {
       const pulse = 0.75 + Math.sin(time * 3.5) * 0.2;
       (this.coreBeamMesh.material as THREE.MeshBasicMaterial).opacity = pulse;
     }
+
+    // Kinetic data elevator shuttle moving along the central vertical channel
+    if (this.kineticShuttle) {
+      this.kineticShuttle.position.y = 23.5 + Math.sin(time * 0.75) * 18.0;
+      this.kineticShuttle.rotation.y = time * 1.4;
+    }
+
+    // Subtle breathing in base data chambers
+    this.dataChamberGlass.forEach((ch, idx) => {
+      const mat = ch.material as THREE.MeshStandardMaterial;
+      if (mat) {
+        mat.opacity = 0.55 + Math.sin(time * 2 + idx) * 0.15;
+      }
+    });
 
     // Ascending data particles
     if (this.dataParticles) {

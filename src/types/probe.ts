@@ -53,11 +53,23 @@ export interface RoomCluster {
   category: 'coordination' | 'settlement-prep' | 'compute-relay' | 'agent-social';
   activeAgentsCount: number;
   totalProbesReceived: number;
-  averageResponseLatency: number;
+  averageResponseLatency?: number | null;
   status: 'active' | 'nominal' | 'surge';
   color: string;
   coordinates: [number, number, number]; // [x, y, z] for 3D signal map
   lastProbeArm?: ProbeArm;
+  isDataUnavailable?: boolean;
+}
+
+export interface SignedRecord {
+  did: string;
+  signature: string;
+  isVerified: boolean;
+  timestamp: number;
+  isoDate: string;
+  room: string;
+  message: string;
+  sequence?: number;
 }
 
 export interface ArmSummary {

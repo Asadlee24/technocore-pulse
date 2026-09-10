@@ -96,21 +96,24 @@ export class CityBuilding {
     canopyMesh.position.set(0, 2.0 + 0.28, (layout.depth * 1.16) / 2 + 0.55);
     this.group.add(canopyMesh);
 
-    // 2. Vibrant, Distinct District-Themed Facade & Bright Accent Lines
-    const facadeBaseCol = districtCol.clone().lerp(new THREE.Color(0x1B2C46), 0.45);
-    const emissiveCol = districtCol.clone().multiplyScalar(layout.room.status === 'surge' ? 0.48 : 0.32);
+    // 2. Refined Architectural Dark Graphite & Deep Navy Facade
+    const isSurge = layout.room.status === 'surge';
+    const facadeBaseCol = new THREE.Color(0x0C1624).lerp(districtCol, 0.12);
+    const emissiveCol = isSurge
+      ? districtCol.clone().multiplyScalar(0.22)
+      : new THREE.Color(0x020710);
 
     this.baseFacadeMat = new THREE.MeshStandardMaterial({
       color: facadeBaseCol,
       emissive: emissiveCol,
-      roughness: 0.25,
-      metalness: 0.65
+      roughness: 0.32,
+      metalness: 0.78
     });
 
     const lineMat = new THREE.LineBasicMaterial({
-      color: districtCol,
+      color: isSurge ? districtCol : new THREE.Color(0x3B4F6D),
       transparent: true,
-      opacity: 0.9
+      opacity: 0.65
     });
 
     // 3. Main Tower Shaft with Architectural Setback for High-Rises

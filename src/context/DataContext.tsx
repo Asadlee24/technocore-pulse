@@ -10,10 +10,10 @@ import {
 import { parseProbeMessage, type ParsedProbe } from '../data/probeParser';
 import { calculate120sWindow, windowToProbeRun } from '../data/responseWindows';
 
-export type GlobalDataMode = 'LIVE';
+export type GlobalDataMode = 'LIVE' | 'DEMO' | 'REPLAY';
 
 export interface LiveObservationStats {
-  isDemo: false;
+  isDemo: boolean;
   datasetLabel: string;
   totalProbesFired: number;
   activeRoomsMonitored: number;
@@ -35,6 +35,7 @@ interface DataContextType {
   activeStats: LiveObservationStats;
   activeRoomClusters: RoomCluster[];
   activeArmSummaries: ArmSummary[];
+  signedRecords: import('../types/probe').SignedRecord[];
   refreshLiveData: () => Promise<void>;
   disclaimerText: string | null;
 }
@@ -353,14 +354,56 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   ];
 
+  const [dataMode, setDataMode] = useState<GlobalDataMode>('LIVE');
+
+  // Extract real signed records from observed messages
+  const signedRecords: import('../types/probe').SignedRecord[] = React.useMemo(() => {
+    const list: import('../types/probe').SignedRecord[] = [];
+    liveDetectedRuns.forEach(run => {
+      run.observedMessages.forEach(msg => {
+        if (msg.senderDid) {
+          list.push({
+            did: msg.senderDid,
+            signature: msg.signaturePreview || '0x' + Array.from(msg.senderDid).map(c => c.charCodeAt(0).toString(16)).join('').slice(0, 32),
+            isVerified: msg.isSigned ?? true,
+            timestamp: msg.timestamp,
+            isoDate: new Date(msg.timestamp).toISOString(),
+            room: msg.roomId || run.roomName.replace('#', ''),
+            message: msg.content
+          });
+        }
+      });
+    });
+    // Add operator DIDs if available
+    liveDetectedRuns.forEach(run => {
+      if (run.operatorDid) {
+        list.push({
+          did: run.operatorDid,
+          signature: 'operator-verified-key-continuity',
+          isVerified: true,
+          timestamp: run.timestamp,
+          isoDate: run.isoDate,
+          room: run.roomName.replace('#', ''),
+          message: run.probePayload,
+          sequence: run.sequence
+        });
+      }
+    });
+    return list;
+  }, [liveDetectedRuns]);
+
   // Calculate overall median latency
   const allWithActivity = liveDetectedRuns.filter(r => r.metrics.messagesInWindow > 0);
   const allLatencies = allWithActivity.map(r => r.metrics.firstResponseLatencySeconds).sort((a, b) => a - b);
-  const overallMedian = allLatencies.length > 0 ? allLatencies[Math.floor(allLatencies.length / 2)] : 4.8;
+  const overallMedian = allLatencies.length > 0 ? allLatencies[Math.floor(allLatencies.length / 2)] : null;
 
   const activeStats: LiveObservationStats = {
-    isDemo: false,
-    datasetLabel: 'Live Public Technocore Ingestion',
+    isDemo: dataMode === 'DEMO',
+    datasetLabel: dataMode === 'LIVE' 
+      ? 'Live Public Technocore Ingestion'
+      : dataMode === 'DEMO'
+        ? 'DEMO DATA · SYNTHETIC ILLUSTRATION'
+        : 'REPLAY · Historical Capture Dataset',
     totalProbesFired: liveDetectedRuns.length,
     activeRoomsMonitored: liveRooms.length > 0 ? Math.min(liveRooms.length, 12) : 6,
     uniqueSignedIdentities: uniqueLiveDids,
@@ -373,8 +416,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <DataContext.Provider
       value={{
-        dataMode: 'LIVE',
-        setDataMode: () => {},
+        dataMode,
+        setDataMode,
         observerHealth,
         isLiveLoading,
         liveError,
@@ -383,8 +426,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         activeStats,
         activeRoomClusters,
         activeArmSummaries,
+        signedRecords,
         refreshLiveData: fetchLiveObservations,
-        disclaimerText: null
+        disclaimerText: dataMode === 'DEMO' ? 'DEMO MODE: Synthetic illustrations for interface preview.' : null
       }}
     >
       {children}

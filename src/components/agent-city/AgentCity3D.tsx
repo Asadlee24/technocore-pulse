@@ -21,6 +21,7 @@ interface AgentCity3DProps {
   activeRoomClusters: RoomCluster[];
   selectedRoom: RoomCluster;
   onSelectRoom: (room: RoomCluster) => void;
+  onOpenBuildingSheet?: (room: RoomCluster) => void;
   isSimulatingPulse?: boolean;
   onPulseComplete?: () => void;
   viewLevel?: CameraViewLevel;
@@ -28,6 +29,8 @@ interface AgentCity3DProps {
   theme?: 'dark' | 'light';
   cameraPerspective?: 'orbit' | 'drone' | 'plaza';
   onPerspectiveChange?: (persp: 'orbit' | 'drone' | 'plaza') => void;
+  isShowcase?: boolean;
+  onExitShowcase?: () => void;
 }
 
 const DEFAULT_FALLBACK_ROOM: RoomCluster = {
@@ -48,13 +51,16 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   activeRoomClusters,
   selectedRoom,
   onSelectRoom,
+  onOpenBuildingSheet,
   isSimulatingPulse = false,
   onPulseComplete,
   viewLevel: controlledViewLevel,
   onViewLevelChange,
   theme = 'dark',
   cameraPerspective = 'orbit',
-  onPerspectiveChange
+  onPerspectiveChange,
+  isShowcase = false,
+  onExitShowcase
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   
@@ -122,6 +128,50 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 
   const onSelectRoomRef = useRef(onSelectRoom);
   onSelectRoomRef.current = onSelectRoom;
+
+  const onOpenBuildingSheetRef = useRef(onOpenBuildingSheet);
+  onOpenBuildingSheetRef.current = onOpenBuildingSheet;
+
+  const isShowcaseRef = useRef(isShowcase);
+  isShowcaseRef.current = isShowcase;
+
+  const onExitShowcaseRef = useRef(onExitShowcase);
+  onExitShowcaseRef.current = onExitShowcase;
+
+  const showcaseTimerRef = useRef<number>(0);
+  const keysPressedRef = useRef<{ [key: string]: boolean }>({});
+
+  // Reset showcase timer when showcase mode changes
+  useEffect(() => {
+    if (isShowcase) {
+      showcaseTimerRef.current = 0;
+      isIntroRef.current = false;
+      setShowIntroBadge(false);
+    }
+  }, [isShowcase]);
+
+  // WASD Keyboard Exploration Listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (['input', 'textarea'].includes((e.target as HTMLElement)?.tagName?.toLowerCase())) return;
+      const k = e.key.toLowerCase();
+      if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) {
+        keysPressedRef.current[k] = true;
+        if (isAutoRotateRef.current) setIsAutoRotate(false);
+        isTransitioningRef.current = false;
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      const k = e.key.toLowerCase();
+      keysPressedRef.current[k] = false;
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
 
   const skipIntro = useCallback(() => {
     isIntroRef.current = false;
@@ -302,16 +352,16 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     camera.position.copy(INTRO_START_POS.current);
     cameraRef.current = camera;
 
-    // 3. WebGL Renderer
-    // 3. WebGL Renderer (with preserveDrawingBuffer for thumbnails & crisp rendering)
+    // 3. WebGL Renderer (Mobile optimized, no preserveDrawingBuffer to maximize framerate)
+    const isMobileDevice = typeof window !== 'undefined' && window.innerWidth <= 768;
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
       alpha: true,
-      preserveDrawingBuffer: true,
+      preserveDrawingBuffer: false,
       powerPreference: 'high-performance'
     });
     renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobileDevice ? 1.35 : 1.75));
     renderer.setClearColor(isLight ? 0xE8EEF5 : 0x050A12, 1);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -486,6 +536,9 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
           const room: RoomCluster = hit.userData.room;
           if (room) {
             onSelectRoomRef.current(room);
+            if (onOpenBuildingSheetRef.current) {
+              onOpenBuildingSheetRef.current(room);
+            }
             const bObj = buildingsMapRef.current.get(room.id);
             if (bObj) {
               const currentActiveId = activeRoomRef.current?.id;
@@ -541,8 +594,42 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       const delta = clock.getDelta();
       const time = clock.getElapsedTime();
 
-      // Intro descent interpolation
-      if (isIntroRef.current) {
+      // Showcase tour sequence (18 seconds)
+      if (isShowcaseRef.current) {
+        showcaseTimerRef.current += delta;
+        const t = showcaseTimerRef.current;
+        if (t < 5) {
+          // 1. Orbit kinetic central landmark
+          const ang = t * 0.45;
+          camera.position.set(Math.cos(ang) * 44, 22 + Math.sin(t * 0.4) * 3, Math.sin(ang) * 44);
+          controlsRef.current?.target.set(0, 10, 0);
+        } else if (t < 10) {
+          // 2. Fly low through district towards first building
+          const b = Array.from(buildingsMapRef.current.values())[0];
+          const bPos = b ? b.layout.position : [20, 0, 20];
+          const pT = Math.min(1, (t - 5) / 5);
+          const ease = pT * (2 - pT);
+          camera.position.lerpVectors(new THREE.Vector3(38, 18, 38), new THREE.Vector3(bPos[0] + 8, 5.5, bPos[2] + 8), ease);
+          controlsRef.current?.target.lerpVectors(new THREE.Vector3(0, 8, 0), new THREE.Vector3(bPos[0], 2.2, bPos[2]), ease);
+        } else if (t < 14) {
+          // 3. Open cutaway interior and zoom on workers
+          const b = Array.from(buildingsMapRef.current.values())[0];
+          if (b) {
+            b.setCutaway(true);
+            const bPos = b.layout.position;
+            camera.position.set(bPos[0] + 4.6, 2.1, bPos[2] + 4.6);
+            controlsRef.current?.target.set(bPos[0], 1.1, bPos[2]);
+          }
+        } else if (t < 18) {
+          // 4. Hero skyline pull-back
+          camera.position.lerp(new THREE.Vector3(56, 36, 62), 0.05);
+          controlsRef.current?.target.lerp(new THREE.Vector3(0, 6, 0), 0.05);
+        } else {
+          // End showcase
+          if (onExitShowcaseRef.current) onExitShowcaseRef.current();
+        }
+        controlsRef.current?.update();
+      } else if (isIntroRef.current) {
         introProgressRef.current += delta;
         const t = Math.min(1, introProgressRef.current / 4.2);
         const ease = 1 - Math.pow(1 - t, 3);
@@ -571,6 +658,33 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
           controlsRef.current.update();
         }
       } else {
+        // WASD / Arrow Keys Keyboard Exploration
+        const keys = keysPressedRef.current;
+        if (keys['w'] || keys['s'] || keys['a'] || keys['d'] || keys['arrowup'] || keys['arrowdown'] || keys['arrowleft'] || keys['arrowright']) {
+          const fwd = new THREE.Vector3();
+          camera.getWorldDirection(fwd);
+          fwd.y = 0;
+          fwd.normalize();
+          const rgt = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
+          const moveSpeed = 24 * delta;
+          const move = new THREE.Vector3();
+          if (keys['w'] || keys['arrowup']) move.add(fwd);
+          if (keys['s'] || keys['arrowdown']) move.sub(fwd);
+          if (keys['d'] || keys['arrowright']) move.add(rgt);
+          if (keys['a'] || keys['arrowleft']) move.sub(rgt);
+
+          if (move.lengthSq() > 0) {
+            move.normalize().multiplyScalar(moveSpeed);
+            camera.position.add(move);
+            if (controlsRef.current) {
+              controlsRef.current.target.add(move);
+            }
+            camera.position.x = Math.max(-85, Math.min(85, camera.position.x));
+            camera.position.z = Math.max(-85, Math.min(85, camera.position.z));
+            camera.position.y = Math.max(1.8, Math.min(65, camera.position.y));
+          }
+        }
+
         // Smooth camera interpolation towards target when transitioning
         if (isTransitioningRef.current && controlsRef.current) {
           camera.position.lerp(cameraTargetPos.current, 0.08);
@@ -679,6 +793,29 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       )}
 
 
+
+      {/* Showcase Tour Overlay */}
+      {isShowcase && (
+        <div className="absolute top-5 left-1/2 -translate-x-1/2 z-30 flex items-center space-x-3 px-4 py-2 rounded-full bg-[#0B1320]/95 border border-[#36D7E7]/60 text-[#36D7E7] font-mono text-xs backdrop-blur-xl shadow-2xl shadow-[#36D7E7]/20">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#36D7E7] animate-ping" />
+          <span className="font-bold tracking-wider uppercase text-white">SHOWCASE DEMONSTRATION</span>
+          <span className="text-[#95A4B8] text-[11px] hidden sm:inline">(Automated 18s Tour)</span>
+          {onExitShowcase && (
+            <button
+              onClick={onExitShowcase}
+              className="ml-2 px-2.5 py-0.5 rounded bg-white/10 hover:bg-white/20 text-white text-[10px] uppercase font-bold transition-all"
+            >
+              Exit
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* WASD Desktop Exploration Control Prompt */}
+      <div className="absolute bottom-4 left-4 z-10 hidden md:flex items-center space-x-2 text-[10px] font-mono backdrop-blur-md px-2.5 py-1.5 rounded-lg border bg-[#0B1320]/80 border-[#1B2A3D] text-[#6F8096]">
+        <span className="px-1.5 py-0.5 rounded bg-[#101A2A] border border-[#1B2A3D] text-[#36D7E7] font-bold">W A S D</span>
+        <span>Walk & Explore Streets</span>
+      </div>
 
       {/* Floating Status Ticker */}
       <div className={`absolute bottom-4 right-4 z-10 hidden sm:flex items-center space-x-2 text-[11px] font-mono backdrop-blur-md px-3 py-1.5 rounded-lg border transition-colors ${
