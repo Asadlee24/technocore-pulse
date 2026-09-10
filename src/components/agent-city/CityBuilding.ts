@@ -96,21 +96,24 @@ export class CityBuilding {
     canopyMesh.position.set(0, 2.0 + 0.28, (layout.depth * 1.16) / 2 + 0.55);
     this.group.add(canopyMesh);
 
-    // 2. Vibrant, Distinct District-Themed Facade & Bright Accent Lines
-    const facadeBaseCol = districtCol.clone().lerp(new THREE.Color(0x1B2C46), 0.45);
-    const emissiveCol = districtCol.clone().multiplyScalar(layout.room.status === 'surge' ? 0.48 : 0.32);
+    // 2. Refined Architectural Readable Graphite & Deep Navy Facade (18-25% brightness target)
+    const isSurge = layout.room.status === 'surge';
+    const facadeBaseCol = new THREE.Color(0x152233).lerp(districtCol, 0.14);
+    const emissiveCol = isSurge
+      ? districtCol.clone().multiplyScalar(0.25)
+      : new THREE.Color(0x0A1422);
 
     this.baseFacadeMat = new THREE.MeshStandardMaterial({
       color: facadeBaseCol,
       emissive: emissiveCol,
-      roughness: 0.25,
-      metalness: 0.65
+      roughness: 0.58,
+      metalness: 0.5
     });
 
     const lineMat = new THREE.LineBasicMaterial({
-      color: districtCol,
+      color: isSurge ? districtCol : new THREE.Color(0x324A6A),
       transparent: true,
-      opacity: 0.9
+      opacity: 0.6
     });
 
     // 3. Main Tower Shaft with Architectural Setback for High-Rises
@@ -201,85 +204,138 @@ export class CityBuilding {
 
     switch (layout.archetype) {
       case 'skyscraper': {
-        // Tapered pyramid spire
-        const pyrGeo = new THREE.ConeGeometry(layout.width * 0.45, 3.5, 4);
+        // Coordination District: Gracefully tapered spire with concentric illuminated rings
+        const pyrGeo = new THREE.ConeGeometry(layout.width * 0.42, 4.2, 6);
         const pyr = new THREE.Mesh(pyrGeo, archMat);
-        pyr.position.y = roofY + 1.75;
-        pyr.rotation.y = Math.PI / 4;
+        pyr.position.y = roofY + 2.1;
         this.crownGroup.add(pyr);
+
+        const ringGeo = new THREE.TorusGeometry(layout.width * 0.35, 0.08, 6, 24);
+        const ring = new THREE.Mesh(ringGeo, accentMat);
+        ring.rotation.x = Math.PI / 2;
+        ring.position.y = roofY + 1.2;
+        this.crownGroup.add(ring);
+        break;
+      }
+      case 'office-tower': {
+        // Agent Work District: Multi-tier mechanical crown with glass observation gallery
+        const crownGeo = new THREE.BoxGeometry(layout.width * 0.88, 1.4, layout.depth * 0.88);
+        const crownMesh = new THREE.Mesh(crownGeo, archMat);
+        crownMesh.position.y = roofY + 0.7;
+        this.crownGroup.add(crownMesh);
+
+        const glassStrip = new THREE.Mesh(
+          new THREE.BoxGeometry(layout.width * 0.9, 0.3, layout.depth * 0.9),
+          accentMat
+        );
+        glassStrip.position.y = roofY + 0.7;
+        this.crownGroup.add(glassStrip);
         break;
       }
       case 'research-lab': {
-        // Geodesic / hemispherical observation dome with glowing equator ring
-        const domeGeo = new THREE.SphereGeometry(layout.width * 0.35, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+        // Research District: Distinct geodesic observation dome with orbital halo ring
+        const domeGeo = new THREE.SphereGeometry(layout.width * 0.42, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2);
         const dome = new THREE.Mesh(domeGeo, archMat);
         dome.position.y = roofY;
         this.crownGroup.add(dome);
 
-        const ringGeo = new THREE.TorusGeometry(layout.width * 0.38, 0.08, 6, 24);
+        const ringGeo = new THREE.TorusGeometry(layout.width * 0.48, 0.1, 8, 32);
         const ring = new THREE.Mesh(ringGeo, accentMat);
-        ring.rotation.x = Math.PI / 2;
-        ring.position.y = roofY + 0.2;
+        ring.rotation.x = Math.PI / 2.3;
+        ring.position.y = roofY + 0.6;
         this.crownGroup.add(ring);
         break;
       }
       case 'data-center': {
-        // Dual cylindrical cooling vents / exhaust manifolds
-        [-0.8, 0.8].forEach(xOff => {
-          const ventGeo = new THREE.CylinderGeometry(0.5, 0.5, 1.2, 8);
-          const vent = new THREE.Mesh(ventGeo, archMat);
-          vent.position.set(xOff, roofY + 0.6, 0);
-          this.crownGroup?.add(vent);
+        // Compute District: Wide dense megastructure with quad exhaust cooling banks
+        const coolingBank = new THREE.BoxGeometry(layout.width * 0.85, 0.6, layout.depth * 0.85);
+        const bankMesh = new THREE.Mesh(coolingBank, archMat);
+        bankMesh.position.y = roofY + 0.3;
+        this.crownGroup.add(bankMesh);
 
-          const ventGlow = new THREE.Mesh(
-            new THREE.RingGeometry(0.1, 0.45, 12),
-            accentMat
-          );
-          ventGlow.rotation.x = -Math.PI / 2;
-          ventGlow.position.set(xOff, roofY + 1.21, 0);
-          this.crownGroup?.add(ventGlow);
+        [-1.0, 1.0].forEach(xOff => {
+          [-0.8, 0.8].forEach(zOff => {
+            const ventGeo = new THREE.CylinderGeometry(0.35, 0.4, 0.9, 8);
+            const vent = new THREE.Mesh(ventGeo, archMat);
+            vent.position.set(xOff, roofY + 0.9, zOff);
+            this.crownGroup?.add(vent);
+
+            const ventGlow = new THREE.Mesh(
+              new THREE.RingGeometry(0.08, 0.32, 12),
+              accentMat
+            );
+            ventGlow.rotation.x = -Math.PI / 2;
+            ventGlow.position.set(xOff, roofY + 1.36, zOff);
+            this.crownGroup?.add(ventGlow);
+          });
         });
         break;
       }
       case 'settlement-vault': {
-        // Heavy reinforced parapet wall
-        const parapetGeo = new THREE.BoxGeometry(layout.width + 0.2, 0.6, layout.depth + 0.2);
+        // Settlement District: Fortress/Vault heavy angled armor parapet
+        const parapetGeo = new THREE.BoxGeometry(layout.width + 0.3, 0.9, layout.depth + 0.3);
         const parapet = new THREE.Mesh(parapetGeo, archMat);
-        parapet.position.y = roofY + 0.3;
+        parapet.position.y = roofY + 0.45;
         this.crownGroup.add(parapet);
+
+        const innerVault = new THREE.Mesh(
+          new THREE.BoxGeometry(layout.width * 0.6, 1.2, layout.depth * 0.6),
+          archMat
+        );
+        innerVault.position.y = roofY + 0.8;
+        this.crownGroup.add(innerVault);
         break;
       }
       case 'social-block': {
-        // Stepped rooftop terrace canopy with green accent
-        const canopyGeo = new THREE.BoxGeometry(layout.width * 0.7, 0.15, layout.depth * 0.7);
+        // Social District: Stepped rooftop gathering terrace with illuminated canopy
+        const canopyGeo = new THREE.BoxGeometry(layout.width * 0.75, 0.18, layout.depth * 0.75);
         const canopy = new THREE.Mesh(canopyGeo, archMat);
-        canopy.position.y = roofY + 1.2;
+        canopy.position.y = roofY + 1.4;
         this.crownGroup.add(canopy);
 
-        // Terrace pillars
-        [-0.8, 0.8].forEach(xP => {
-          [-0.8, 0.8].forEach(zP => {
-            const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.2, 6), archMat);
-            pillar.position.set(xP, roofY + 0.6, zP);
+        [-1.0, 1.0].forEach(xP => {
+          [-1.0, 1.0].forEach(zP => {
+            const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.4, 6), archMat);
+            pillar.position.set(xP, roofY + 0.7, zP);
             this.crownGroup?.add(pillar);
           });
         });
         break;
       }
       case 'broadcast-hall': {
-        // High dual transmission masts
-        [-1.0, 1.0].forEach(xOff => {
-          const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 3.2, 6), archMat);
-          mast.position.set(xOff, roofY + 1.6, 0);
+        // Public Communication District: Iconic tall dual communications masts and transmission grid
+        [-1.2, 1.2].forEach(xOff => {
+          const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.1, 4.2, 6), archMat);
+          mast.position.set(xOff, roofY + 2.1, 0);
           this.crownGroup?.add(mast);
         });
-        const crossbar = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.1, 0.1), archMat);
-        crossbar.position.set(0, roofY + 2.4, 0);
+        const crossbar = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.12, 0.12), archMat);
+        crossbar.position.set(0, roofY + 3.0, 0);
         this.crownGroup.add(crossbar);
+
+        const dishGeo = new THREE.SphereGeometry(0.6, 8, 8, 0, Math.PI * 2, 0, Math.PI / 3);
+        const dish = new THREE.Mesh(dishGeo, archMat);
+        dish.position.set(0, roofY + 1.0, 0);
+        dish.rotation.x = -Math.PI / 4;
+        this.crownGroup.add(dish);
+        break;
+      }
+      case 'utility-structure': {
+        // Infrastructure District: Industrial crane gantry & power routing frame
+        const gantryH = 2.4;
+        const gantryFrame = new THREE.BoxGeometry(layout.width * 0.7, 0.2, layout.depth * 0.7);
+        const gantry = new THREE.Mesh(gantryFrame, archMat);
+        gantry.position.y = roofY + gantryH;
+        this.crownGroup.add(gantry);
+
+        [-0.8, 0.8].forEach(xP => {
+          const leg = new THREE.Mesh(new THREE.BoxGeometry(0.12, gantryH, 0.12), archMat);
+          leg.position.set(xP, roofY + gantryH / 2, 0);
+          this.crownGroup?.add(leg);
+        });
         break;
       }
       default: {
-        // Compact penthouse box
         const phGeo = new THREE.BoxGeometry(layout.width * 0.5, 0.8, layout.depth * 0.5);
         const ph = new THREE.Mesh(phGeo, archMat);
         ph.position.y = roofY + 0.4;
@@ -496,35 +552,44 @@ export class CityBuilding {
   private createRooftopBeacon(layout: BuildingLayout) {
     const roofY = layout.height + (layout.archetype === 'skyscraper' ? 3.5 : 0.8);
 
-    // Antenna mast
-    const mastGeo = new THREE.CylinderGeometry(0.08, 0.12, 2.2, 6);
-    const mastMat = new THREE.MeshStandardMaterial({ color: 0x1B2A3D, metalness: 0.8 });
+    // Antenna mast on all buildings for architectural realism
+    const mastGeo = new THREE.CylinderGeometry(0.06, 0.1, 2.0, 6);
+    const mastMat = new THREE.MeshStandardMaterial({ color: 0x1E2F42, metalness: 0.85, roughness: 0.35 });
     const mast = new THREE.Mesh(mastGeo, mastMat);
-    mast.position.y = roofY + 1.1;
+    mast.position.y = roofY + 1.0;
     this.group.add(mast);
 
-    // Glowing beacon sphere
-    const beaconGeo = new THREE.SphereGeometry(0.35, 12, 12);
+    // Selective rooftop signal beacons: only render glowing beacon spheres on primary district flagships or surge towers!
+    // This dramatically reduces visual clutter from identical blue rooftop spheres everywhere.
+    const isSpecialTower = layout.isPrimaryRoom || layout.room.status === 'surge' || layout.archetype === 'broadcast-hall';
+    if (!isSpecialTower) {
+      return;
+    }
+
+    // Glowing beacon sphere for designated flagships
+    const beaconGeo = new THREE.SphereGeometry(0.3, 12, 12);
     const beaconMat = new THREE.MeshBasicMaterial({
       color: new THREE.Color(layout.beaconColor),
       transparent: true,
       opacity: 0.95
     });
     this.beaconMesh = new THREE.Mesh(beaconGeo, beaconMat);
-    this.beaconMesh.position.y = roofY + 2.2;
+    this.beaconMesh.position.y = roofY + 2.1;
     this.group.add(this.beaconMesh);
 
-    // Outer glow aura
-    const glowGeo = new THREE.SphereGeometry(0.7, 12, 12);
-    const glowMat = new THREE.MeshBasicMaterial({
-      color: new THREE.Color(layout.beaconColor),
-      transparent: true,
-      opacity: 0.35,
-      wireframe: true
-    });
-    this.beaconGlowMesh = new THREE.Mesh(glowGeo, glowMat);
-    this.beaconGlowMesh.position.y = roofY + 2.2;
-    this.group.add(this.beaconGlowMesh);
+    // Outer glow aura for surge/primary landmarks
+    if (layout.room.status === 'surge' || layout.isPrimaryRoom) {
+      const glowGeo = new THREE.SphereGeometry(0.65, 12, 12);
+      const glowMat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(layout.beaconColor),
+        transparent: true,
+        opacity: 0.3,
+        wireframe: true
+      });
+      this.beaconGlowMesh = new THREE.Mesh(glowGeo, glowMat);
+      this.beaconGlowMesh.position.y = roofY + 2.1;
+      this.group.add(this.beaconGlowMesh);
+    }
   }
 
   public setCutaway(cutaway: boolean) {
