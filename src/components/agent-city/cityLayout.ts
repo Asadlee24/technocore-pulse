@@ -12,7 +12,6 @@ export type CityDistrictType =
 
 export type BuildingArchetype =
   | 'skyscraper'
-  | 'stepped-tower'
   | 'office-tower'
   | 'research-lab'
   | 'data-center'
@@ -160,102 +159,6 @@ export function mapRoomToDistrict(room: RoomCluster, index: number): CityDistric
   return allDistricts[index % allDistricts.length];
 }
 
-interface LotBlueprint {
-  ring: number;
-  radius: number;
-  angleOffset: number;
-  width: number;
-  depth: number;
-  heightBase: number;
-  heightVar: number;
-  archetype: BuildingArchetype;
-  isFlagship?: boolean;
-}
-
-/**
- * District-specific lot designs providing rich architectural diversity.
- * Varies aspect ratios, low-rises vs soaring towers, and distinct structural archetypes.
- */
-const DISTRICT_LOT_CONFIGS: Record<CityDistrictType, LotBlueprint[]> = {
-  coordination: [
-    { ring: 1, radius: 21.5, angleOffset: -0.21, width: 4.4, depth: 4.4, heightBase: 12, heightVar: 4, archetype: 'stepped-tower' },
-    { ring: 1, radius: 21.5, angleOffset: 0.21, width: 4.2, depth: 4.2, heightBase: 9, heightVar: 3, archetype: 'social-block' },
-    { ring: 2, radius: 35.0, angleOffset: 0.00, width: 5.2, depth: 5.2, heightBase: 28, heightVar: 6, archetype: 'skyscraper', isFlagship: true },
-    { ring: 2, radius: 35.0, angleOffset: -0.25, width: 4.4, depth: 4.4, heightBase: 19, heightVar: 5, archetype: 'stepped-tower' },
-    { ring: 2, radius: 35.0, angleOffset: 0.25, width: 4.2, depth: 4.2, heightBase: 18, heightVar: 5, archetype: 'skyscraper' },
-    { ring: 3, radius: 50.0, angleOffset: -0.22, width: 5.4, depth: 5.4, heightBase: 26, heightVar: 8, archetype: 'skyscraper' },
-    { ring: 3, radius: 50.0, angleOffset: 0.22, width: 4.6, depth: 4.6, heightBase: 22, heightVar: 6, archetype: 'stepped-tower' }
-  ],
-  work: [
-    { ring: 1, radius: 21.5, angleOffset: -0.21, width: 4.4, depth: 4.4, heightBase: 11, heightVar: 3, archetype: 'office-tower' },
-    { ring: 1, radius: 21.5, angleOffset: 0.21, width: 4.8, depth: 4.2, heightBase: 8, heightVar: 3, archetype: 'office-tower' },
-    { ring: 2, radius: 35.0, angleOffset: 0.00, width: 5.6, depth: 5.2, heightBase: 28, heightVar: 6, archetype: 'office-tower', isFlagship: true },
-    { ring: 2, radius: 35.0, angleOffset: -0.25, width: 4.8, depth: 4.8, heightBase: 19, heightVar: 5, archetype: 'stepped-tower' },
-    { ring: 2, radius: 35.0, angleOffset: 0.25, width: 5.0, depth: 4.6, heightBase: 18, heightVar: 5, archetype: 'office-tower' },
-    { ring: 3, radius: 50.0, angleOffset: -0.22, width: 5.4, depth: 5.4, heightBase: 24, heightVar: 8, archetype: 'office-tower' },
-    { ring: 3, radius: 50.0, angleOffset: 0.22, width: 5.0, depth: 5.0, heightBase: 22, heightVar: 6, archetype: 'stepped-tower' }
-  ],
-  research: [
-    { ring: 1, radius: 21.5, angleOffset: -0.21, width: 5.2, depth: 4.2, heightBase: 8, heightVar: 3, archetype: 'research-lab' },
-    { ring: 1, radius: 21.5, angleOffset: 0.21, width: 4.4, depth: 4.4, heightBase: 12, heightVar: 3, archetype: 'stepped-tower' },
-    { ring: 2, radius: 35.0, angleOffset: 0.00, width: 5.4, depth: 5.4, heightBase: 27, heightVar: 7, archetype: 'research-lab', isFlagship: true },
-    { ring: 2, radius: 35.0, angleOffset: -0.25, width: 5.4, depth: 4.2, heightBase: 17, heightVar: 5, archetype: 'research-lab' },
-    { ring: 2, radius: 35.0, angleOffset: 0.25, width: 4.4, depth: 4.4, heightBase: 15, heightVar: 4, archetype: 'research-lab' },
-    { ring: 3, radius: 50.0, angleOffset: -0.22, width: 5.2, depth: 5.2, heightBase: 23, heightVar: 7, archetype: 'research-lab' },
-    { ring: 3, radius: 50.0, angleOffset: 0.22, width: 5.2, depth: 4.8, heightBase: 20, heightVar: 6, archetype: 'stepped-tower' }
-  ],
-  compute: [
-    // Wide horizontal data monoliths with heatsink cooling fins
-    { ring: 1, radius: 21.5, angleOffset: -0.21, width: 6.2, depth: 3.8, heightBase: 8.5, heightVar: 3, archetype: 'data-center' },
-    { ring: 1, radius: 21.5, angleOffset: 0.21, width: 5.2, depth: 4.2, heightBase: 9.5, heightVar: 3, archetype: 'data-center' },
-    { ring: 2, radius: 35.0, angleOffset: 0.00, width: 6.6, depth: 5.4, heightBase: 25, heightVar: 6, archetype: 'data-center', isFlagship: true },
-    { ring: 2, radius: 35.0, angleOffset: -0.25, width: 5.8, depth: 4.4, heightBase: 18, heightVar: 5, archetype: 'data-center' },
-    { ring: 2, radius: 35.0, angleOffset: 0.25, width: 4.6, depth: 4.6, heightBase: 14, heightVar: 4, archetype: 'utility-structure' },
-    { ring: 3, radius: 50.0, angleOffset: -0.22, width: 6.4, depth: 5.2, heightBase: 21, heightVar: 7, archetype: 'data-center' },
-    { ring: 3, radius: 50.0, angleOffset: 0.22, width: 5.4, depth: 4.8, heightBase: 19, heightVar: 5, archetype: 'data-center' }
-  ],
-  settlement: [
-    // Heavy angular fortress vaults with battered walls
-    { ring: 1, radius: 21.5, angleOffset: -0.21, width: 5.2, depth: 5.0, heightBase: 8.5, heightVar: 3, archetype: 'settlement-vault' },
-    { ring: 1, radius: 21.5, angleOffset: 0.21, width: 4.6, depth: 4.6, heightBase: 11, heightVar: 3, archetype: 'stepped-tower' },
-    { ring: 2, radius: 35.0, angleOffset: 0.00, width: 5.8, depth: 5.8, heightBase: 25, heightVar: 6, archetype: 'settlement-vault', isFlagship: true },
-    { ring: 2, radius: 35.0, angleOffset: -0.25, width: 5.2, depth: 5.2, heightBase: 16, heightVar: 5, archetype: 'settlement-vault' },
-    { ring: 2, radius: 35.0, angleOffset: 0.25, width: 5.0, depth: 5.0, heightBase: 17, heightVar: 4, archetype: 'settlement-vault' },
-    { ring: 3, radius: 50.0, angleOffset: -0.22, width: 5.6, depth: 5.6, heightBase: 23, heightVar: 7, archetype: 'stepped-tower' },
-    { ring: 3, radius: 50.0, angleOffset: 0.22, width: 5.0, depth: 5.0, heightBase: 21, heightVar: 5, archetype: 'settlement-vault' }
-  ],
-  social: [
-    // Low-rise open courtyards, hanging gardens, and stepped residential terraces
-    { ring: 1, radius: 21.5, angleOffset: -0.21, width: 5.8, depth: 5.2, heightBase: 7.5, heightVar: 2.5, archetype: 'social-block' },
-    { ring: 1, radius: 21.5, angleOffset: 0.21, width: 5.0, depth: 4.8, heightBase: 8.5, heightVar: 3, archetype: 'social-block' },
-    { ring: 2, radius: 35.0, angleOffset: 0.00, width: 5.4, depth: 5.4, heightBase: 21, heightVar: 5, archetype: 'social-block', isFlagship: true },
-    { ring: 2, radius: 35.0, angleOffset: -0.25, width: 5.0, depth: 5.0, heightBase: 15, heightVar: 4, archetype: 'stepped-tower' },
-    { ring: 2, radius: 35.0, angleOffset: 0.25, width: 4.8, depth: 4.8, heightBase: 12, heightVar: 3, archetype: 'social-block' },
-    { ring: 3, radius: 50.0, angleOffset: -0.22, width: 5.4, depth: 5.4, heightBase: 18, heightVar: 5, archetype: 'social-block' },
-    { ring: 3, radius: 50.0, angleOffset: 0.22, width: 5.2, depth: 5.2, heightBase: 19, heightVar: 5, archetype: 'stepped-tower' }
-  ],
-  broadcast: [
-    // Transmission lattice towers, antenna spires, media halls
-    { ring: 1, radius: 21.5, angleOffset: -0.21, width: 5.2, depth: 4.6, heightBase: 8.5, heightVar: 3, archetype: 'social-block' },
-    { ring: 1, radius: 21.5, angleOffset: 0.21, width: 4.2, depth: 4.2, heightBase: 12, heightVar: 4, archetype: 'broadcast-hall' },
-    { ring: 2, radius: 35.0, angleOffset: 0.00, width: 5.2, depth: 5.2, heightBase: 29, heightVar: 6, archetype: 'broadcast-hall', isFlagship: true },
-    { ring: 2, radius: 35.0, angleOffset: -0.25, width: 4.6, depth: 4.6, heightBase: 19, heightVar: 5, archetype: 'broadcast-hall' },
-    { ring: 2, radius: 35.0, angleOffset: 0.25, width: 4.8, depth: 4.8, heightBase: 16, heightVar: 4, archetype: 'stepped-tower' },
-    { ring: 3, radius: 50.0, angleOffset: -0.22, width: 5.0, depth: 5.0, heightBase: 25, heightVar: 7, archetype: 'broadcast-hall' },
-    { ring: 3, radius: 50.0, angleOffset: 0.22, width: 5.2, depth: 5.0, heightBase: 20, heightVar: 5, archetype: 'stepped-tower' }
-  ],
-  infrastructure: [
-    // Industrial gantry frames, power nodes, and substations
-    { ring: 1, radius: 21.5, angleOffset: -0.21, width: 5.4, depth: 4.4, heightBase: 7.0, heightVar: 2.5, archetype: 'utility-structure' },
-    { ring: 1, radius: 21.5, angleOffset: 0.21, width: 4.8, depth: 4.4, heightBase: 9.0, heightVar: 3, archetype: 'utility-structure' },
-    { ring: 2, radius: 35.0, angleOffset: 0.00, width: 5.6, depth: 5.6, heightBase: 26, heightVar: 6, archetype: 'utility-structure', isFlagship: true },
-    { ring: 2, radius: 35.0, angleOffset: -0.25, width: 5.0, depth: 5.0, heightBase: 17, heightVar: 4, archetype: 'utility-structure' },
-    { ring: 2, radius: 35.0, angleOffset: 0.25, width: 4.8, depth: 4.8, heightBase: 15, heightVar: 4, archetype: 'stepped-tower' },
-    { ring: 3, radius: 50.0, angleOffset: -0.22, width: 5.2, depth: 5.2, heightBase: 23, heightVar: 6, archetype: 'utility-structure' },
-    { ring: 3, radius: 50.0, angleOffset: 0.22, width: 5.6, depth: 4.8, heightBase: 18, heightVar: 5, archetype: 'utility-structure' }
-  ]
-};
-
 /**
  * Procedurally generates the complete 8-district metropolitan layout
  */
@@ -298,11 +201,30 @@ export function generateCityLayout(rooms: RoomCluster[]): {
   });
 
   // Master Planned Lots for each of the 8 districts:
+  // 6 perfectly spaced building parcels per district across 3 concentric rings:
+  // Ring 1 (Downtown Hub): radius 21.5, angular offsets [-0.20, +0.20]
+  // Ring 2 (Flagship Commercial Center): radius 35.0, angular offsets [-0.24, 0.0 (flagship), +0.24]
+  // Ring 3 (Outer Metropolitan Boulevard): radius 50.0, angular offsets [-0.20, +0.20]
+  // Between rings are 13-15 unit wide boulevards with zero building overlap!
   districtKeys.forEach((distType) => {
     const cfg = DISTRICT_CONFIGS[distType];
     const baseAngle = cfg.sectorIndex * sectorAngleStep;
     const assignedRooms = districtRoomAssignments[distType];
-    const sectorLots = DISTRICT_LOT_CONFIGS[distType] || DISTRICT_LOT_CONFIGS.coordination;
+
+    // 6 discrete lot definitions per sector
+    const sectorLots = [
+      // Ring 1: Inner Downtown (medium-rise)
+      { ring: 1, radius: 21.5, angleOffset: -0.21, width: 4.4, depth: 4.4, heightBase: 10, heightVar: 4 },
+      { ring: 1, radius: 21.5, angleOffset: 0.21, width: 4.4, depth: 4.4, heightBase: 12, heightVar: 4 },
+      // Ring 2: Flagship Center (the district centerpiece skyscraper)
+      { ring: 2, radius: 35.0, angleOffset: 0.00, width: 5.2, depth: 5.2, heightBase: 24, heightVar: 8, isFlagship: true },
+      // Ring 2: Commercial flanks
+      { ring: 2, radius: 35.0, angleOffset: -0.25, width: 4.8, depth: 4.8, heightBase: 16, heightVar: 6 },
+      { ring: 2, radius: 35.0, angleOffset: 0.25, width: 4.8, depth: 4.8, heightBase: 17, heightVar: 6 },
+      // Ring 3: Outer High-Rise
+      { ring: 3, radius: 50.0, angleOffset: -0.22, width: 5.4, depth: 5.4, heightBase: 20, heightVar: 9 },
+      { ring: 3, radius: 50.0, angleOffset: 0.22, width: 5.4, depth: 5.4, heightBase: 22, heightVar: 9 }
+    ];
 
     sectorLots.forEach((lot, lotIdx) => {
       const angle = baseAngle + lot.angleOffset;
@@ -354,9 +276,9 @@ export function generateCityLayout(rooms: RoomCluster[]): {
         position: [x, 0, z],
         width: lot.width,
         depth: lot.depth,
-        height: Math.max(7, height),
+        height: Math.max(8, height),
         district: distType,
-        archetype: lot.archetype,
+        archetype: cfg.archetype,
         color: roomForLot.color || cfg.color,
         beaconColor: getBeaconColor(roomForLot.lastProbeArm),
         windowDensity: 16 + lot.ring * 4,
