@@ -28,6 +28,7 @@ export const DEMO_SIGNED_RECORDS: SignedRecord[] = [
   {
     did: 'did:key:z6Mkq11G5vSNGMDNF46tPvWAmadrC5qwacHw5hyu7Gxi5xLd',
     signature: 'demo_sig_0x8f9a2b...4c1e_DEMO',
+    verificationStatus: 'VERIFIED',
     isVerified: true,
     timestamp: Date.now() - 43000,
     isoDate: new Date(Date.now() - 43000).toISOString(),
@@ -38,6 +39,7 @@ export const DEMO_SIGNED_RECORDS: SignedRecord[] = [
   {
     did: 'did:key:z6Mkmr2ZXQadvt5iReZMKknAyFNetvSL7MKtqbDuQHxbJ2nT',
     signature: 'demo_sig_0x3e7a1f...9b2d_DEMO',
+    verificationStatus: 'VERIFIED',
     isVerified: true,
     timestamp: Date.now() - 42000,
     isoDate: new Date(Date.now() - 42000).toISOString(),
@@ -48,6 +50,7 @@ export const DEMO_SIGNED_RECORDS: SignedRecord[] = [
   {
     did: 'did:key:z6Mkhf6f9h5w4FNm7YqrkJtVKtQZWeKJS4YgHfjbVymECTtu',
     signature: 'demo_sig_0x1a8f9c...5e3b_DEMO',
+    verificationStatus: 'VERIFIED',
     isVerified: true,
     timestamp: Date.now() - 24000,
     isoDate: new Date(Date.now() - 24000).toISOString(),
@@ -58,6 +61,7 @@ export const DEMO_SIGNED_RECORDS: SignedRecord[] = [
   {
     did: 'did:key:z6MkpLb5kD8itU43EiL9rwTjzsACQgrDcrL3LaKVqo6fcoTe',
     signature: 'demo_sig_0x7b4c9e...2a1f_DEMO',
+    verificationStatus: 'VERIFIED',
     isVerified: true,
     timestamp: Date.now() - 15000,
     isoDate: new Date(Date.now() - 15000).toISOString(),
@@ -90,6 +94,7 @@ export const DEMO_RUNS: ProbeRun[] = [
         timestamp: Date.now() - 43000,
         deltaSeconds: 1.8,
         isSigned: true,
+        verificationStatus: 'VERIFIED',
         signaturePreview: '_gqzMlov...XEpcAw',
         replyType: 'contextual'
       },
@@ -102,6 +107,7 @@ export const DEMO_RUNS: ProbeRun[] = [
         timestamp: Date.now() - 42000,
         deltaSeconds: 2.7,
         isSigned: true,
+        verificationStatus: 'VERIFIED',
         signaturePreview: 'W3n9dnpG...KGOuAg',
         replyType: 'direct'
       }
@@ -137,6 +143,7 @@ export const DEMO_RUNS: ProbeRun[] = [
         timestamp: Date.now() - 24000,
         deltaSeconds: 0.9,
         isSigned: true,
+        verificationStatus: 'VERIFIED',
         signaturePreview: 'ZOcUEKEf...BPjaDQ',
         replyType: 'direct'
       }
@@ -172,6 +179,8 @@ export const DEMO_ROOM_CLUSTERS: RoomCluster[] = DEMO_ROOM_SUMMARIES.map((r, idx
     displayName: `#${r.room} (DEMO)`,
     category: 'unclassified',
     visualDistrict: visualDistricts[idx % visualDistricts.length],
+    didIdentitiesObserved: idx === 0 ? 3 : idx === 1 ? 1 : null,
+    verifiedSigningDids: idx === 0 ? 3 : idx === 1 ? 1 : null,
     signedIdentitiesObserved: idx === 0 ? 3 : idx === 1 ? 1 : null,
     activeAgentsCount: null,
     totalProbesReceived: idx === 0 ? 2 : 0,

@@ -22,48 +22,48 @@ export function createCityMaterials(theme: 'dark' | 'light' = 'dark'): CityMater
 
   return {
     facadeBase: new THREE.MeshStandardMaterial({
-      color: isLight ? 0xE2E8F0 : 0x16263D,
-      roughness: isLight ? 0.4 : 0.45,
-      metalness: isLight ? 0.2 : 0.6,
-      emissive: isLight ? 0xF8FAFC : 0x0F1B2E,
-      emissiveIntensity: isLight ? 0.1 : 0.35
+      color: isLight ? 0xE2E8F0 : 0x142030, // Readable graphite/navy value (18-22% brightness)
+      roughness: isLight ? 0.4 : 0.62,
+      metalness: isLight ? 0.2 : 0.45,
+      emissive: isLight ? 0xF8FAFC : 0x0A131F,
+      emissiveIntensity: isLight ? 0.1 : 0.25
     }),
     facadeActive: new THREE.MeshStandardMaterial({
-      color: isLight ? 0xFFFFFF : 0x1E3554,
-      roughness: isLight ? 0.3 : 0.35,
-      metalness: isLight ? 0.4 : 0.65,
-      emissive: isLight ? 0x0284C7 : 0x36D7E7,
-      emissiveIntensity: isLight ? 0.15 : 0.25
+      color: isLight ? 0xFFFFFF : 0x1A2B40,
+      roughness: isLight ? 0.3 : 0.55,
+      metalness: isLight ? 0.4 : 0.5,
+      emissive: isLight ? 0x0284C7 : 0x1B385A,
+      emissiveIntensity: isLight ? 0.15 : 0.35
     }),
     facadeSurge: new THREE.MeshStandardMaterial({
-      color: isLight ? 0xFFFFFF : 0x234166,
-      roughness: isLight ? 0.3 : 0.3,
-      metalness: isLight ? 0.5 : 0.7,
-      emissive: isLight ? 0x10B981 : 0x2FD27F,
-      emissiveIntensity: isLight ? 0.25 : 0.35
+      color: isLight ? 0xFFFFFF : 0x1D3650,
+      roughness: isLight ? 0.3 : 0.5,
+      metalness: isLight ? 0.5 : 0.55,
+      emissive: isLight ? 0x10B981 : 0x134832,
+      emissiveIntensity: isLight ? 0.25 : 0.4
     }),
     facadeCutaway: new THREE.MeshStandardMaterial({
-      color: isLight ? 0xF1F5F9 : 0x0E1A2C,
-      roughness: 0.1,
-      metalness: 0.9,
+      color: isLight ? 0xF1F5F9 : 0x101D2C,
+      roughness: 0.2,
+      metalness: 0.8,
       transparent: true,
-      opacity: isLight ? 0.22 : 0.18,
+      opacity: isLight ? 0.22 : 0.2,
       depthWrite: false
     }),
     windowEmissive: new THREE.MeshBasicMaterial({
-      color: isLight ? 0x0284C7 : 0x36D7E7,
+      color: isLight ? 0x0284C7 : 0xFDE68A, // Warm gold window light
       transparent: true,
       opacity: 0.85
     }),
     windowSigned: new THREE.MeshBasicMaterial({
-      color: isLight ? 0x10B981 : 0x2FD27F,
+      color: isLight ? 0x10B981 : 0x38BDF8, // Soft cyan
       transparent: true,
       opacity: 0.95
     }),
     edgeLine: new THREE.LineBasicMaterial({
-      color: isLight ? 0x0284C7 : 0x38BDF8,
+      color: isLight ? 0x0284C7 : 0x2A405D, // Subtly readable structural silhouette
       transparent: true,
-      opacity: isLight ? 0.85 : 0.75
+      opacity: isLight ? 0.85 : 0.6
     }),
     groundGrid: new THREE.LineBasicMaterial({
       color: isLight ? 0xCBD5E1 : 0x1B2A3D,

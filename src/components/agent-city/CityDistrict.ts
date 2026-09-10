@@ -53,86 +53,109 @@ export class CityDistrictManager {
     const coreGroup = new THREE.Group();
     coreGroup.name = 'technocore-core';
 
-    const coreHeight = 46;
+    const coreHeight = 44;
 
-    // 1. Stepped Multi-Tiered Graphite Base Plinth
+    // 1. Stepped Multi-Tiered Hexagonal / Octagonal Base Plinth (Wider, Monumental Foundation)
     const baseMat = new THREE.MeshStandardMaterial({
-      color: 0x070E18,
-      roughness: 0.65,
-      metalness: 0.75
+      color: 0x142030, // Readable graphite navy
+      roughness: 0.55,
+      metalness: 0.65
+    });
+    const subBaseMat = new THREE.MeshStandardMaterial({
+      color: 0x101925,
+      roughness: 0.6,
+      metalness: 0.7
     });
 
-    const tier1 = new THREE.Mesh(new THREE.CylinderGeometry(7.5, 8.2, 0.8, 8), baseMat);
-    tier1.position.y = 0.4;
+    // Tier 1: Wide Ground Foundation Plinth (Radius 11.5)
+    const tier1 = new THREE.Mesh(new THREE.CylinderGeometry(10.5, 11.8, 1.2, 8), subBaseMat);
+    tier1.position.y = 0.6;
     tier1.receiveShadow = true;
     coreGroup.add(tier1);
 
-    const tier2 = new THREE.Mesh(new THREE.CylinderGeometry(5.8, 6.4, 0.9, 8), baseMat);
-    tier2.position.y = 1.25;
+    // Tier 2: Stepped Podium Plaza (Radius 9.0)
+    const tier2 = new THREE.Mesh(new THREE.CylinderGeometry(8.2, 9.4, 1.0, 8), baseMat);
+    tier2.position.y = 1.7;
     tier2.receiveShadow = true;
     coreGroup.add(tier2);
 
-    // 2. Four Transparent Glass Data Chambers around the base
-    const chamberGeo = new THREE.BoxGeometry(2.0, 2.2, 1.8);
+    // Tier 3: Chamber Terrace (Radius 7.0)
+    const tier3 = new THREE.Mesh(new THREE.CylinderGeometry(6.4, 7.2, 1.0, 8), baseMat);
+    tier3.position.y = 2.7;
+    tier3.receiveShadow = true;
+    coreGroup.add(tier3);
+
+    // 2. Four Transparent Glass Data Chambers around the terrace with interior cyan glow
+    const chamberGeo = new THREE.BoxGeometry(2.4, 2.8, 2.2);
     const chamberMat = new THREE.MeshStandardMaterial({
-      color: 0x0F253E,
+      color: 0x12263F,
       roughness: 0.15,
       metalness: 0.85,
       transparent: true,
-      opacity: 0.65
+      opacity: 0.75
     });
     const chamberCoreMat = new THREE.MeshBasicMaterial({
       color: 0x36D7E7,
       wireframe: true,
       transparent: true,
-      opacity: 0.5
+      opacity: 0.75
     });
 
     [
-      [3.8, 0],
-      [-3.8, 0],
-      [0, 3.8],
-      [0, -3.8]
+      [4.8, 0],
+      [-4.8, 0],
+      [0, 4.8],
+      [0, -4.8]
     ].forEach(([cx, cz]) => {
       const chamber = new THREE.Mesh(chamberGeo, chamberMat);
-      chamber.position.set(cx, 2.8, cz);
+      chamber.position.set(cx, 4.4, cz);
       coreGroup.add(chamber);
       this.dataChamberGlass.push(chamber);
 
-      const chamberInner = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.6, 1.2), chamberCoreMat);
-      chamberInner.position.set(cx, 2.8, cz);
+      const chamberInner = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.0, 1.4), chamberCoreMat);
+      chamberInner.position.set(cx, 4.4, cz);
       coreGroup.add(chamberInner);
+
+      // Radial access bridge connecting each chamber to the central core
+      const bridgeGeo = new THREE.BoxGeometry(cx !== 0 ? 2.6 : 1.2, 0.4, cz !== 0 ? 2.6 : 1.2);
+      const bridge = new THREE.Mesh(bridgeGeo, baseMat);
+      bridge.position.set(cx / 2, 3.4, cz / 2);
+      coreGroup.add(bridge);
     });
 
-    // 3. Segmented Quad-Pylon Graphite Tower Body (leaves central vertical channel open)
-    const pylonGeo = new THREE.BoxGeometry(0.85, coreHeight, 0.85);
+    // 3. Segmented Quad-Pylon Graphite Tower Body with Architectural Setbacks
+    const pylonGeo = new THREE.BoxGeometry(1.2, coreHeight, 1.2);
     const pylonMat = new THREE.MeshStandardMaterial({
-      color: 0x0B1524,
-      roughness: 0.35,
-      metalness: 0.85
+      color: 0x162436,
+      roughness: 0.45,
+      metalness: 0.75
     });
 
     const pylonOffsets = [
-      [-1.1, -1.1],
-      [1.1, -1.1],
-      [-1.1, 1.1],
-      [1.1, 1.1]
+      [-1.4, -1.4],
+      [1.4, -1.4],
+      [-1.4, 1.4],
+      [1.4, 1.4]
     ];
 
     pylonOffsets.forEach(([px, pz]) => {
       const pylon = new THREE.Mesh(pylonGeo, pylonMat);
-      pylon.position.set(px, coreHeight / 2 + 1.8, pz);
+      pylon.position.set(px, coreHeight / 2 + 3.2, pz);
       pylon.castShadow = true;
       pylon.receiveShadow = true;
       coreGroup.add(pylon);
     });
 
-    // Horizontal structural tie-bars bracing the 4 pylons at intervals
-    const tieBarMat = new THREE.MeshStandardMaterial({ color: 0x1A283D, metalness: 0.9 });
-    for (let y = 8; y < coreHeight; y += 9) {
-      const ringBar = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.25, 3.2), tieBarMat);
-      ringBar.position.y = y;
-      coreGroup.add(ringBar);
+    // Horizontal architectural collar rings bracing the central pylons
+    const collarMat = new THREE.MeshStandardMaterial({
+      color: 0x1E334D,
+      metalness: 0.85,
+      roughness: 0.35
+    });
+    for (let y = 10; y < coreHeight; y += 8) {
+      const collar = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.45, 4.2), collarMat);
+      collar.position.y = y + 3.2;
+      coreGroup.add(collar);
     }
 
     // 4. Central Vertical Light Channel Beam

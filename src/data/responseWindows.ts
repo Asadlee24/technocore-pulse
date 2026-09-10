@@ -64,6 +64,7 @@ export function calculate120sWindow(
       timestamp: msgTimeMs,
       deltaSeconds,
       isSigned: Boolean(m.sig),
+      verificationStatus: m.sig ? 'PRESENT_UNVERIFIED' : 'UNSIGNED',
       signaturePreview: m.sig ? `${m.sig.slice(0, 8)}...${m.sig.slice(-6)}` : 'unverified',
       replyType: isDirectQuote ? 'direct' : 'contextual'
     };

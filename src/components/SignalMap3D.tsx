@@ -10,7 +10,6 @@ import {
   Activity,
   Key,
   Target,
-  Building2,
   Menu,
   Play
 } from 'lucide-react';
@@ -274,14 +273,14 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
       </div>
 
       {/* ------------------------------------------------------------- */}
-      {/* MINIMAL GAME-STYLE BOTTOM NAVIGATION                          */}
+      {/* STREAMLINED HERO BOTTOM NAVIGATION (City is the Hero)         */}
       {/* ------------------------------------------------------------- */}
       <div className="absolute bottom-4 inset-x-0 z-20 flex items-center justify-center px-2 pointer-events-none">
         <div className="flex items-center gap-1.5 sm:gap-2 p-1.5 rounded-2xl bg-[#0B1320]/85 backdrop-blur-xl border border-[#1B2A3D] shadow-2xl shadow-black/80 pointer-events-auto">
-          {/* Explore Perspective Switcher */}
+          {/* 1. Explore Perspective Switcher */}
           <button
             onClick={handlePerspectiveCycle}
-            className="flex items-center space-x-1.5 min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition-all bg-[#101A2A] hover:bg-white/10 text-white border border-[#1B2A3D] active:scale-95"
+            className="flex items-center space-x-1.5 min-h-[42px] px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition-all bg-[#101A2A] hover:bg-white/10 text-white border border-[#1B2A3D] active:scale-95"
             title={`Camera: ${cameraPerspective.toUpperCase()} (Click to cycle Orbit / Drone / Plaza)`}
           >
             <Compass className="w-4 h-4 text-[#36D7E7]" />
@@ -289,7 +288,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
             <span className="hidden sm:inline text-[10px] text-[#6F8096] uppercase">({cameraPerspective})</span>
           </button>
 
-          {/* Activity Drawer / Sheet */}
+          {/* 2. Activity Drawer / Sheet */}
           <button
             onClick={() => {
               if (onOpenRawEvents) {
@@ -298,7 +297,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
                 setActiveSheet(activeSheet === 'activity' ? 'none' : 'activity');
               }
             }}
-            className={`flex items-center space-x-1.5 min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition-all border active:scale-95 ${
+            className={`flex items-center space-x-1.5 min-h-[42px] px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition-all border active:scale-95 ${
               activeSheet === 'activity'
                 ? 'bg-[#36D7E7] text-[#050A12] border-[#36D7E7]'
                 : 'bg-[#101A2A] text-white border-[#1B2A3D] hover:bg-white/10'
@@ -309,10 +308,10 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
             <span>ACTIVITY</span>
           </button>
 
-          {/* Signed Activity & DID Inspector */}
+          {/* 3. Signed Activity & DID Inspector */}
           <button
             onClick={() => setActiveSheet(activeSheet === 'signed' ? 'none' : 'signed')}
-            className={`flex items-center space-x-1.5 min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition-all border active:scale-95 ${
+            className={`flex items-center space-x-1.5 min-h-[42px] px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition-all border active:scale-95 ${
               activeSheet === 'signed'
                 ? 'bg-[#36D7E7] text-[#050A12] border-[#36D7E7]'
                 : 'bg-[#101A2A] text-white border-[#1B2A3D] hover:bg-white/10'
@@ -323,43 +322,31 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
             <span>SIGNAL</span>
           </button>
 
-          {/* Missions Tracker */}
-          <button
-            onClick={() => setActiveSheet(activeSheet === 'missions' ? 'none' : 'missions')}
-            className={`flex items-center space-x-1.5 min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition-all border active:scale-95 ${
-              activeSheet === 'missions'
-                ? 'bg-[#36D7E7] text-[#050A12] border-[#36D7E7]'
-                : 'bg-[#101A2A] text-white border-[#1B2A3D] hover:bg-white/10'
-            }`}
-            title="City Exploration Missions"
-          >
-            <Target className="w-4 h-4 text-[#A855F7]" />
-            <span className="hidden sm:inline">MISSIONS</span>
-          </button>
+          {/* 4. Compact Contextual / More Sheet Trigger */}
+          <div className="relative">
+            <button
+              onClick={() => setActiveSheet(activeSheet === 'missions' ? 'none' : 'missions')}
+              className={`flex items-center space-x-1 min-h-[42px] px-2.5 py-2 rounded-xl text-xs font-mono transition-all border active:scale-95 ${
+                activeSheet === 'missions' || activeSheet === 'room'
+                  ? 'bg-[#1E3048] text-[#38BDF8] border-[#38BDF8]/50'
+                  : 'bg-[#101A2A] text-[#95A4B8] border-[#1B2A3D] hover:text-white hover:bg-white/10'
+              }`}
+              title="Missions & Contextual Telemetry"
+            >
+              <Target className="w-3.5 h-3.5 text-[#A855F7]" />
+              <span className="text-[11px] hidden md:inline">MISSIONS</span>
+            </button>
+          </div>
 
-          {/* Current Building Sheet Trigger */}
-          <button
-            onClick={() => setActiveSheet(activeSheet === 'room' ? 'none' : 'room')}
-            className={`hidden md:flex items-center space-x-1.5 min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition-all border active:scale-95 ${
-              activeSheet === 'room'
-                ? 'bg-[#36D7E7] text-[#050A12] border-[#36D7E7]'
-                : 'bg-[#101A2A] text-white border-[#1B2A3D] hover:bg-white/10'
-            }`}
-            title="Inspect Active Tower Telemetry"
-          >
-            <Building2 className="w-4 h-4 text-[#36D7E7]" />
-            <span className="truncate max-w-[90px]">{activeDisplayRoom.displayName}</span>
-          </button>
-
-          {/* Visual Demonstration Pulse Wave */}
+          {/* 5. Subdued Demo Signal Wave (Restrained brightness) */}
           <button
             onClick={() => handleTriggerPulse(activeDisplayRoom)}
             disabled={isSimulatingPulse}
-            className="flex items-center space-x-1.5 min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition-all bg-[#36D7E7] text-[#050A12] hover:bg-[#36D7E7]/90 active:scale-95 disabled:opacity-50 shadow-lg shadow-[#36D7E7]/25"
+            className="flex items-center space-x-1.5 min-h-[42px] px-3 py-2 rounded-xl text-xs font-mono font-bold transition-all bg-[#132235] text-[#38BDF8] border border-[#1F3652] hover:bg-[#1A2E46] active:scale-95 disabled:opacity-50"
             title="Visual demonstration signal wave (does not write to Technocore network)"
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{isSimulatingPulse ? 'DEMO WAVE...' : 'DEMO SIGNAL'}</span>
+            <Sparkles className="w-3.5 h-3.5 text-[#F0A824]" />
+            <span className="hidden sm:inline text-[11px]">{isSimulatingPulse ? 'PULSING...' : 'DEMO WAVE'}</span>
           </button>
         </div>
       </div>

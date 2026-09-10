@@ -298,14 +298,20 @@ export const LivePulseDashboard: React.FC<LivePulseDashboardProps> = ({ onOpenIn
                     </div>
 
                     <div className="p-3 rounded-xl bg-[#101A2A] border border-[#1B2A3D]">
-                      <span className="text-[10px] font-mono text-[#6F8096] uppercase">Activity Baseline</span>
+                      <div className="flex items-center justify-between text-[10px] font-mono text-[#6F8096] uppercase">
+                        <span>Activity Baseline</span>
+                        <span className="text-[9px] text-[#4DA3FF] px-1 rounded bg-[#4DA3FF]/10 border border-[#4DA3FF]/20">HEURISTIC</span>
+                      </div>
                       <div className="text-lg font-bold font-mono text-[#2FD27F] mt-0.5">
                         {currentRun.metrics.baselineRatio}x normal
                       </div>
                     </div>
 
                     <div className="p-3 rounded-xl bg-[#101A2A] border border-[#1B2A3D]">
-                      <span className="text-[10px] font-mono text-[#6F8096] uppercase">Intensity Score</span>
+                      <div className="flex items-center justify-between text-[10px] font-mono text-[#6F8096] uppercase">
+                        <span>Intensity Score</span>
+                        <span className="text-[9px] text-[#36D7E7] px-1 rounded bg-[#36D7E7]/10 border border-[#36D7E7]/20">VISUAL SCORE</span>
+                      </div>
                       <div className="text-lg font-bold font-mono text-[#36D7E7] mt-0.5">
                         {currentRun.metrics.intensityScore} / 100
                       </div>

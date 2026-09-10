@@ -1,5 +1,11 @@
 export type ProbeArm = 'statement' | 'question' | 'offer';
 
+export type SignatureVerificationStatus =
+  | 'VERIFIED'
+  | 'INVALID'
+  | 'PRESENT_UNVERIFIED'
+  | 'UNSIGNED';
+
 export interface SignedIdentity {
   did: string;
   alias?: string;
@@ -19,6 +25,7 @@ export interface ObservedMessage {
   timestamp: number;
   deltaSeconds: number; // Seconds since probe drop (0 - 120s)
   isSigned: boolean;
+  verificationStatus?: SignatureVerificationStatus;
   signaturePreview: string;
   replyType?: 'direct' | 'contextual' | 'orthogonal';
 }
@@ -41,8 +48,8 @@ export interface ProbeRun {
     uniqueDids: number;
     firstResponseLatencySeconds: number;
     medianLatencySeconds: number;
-    baselineRatio: number; // Compared to prior 120s baseline
-    intensityScore: number; // 0 - 100
+    baselineRatio: number; // Compared to prior 120s baseline [VISUAL HEURISTIC]
+    intensityScore: number; // 0 - 100 [VISUAL HEURISTIC]
   };
 }
 
@@ -54,7 +61,9 @@ export interface RoomCluster {
   displayName: string;
   category: string; // 'unclassified' in LIVE, or explicit category
   visualDistrict?: RoomVisualDistrict; // purely visual 3D district assignment
-  signedIdentitiesObserved: number | null; // Verified unique signing DIDs observed
+  didIdentitiesObserved?: number | null; // Unique DID identities observed in room
+  verifiedSigningDids?: number | null; // Cryptographically verified signing DIDs
+  signedIdentitiesObserved: number | null; // Deprecated alias kept for backwards compatibility
   activeAgentsCount?: number | null; // deprecated / legacy alias
   totalProbesReceived: number;
   medianSubsequentLatencySeconds: number | null; // measured subsequent activity latency or null
@@ -69,8 +78,10 @@ export interface RoomCluster {
 
 export interface SignedRecord {
   did: string;
-  signature: string;
-  isVerified: boolean;
+  signature: string | null;
+  verificationStatus: SignatureVerificationStatus;
+  isVerified?: boolean; // Legacy alias for components
+  verificationReason?: string;
   timestamp: number;
   isoDate: string;
   room: string;

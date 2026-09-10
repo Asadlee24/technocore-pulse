@@ -342,10 +342,10 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 
     const isLight = theme === 'light';
 
-    // 1. Scene & Atmospheric Fog
+    // 1. Scene & Atmospheric Fog (Target: 10-15% sky readability, softened fog so buildings don't vanish)
     const scene = new THREE.Scene();
     sceneRef.current = scene;
-    scene.fog = new THREE.FogExp2(isLight ? 0xE8EEF5 : 0x050A12, 0.012);
+    scene.fog = new THREE.FogExp2(isLight ? 0xE8EEF5 : 0x0A1320, 0.0072);
 
     // 2. Camera Setup
     const width = container.clientWidth;
@@ -364,7 +364,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobileDevice ? 1.35 : 1.75));
-    renderer.setClearColor(isLight ? 0xE8EEF5 : 0x050A12, 1);
+    renderer.setClearColor(isLight ? 0xE8EEF5 : 0x0A1320, 1);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     rendererRef.current = renderer;
@@ -436,42 +436,43 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     pedestriansRef.current = pedestrians;
     scene.add(pedestrians.group);
 
-    // 10. Ambient, Hemisphere & Key Directional Lighting
+    // 10. Balanced Night Lighting (Readable graphite facades without daytime wash)
     const ambientLight = new THREE.AmbientLight(
-      isLight ? 0xFFFFFF : 0x1E3554,
-      isLight ? 2.2 : 2.0
+      isLight ? 0xFFFFFF : 0x2A3E5B,
+      isLight ? 2.2 : 2.5
     );
     scene.add(ambientLight);
 
     const hemiLight = new THREE.HemisphereLight(
-      isLight ? 0xF0F9FF : 0x38BDF8,
-      isLight ? 0xE2E8F0 : 0x0A1526,
-      1.8
+      isLight ? 0xF0F9FF : 0x60A5FA,
+      isLight ? 0xE2E8F0 : 0x0F1A2B,
+      2.0
     );
     scene.add(hemiLight);
 
     const coreLight = new THREE.PointLight(
       isLight ? 0x0284C7 : 0x36D7E7,
-      isLight ? 5.5 : 4.8,
-      160,
+      isLight ? 5.5 : 5.0,
+      170,
       1.1
     );
-    coreLight.position.set(0, 24, 0);
+    coreLight.position.set(0, 26, 0);
     scene.add(coreLight);
 
-    const dirLight1 = new THREE.DirectionalLight(
-      isLight ? 0x38BDF8 : 0x60A5FA,
-      isLight ? 2.2 : 1.8
+    // Cool Moonlight Directional Key Light (gives crisp architectural edge definition)
+    const moonLight = new THREE.DirectionalLight(
+      isLight ? 0x38BDF8 : 0x93C5FD,
+      isLight ? 2.2 : 2.2
     );
-    dirLight1.position.set(45, 65, 40);
-    scene.add(dirLight1);
+    moonLight.position.set(50, 75, 45);
+    scene.add(moonLight);
 
-    const dirLight2 = new THREE.DirectionalLight(
-      isLight ? 0x60A5FA : 0x38BDF8,
-      isLight ? 1.6 : 1.4
+    const fillLight = new THREE.DirectionalLight(
+      isLight ? 0x60A5FA : 0x475569,
+      isLight ? 1.6 : 1.5
     );
-    dirLight2.position.set(-45, 55, -40);
-    scene.add(dirLight2);
+    fillLight.position.set(-50, 60, -45);
+    scene.add(fillLight);
 
     // 11. OrbitControls & User Interaction (Smooth Damping, Pan, Orbit, Wheel Zoom)
     const controls = new OrbitControls(camera, renderer.domElement);

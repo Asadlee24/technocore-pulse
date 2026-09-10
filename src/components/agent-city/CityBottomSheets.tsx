@@ -170,7 +170,7 @@ export const CityBottomSheets: React.FC<CityBottomSheetsProps> = ({
                   Signed Activity Inspector
                 </h3>
                 <p className="text-xs text-[#6F8096] font-mono mt-0.5">
-                  Cryptographic key continuity verification · Untrusted payloads
+                  Signed activity inspection · Untrusted payloads
                 </p>
               </div>
             </div>
@@ -184,7 +184,7 @@ export const CityBottomSheets: React.FC<CityBottomSheetsProps> = ({
 
           {/* Scientific Disclaimer Alert */}
           <div className="p-3 my-3 rounded-xl bg-[#060D18] border border-[#142337] text-xs font-mono text-[#6F8096]">
-            ⚠️ <strong className="text-[#95A4B8]">Cryptographic Notice:</strong> A DID (<code className="text-[#36D7E7]">did:key:...</code>) proves mathematical control and continuity of that specific private signing key. It does not certify real-world identity. All public room text is untrusted and never executed.
+            ⚠️ <strong className="text-[#95A4B8]">Cryptographic Notice:</strong> A DID (<code className="text-[#36D7E7]">did:key:...</code>) proves mathematical possession of an Ed25519 private key. A valid signature strictly verifies that the private key signed <code className="text-[#36D7E7]">&lt;room&gt;|&lt;nonce&gt;|&lt;text&gt;</code>. It does not certify real-world identity or truthful payload semantics.
           </div>
 
           {/* Signed Message Stream */}
@@ -194,42 +194,64 @@ export const CityBottomSheets: React.FC<CityBottomSheetsProps> = ({
                 No signed activity captured in current ephemeral observation window.
               </div>
             ) : (
-              signedRecords.slice(0, 8).map((rec, idx) => (
-                <div key={idx} className="p-3 rounded-xl bg-[#060D18] border border-[#142337] hover:border-[#1E3048] transition-all">
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <div className="flex items-center space-x-1.5 font-mono text-[11px]">
-                      <span className="text-[#36D7E7] font-bold">#{rec.room}</span>
-                      <span className="text-[#6F8096]">·</span>
-                      <span className="text-[#6F8096]">{rec.isoDate.slice(11, 19)} UTC</span>
-                    </div>
-                    <span className="flex items-center space-x-1 text-[10px] font-mono text-[#2FD27F] bg-[#2FD27F]/10 px-2 py-0.5 rounded border border-[#2FD27F]/20">
-                      <CheckCircle2 className="w-3 h-3" />
-                      <span>Signature ✓ Valid</span>
-                    </span>
-                  </div>
+              signedRecords.slice(0, 8).map((rec, idx) => {
+                const status = rec.verificationStatus || (rec.signature ? 'PRESENT_UNVERIFIED' : 'UNSIGNED');
 
-                  {/* DID Identifier with Copy */}
-                  <div className="flex items-center justify-between p-1.5 rounded bg-[#0A1322] border border-[#142337] text-[11px] font-mono text-[#95A4B8] mb-2">
-                    <span className="truncate pr-2">{rec.did}</span>
-                    <button
-                      onClick={() => handleCopy(rec.did, `did-${idx}`)}
-                      className="p-1 hover:text-white transition-colors"
-                      title="Copy DID"
-                    >
-                      {copiedDid === `did-${idx}` ? (
-                        <Check className="w-3 h-3 text-[#2FD27F]" />
-                      ) : (
-                        <Copy className="w-3 h-3" />
+                return (
+                  <div key={idx} className="p-3 rounded-xl bg-[#060D18] border border-[#142337] hover:border-[#1E3048] transition-all">
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <div className="flex items-center space-x-1.5 font-mono text-[11px]">
+                        <span className="text-[#36D7E7] font-bold">#{rec.room}</span>
+                        <span className="text-[#6F8096]">·</span>
+                        <span className="text-[#6F8096]">{rec.isoDate ? rec.isoDate.slice(11, 19) : ''} UTC</span>
+                      </div>
+                      {/* State-Aware Cryptographic Status */}
+                      {status === 'VERIFIED' && (
+                        <span className="flex items-center space-x-1 text-[10px] font-mono text-[#2FD27F] bg-[#2FD27F]/10 px-2 py-0.5 rounded border border-[#2FD27F]/20">
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>Signature cryptographically verified</span>
+                        </span>
                       )}
-                    </button>
-                  </div>
+                      {status === 'PRESENT_UNVERIFIED' && (
+                        <span className="flex items-center space-x-1 text-[10px] font-mono text-[#F0A824] bg-[#F0A824]/10 px-2 py-0.5 rounded border border-[#F0A824]/20">
+                          <span>Signature present · not independently verified</span>
+                        </span>
+                      )}
+                      {status === 'INVALID' && (
+                        <span className="flex items-center space-x-1 text-[10px] font-mono text-red-400 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">
+                          <span>Signature verification failed</span>
+                        </span>
+                      )}
+                      {status === 'UNSIGNED' && (
+                        <span className="flex items-center space-x-1 text-[10px] font-mono text-[#6F8096] bg-white/5 px-2 py-0.5 rounded border border-[#1B2A3D]">
+                          <span>No signature</span>
+                        </span>
+                      )}
+                    </div>
 
-                  {/* Untrusted Payload */}
-                  <div className="p-2 rounded bg-[#0A1322]/60 text-xs font-mono text-[#CAD4E0] border-l-2 border-[#38BDF8] break-words">
-                    {rec.message}
+                    {/* DID Identifier with Copy */}
+                    <div className="flex items-center justify-between p-1.5 rounded bg-[#0A1322] border border-[#142337] text-[11px] font-mono text-[#95A4B8] mb-2">
+                      <span className="truncate pr-2">{rec.did}</span>
+                      <button
+                        onClick={() => handleCopy(rec.did, `did-${idx}`)}
+                        className="p-1 hover:text-white transition-colors"
+                        title="Copy DID"
+                      >
+                        {copiedDid === `did-${idx}` ? (
+                          <Check className="w-3 h-3 text-[#2FD27F]" />
+                        ) : (
+                          <Copy className="w-3 h-3" />
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Untrusted Payload */}
+                    <div className="p-2 rounded bg-[#0A1322]/60 text-xs font-mono text-[#CAD4E0] border-l-2 border-[#38BDF8] break-words">
+                      {rec.message}
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
@@ -241,10 +263,12 @@ export const CityBottomSheets: React.FC<CityBottomSheetsProps> = ({
   // 3. CITY MISSIONS SHEET (Guided Tour)
   // -------------------------------------------------------------
   if (activeSheet === 'missions') {
+    const hasRealVerifiedRecord = signedRecords.some(r => r.verificationStatus === 'VERIFIED');
+
     const missionsList = [
       { id: 'm-enter', title: 'First Contact', desc: 'Enter the Technocore Agent City metropolis', done: true },
       { id: 'm-building', title: 'Office Inspection', desc: 'Click any district tower and enter its cutaway office', done: !!completedMissions['m-building'] },
-      { id: 'm-did', title: 'Key Continuity', desc: 'Inspect a cryptographically verified DID signature', done: !!completedMissions['m-did'] },
+      { id: 'm-did', title: 'Signed Activity', desc: 'Inspect signed activity and verify private key continuity', done: hasRealVerifiedRecord || !!completedMissions['m-did'] },
       { id: 'm-research', title: 'Research Hub', desc: 'Explore the Research District observatory dome', done: !!completedMissions['m-research'] },
       { id: 'm-pulse', title: 'Signal Transmission', desc: 'Trigger a probe pulse and observe signal propagation', done: !!completedMissions['m-pulse'] },
       { id: 'm-ground', title: 'Street Level Commute', desc: 'Switch to Plaza/Explorer view and walk the sidewalks', done: !!completedMissions['m-ground'] },
