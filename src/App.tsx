@@ -40,7 +40,7 @@ function AppContent() {
       {/* 1. CINEMATIC FIRST EXPERIENCE / ENTRY SCREEN                  */}
       {/* ------------------------------------------------------------- */}
       {!hasEnteredCity && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#050A12] text-[#EAF2F7] px-4 select-none">
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#050A12] text-[#EAF2F7] px-4 safe-top safe-bottom select-none">
           {/* Subtle Ambient Radial Glow */}
           <div className="absolute inset-0 bg-radial-vignette opacity-85 pointer-events-none" />
           <div className="absolute -top-36 left-1/2 -translate-x-1/2 w-[720px] h-[520px] bg-[#36D7E7]/10 rounded-full blur-[140px] pointer-events-none" />
@@ -86,7 +86,7 @@ function AppContent() {
       {/* 2. LIVING 3D AGENT CITY (Primary Interface)                   */}
       {/* ------------------------------------------------------------- */}
       <main className="flex-grow">
-        <section id="signal-map" className="relative w-full p-1 sm:p-2">
+        <section id="signal-map" className="relative w-full p-0 sm:p-2">
           <SignalMap3D
             selectedRoomId={selectedRoom?.id}
             onSelectRoom={(room) => setSelectedRoom(room)}

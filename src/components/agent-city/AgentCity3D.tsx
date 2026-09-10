@@ -221,11 +221,12 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     const bZ = building.position[2];
     const bY = Math.min(building.height * 0.5, 12);
 
-    const offsetDist = 13;
+    const isMobilePortrait = typeof window !== 'undefined' && window.innerWidth < 640 && window.innerHeight > window.innerWidth;
+    const offsetDist = isMobilePortrait ? 16 : 13;
     const angle = Math.atan2(bZ, bX) + 0.35;
     cameraTargetPos.current.set(
       bX + Math.cos(angle) * offsetDist,
-      Math.max(6, bY + 4),
+      Math.max(6, bY + (isMobilePortrait ? 5 : 4)),
       bZ + Math.sin(angle) * offsetDist
     );
     cameraTargetLookAt.current.set(bX, bY, bZ);
@@ -512,7 +513,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     let pointerDownPos = { x: 0, y: 0 };
     let pointerDownTime = 0;
 
-    const handlePointerDown = (e: MouseEvent) => {
+    const handlePointerDown = (e: PointerEvent) => {
       pointerDownPos = { x: e.clientX, y: e.clientY };
       pointerDownTime = performance.now();
       if (isIntroRef.current) {
@@ -521,12 +522,17 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       }
     };
 
-    const handlePointerUp = (e: MouseEvent) => {
+    const handlePointerUp = (e: PointerEvent) => {
       const dist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
       const elapsed = performance.now() - pointerDownTime;
 
-      // Pure click if user moved mouse < 6px and held for < 350ms
-      if (dist < 6 && elapsed < 350) {
+      // Relax tap tolerance on touch screens (fingers jitter slightly on glass)
+      const isTouch = e.pointerType === 'touch';
+      const maxDist = isTouch ? 18 : 6;
+      const maxElapsed = isTouch ? 480 : 350;
+
+      // Pure click/tap if movement < maxDist and held for < maxElapsed
+      if (dist < maxDist && elapsed < maxElapsed) {
         const rect = renderer.domElement.getBoundingClientRect();
         mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
         mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -563,7 +569,10 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       }
     };
 
-    const handlePointerMove = (e: MouseEvent) => {
+    const handlePointerMove = (e: PointerEvent) => {
+      // Don't calculate hover states on touch events
+      if (e.pointerType === 'touch') return;
+
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;

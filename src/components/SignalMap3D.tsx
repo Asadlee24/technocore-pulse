@@ -127,17 +127,17 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
       className={`relative w-full transition-all duration-200 bg-[#050A12] text-[#EAF2F7] overflow-hidden ${
         isFullscreen
           ? 'fixed inset-0 z-[9999] w-screen h-screen'
-          : 'h-[calc(100vh-4.5rem)] min-h-[640px] rounded-2xl border border-[#1B2A3D] shadow-2xl shadow-black/90'
+          : 'h-[100dvh] sm:h-[calc(100vh-4.5rem)] sm:min-h-[640px] sm:rounded-2xl border-b sm:border border-[#1B2A3D] shadow-2xl shadow-black/90'
       }`}
     >
       {/* ------------------------------------------------------------- */}
       {/* MINIMAL TOP HUD: Brand, LIVE/DEMO/REPLAY badge, and Actions   */}
       {/* ------------------------------------------------------------- */}
-      <div className="absolute top-0 inset-x-0 z-20 flex items-center justify-between px-3 sm:px-5 py-3 bg-[#0B1320]/75 backdrop-blur-xl border-b border-[#1B2A3D]/70 pointer-events-auto">
+      <div className="absolute top-0 inset-x-0 z-20 flex items-center justify-between px-3 sm:px-5 py-2.5 sm:py-3 safe-top bg-[#0B1320]/80 backdrop-blur-xl border-b border-[#1B2A3D]/70 pointer-events-auto select-none">
         {/* Left: Brand + Strict Global Mode Badge */}
-        <div className="flex items-center space-x-2.5">
-          <div className="flex items-center space-x-2">
-            <span className="font-heading font-black tracking-wider text-sm sm:text-base text-white">
+        <div className="flex items-center space-x-2 sm:space-x-2.5">
+          <div className="flex items-center space-x-1.5 sm:space-x-2">
+            <span className="font-heading font-black tracking-wider text-xs sm:text-base text-white">
               TECHNOCORE
             </span>
             <span className="hidden md:inline-block text-xs font-mono text-[#6F8096]">
@@ -149,7 +149,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
           <div className="relative">
             <button
               onClick={() => setIsModeMenuOpen(!isModeMenuOpen)}
-              className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase border transition-all hover:scale-105 active:scale-95 ${
+              className={`flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase border transition-all hover:scale-105 active:scale-95 touch-manipulation ${
                 dataMode === 'LIVE'
                   ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
                   : dataMode === 'DEMO'
@@ -173,21 +173,21 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
                 </div>
                 <button
                   onClick={() => { setDataMode('LIVE'); setIsModeMenuOpen(false); }}
-                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-mono flex items-center justify-between hover:bg-white/5 transition-colors"
+                  className="w-full text-left px-2.5 py-2 rounded-lg text-xs font-mono flex items-center justify-between hover:bg-white/5 transition-colors touch-manipulation"
                 >
                   <span className="text-emerald-400 font-bold">● LIVE</span>
                   <span className="text-[10px] text-[#6F8096]">Real public rooms</span>
                 </button>
                 <button
                   onClick={() => { setDataMode('DEMO'); setIsModeMenuOpen(false); }}
-                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-mono flex items-center justify-between hover:bg-white/5 transition-colors"
+                  className="w-full text-left px-2.5 py-2 rounded-lg text-xs font-mono flex items-center justify-between hover:bg-white/5 transition-colors touch-manipulation"
                 >
                   <span className="text-amber-400 font-bold">● DEMO</span>
                   <span className="text-[10px] text-[#6F8096]">Synthetic illustrative</span>
                 </button>
                 <button
                   onClick={() => { setDataMode('REPLAY'); setIsModeMenuOpen(false); }}
-                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-mono flex items-center justify-between hover:bg-white/5 transition-colors"
+                  className="w-full text-left px-2.5 py-2 rounded-lg text-xs font-mono flex items-center justify-between hover:bg-white/5 transition-colors touch-manipulation"
                 >
                   <span className="text-cyan-400 font-bold">● REPLAY</span>
                   <span className="text-[10px] text-[#6F8096]">Captured window</span>
@@ -208,11 +208,11 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
         </div>
 
         {/* Right: Actions */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-1.5 sm:space-x-2">
           {/* Showcase Mode Button */}
           <button
             onClick={() => setIsShowcase(!isShowcase)}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border ${
+            className={`flex items-center space-x-1 sm:space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border touch-manipulation ${
               isShowcase
                 ? 'bg-red-500/20 text-red-400 border-red-500/50 shadow-lg shadow-red-500/20'
                 : 'bg-[#101A2A] text-[#EAF2F7] border-[#1B2A3D] hover:border-[#36D7E7]/50'
@@ -226,7 +226,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
           {/* Fullscreen Toggle */}
           <button
             onClick={toggleFullscreen}
-            className="p-2 rounded-lg text-xs font-mono transition-all border bg-[#101A2A] text-[#95A4B8] border-[#1B2A3D] hover:text-white hover:border-[#36D7E7]/40"
+            className="p-1.5 sm:p-2 rounded-lg text-xs font-mono transition-all border bg-[#101A2A] text-[#95A4B8] border-[#1B2A3D] hover:text-white hover:border-[#36D7E7]/40 touch-manipulation"
             title={isFullscreen ? "Exit Fullscreen" : "Full Screen"}
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4 text-[#36D7E7]" /> : <Maximize2 className="w-4 h-4 text-[#36D7E7]" />}
@@ -236,7 +236,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
           {onOpenMenu && (
             <button
               onClick={onOpenMenu}
-              className="p-2 rounded-lg text-xs font-mono transition-all border bg-[#101A2A] text-[#95A4B8] border-[#1B2A3D] hover:text-white hover:border-[#36D7E7]/40"
+              className="p-1.5 sm:p-2 rounded-lg text-xs font-mono transition-all border bg-[#101A2A] text-[#95A4B8] border-[#1B2A3D] hover:text-white hover:border-[#36D7E7]/40 touch-manipulation"
               title="Open Navigation Menu"
             >
               <Menu className="w-4 h-4 text-[#36D7E7]" />
@@ -273,19 +273,48 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
       </div>
 
       {/* ------------------------------------------------------------- */}
-      {/* STREAMLINED HERO BOTTOM NAVIGATION (City is the Hero)         */}
+      {/* CONTEXTUAL ACTIVE ROOM FLOATING CHIP (Mobile Quick Entry)     */}
       {/* ------------------------------------------------------------- */}
-      <div className="absolute bottom-4 inset-x-0 z-20 flex items-center justify-center px-2 pointer-events-none">
-        <div className="flex items-center gap-1.5 sm:gap-2 p-1.5 rounded-2xl bg-[#0B1320]/85 backdrop-blur-xl border border-[#1B2A3D] shadow-2xl shadow-black/80 pointer-events-auto">
+      {selectedRoom && cityViewLevel !== 'interior' && activeSheet === 'none' && (
+        <div className="absolute bottom-20 sm:bottom-22 inset-x-0 z-20 flex items-center justify-center px-3 pointer-events-none">
+          <div className="flex items-center space-x-2.5 px-3 py-1.5 rounded-xl bg-[#0B1320]/95 backdrop-blur-md border border-[#1E3048] text-xs font-mono shadow-xl pointer-events-auto max-w-sm truncate animate-in fade-in slide-in-from-bottom-2 select-none">
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: selectedRoom.color }} />
+            <span className="font-bold text-white truncate">#{selectedRoom.name}</span>
+            <span className="text-[#6F8096]">·</span>
+            <button
+              onClick={() => {
+                setCityViewLevel('interior');
+                setActiveSheet('none');
+              }}
+              className="text-[#36D7E7] hover:underline font-bold text-[11px] shrink-0 touch-manipulation"
+            >
+              Enter Office →
+            </button>
+            <span className="text-[#6F8096]">·</span>
+            <button
+              onClick={() => setActiveSheet('room')}
+              className="text-[#95A4B8] hover:text-white text-[11px] shrink-0 touch-manipulation"
+            >
+              Info
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* STREAMLINED HERO BOTTOM NAVIGATION (Touch-first Dock)          */}
+      {/* ------------------------------------------------------------- */}
+      <div className="absolute bottom-3 sm:bottom-4 inset-x-0 z-20 flex items-center justify-center px-2 safe-bottom pointer-events-none select-none">
+        <div className="flex items-center gap-1 sm:gap-2 p-1.5 rounded-2xl bg-[#0B1320]/90 backdrop-blur-xl border border-[#1B2A3D] shadow-2xl shadow-black/80 pointer-events-auto max-w-[calc(100vw-1rem)] overflow-x-auto no-scrollbar">
           {/* 1. Explore Perspective Switcher */}
           <button
             onClick={handlePerspectiveCycle}
-            className="flex items-center space-x-1.5 min-h-[42px] px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition-all bg-[#101A2A] hover:bg-white/10 text-white border border-[#1B2A3D] active:scale-95"
+            className="flex items-center space-x-1.5 min-h-[44px] px-3 sm:px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition-all bg-[#101A2A] hover:bg-white/10 text-white border border-[#1B2A3D] active:scale-95 touch-manipulation shrink-0"
             title={`Camera: ${cameraPerspective.toUpperCase()} (Click to cycle Orbit / Drone / Plaza)`}
           >
             <Compass className="w-4 h-4 text-[#36D7E7]" />
-            <span>EXPLORE</span>
-            <span className="hidden sm:inline text-[10px] text-[#6F8096] uppercase">({cameraPerspective})</span>
+            <span className="text-[11px] sm:text-xs">EXPLORE</span>
+            <span className="hidden md:inline text-[10px] text-[#6F8096] uppercase">({cameraPerspective})</span>
           </button>
 
           {/* 2. Activity Drawer / Sheet */}
@@ -297,7 +326,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
                 setActiveSheet(activeSheet === 'activity' ? 'none' : 'activity');
               }
             }}
-            className={`flex items-center space-x-1.5 min-h-[42px] px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition-all border active:scale-95 ${
+            className={`flex items-center space-x-1.5 min-h-[44px] px-3 sm:px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition-all border active:scale-95 touch-manipulation shrink-0 ${
               activeSheet === 'activity'
                 ? 'bg-[#36D7E7] text-[#050A12] border-[#36D7E7]'
                 : 'bg-[#101A2A] text-white border-[#1B2A3D] hover:bg-white/10'
@@ -305,13 +334,13 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
             title="Inspect Recent Observed Activity"
           >
             <Activity className="w-4 h-4 text-[#2FD27F]" />
-            <span>ACTIVITY</span>
+            <span className="text-[11px] sm:text-xs">ACTIVITY</span>
           </button>
 
           {/* 3. Signed Activity & DID Inspector */}
           <button
             onClick={() => setActiveSheet(activeSheet === 'signed' ? 'none' : 'signed')}
-            className={`flex items-center space-x-1.5 min-h-[42px] px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition-all border active:scale-95 ${
+            className={`flex items-center space-x-1.5 min-h-[44px] px-3 sm:px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition-all border active:scale-95 touch-manipulation shrink-0 ${
               activeSheet === 'signed'
                 ? 'bg-[#36D7E7] text-[#050A12] border-[#36D7E7]'
                 : 'bg-[#101A2A] text-white border-[#1B2A3D] hover:bg-white/10'
@@ -319,34 +348,32 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
             title="Inspect Signed Records and DIDs"
           >
             <Key className="w-4 h-4 text-[#F0A824]" />
-            <span>SIGNAL</span>
+            <span className="text-[11px] sm:text-xs">SIGNAL</span>
           </button>
 
-          {/* 4. Compact Contextual / More Sheet Trigger */}
-          <div className="relative">
-            <button
-              onClick={() => setActiveSheet(activeSheet === 'missions' ? 'none' : 'missions')}
-              className={`flex items-center space-x-1 min-h-[42px] px-2.5 py-2 rounded-xl text-xs font-mono transition-all border active:scale-95 ${
-                activeSheet === 'missions' || activeSheet === 'room'
-                  ? 'bg-[#1E3048] text-[#38BDF8] border-[#38BDF8]/50'
-                  : 'bg-[#101A2A] text-[#95A4B8] border-[#1B2A3D] hover:text-white hover:bg-white/10'
-              }`}
-              title="Missions & Contextual Telemetry"
-            >
-              <Target className="w-3.5 h-3.5 text-[#A855F7]" />
-              <span className="text-[11px] hidden md:inline">MISSIONS</span>
-            </button>
-          </div>
+          {/* 4. Compact Missions Trigger */}
+          <button
+            onClick={() => setActiveSheet(activeSheet === 'missions' ? 'none' : 'missions')}
+            className={`flex items-center space-x-1.5 min-h-[44px] px-3 sm:px-3 py-2 rounded-xl text-xs font-mono transition-all border active:scale-95 touch-manipulation shrink-0 ${
+              activeSheet === 'missions' || activeSheet === 'room'
+                ? 'bg-[#1E3048] text-[#38BDF8] border-[#38BDF8]/50'
+                : 'bg-[#101A2A] text-[#95A4B8] border-[#1B2A3D] hover:text-white hover:bg-white/10'
+            }`}
+            title="Missions & Exploration Guide"
+          >
+            <Target className="w-4 h-4 text-[#A855F7]" />
+            <span className="text-[11px] sm:text-xs">MISSIONS</span>
+          </button>
 
-          {/* 5. Subdued Demo Signal Wave (Restrained brightness) */}
+          {/* 5. Demo Signal Wave */}
           <button
             onClick={() => handleTriggerPulse(activeDisplayRoom)}
             disabled={isSimulatingPulse}
-            className="flex items-center space-x-1.5 min-h-[42px] px-3 py-2 rounded-xl text-xs font-mono font-bold transition-all bg-[#132235] text-[#38BDF8] border border-[#1F3652] hover:bg-[#1A2E46] active:scale-95 disabled:opacity-50"
-            title="Visual demonstration signal wave (does not write to Technocore network)"
+            className="flex items-center space-x-1.5 min-h-[44px] px-2.5 sm:px-3 py-2 rounded-xl text-xs font-mono font-bold transition-all bg-[#132235] text-[#38BDF8] border border-[#1F3652] hover:bg-[#1A2E46] active:scale-95 disabled:opacity-50 touch-manipulation shrink-0"
+            title="Visual demonstration signal wave"
           >
             <Sparkles className="w-3.5 h-3.5 text-[#F0A824]" />
-            <span className="hidden sm:inline text-[11px]">{isSimulatingPulse ? 'PULSING...' : 'DEMO WAVE'}</span>
+            <span className="text-[11px]">{isSimulatingPulse ? 'PULSING...' : 'WAVE'}</span>
           </button>
         </div>
       </div>

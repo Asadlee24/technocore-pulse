@@ -43,6 +43,23 @@
   background: radial-gradient(circle at 50% 20%, rgba(54, 215, 231, 0.08) 0%, rgba(5, 10, 18, 0.8) 60%, #050A12 100%);
 }
 
+/* Mobile Safe Areas and Touch Ergonomics */
+.safe-top {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}
+
+.safe-bottom {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 .glow-cyan-sm {
   box-shadow: 0 0 16px -4px rgba(54, 215, 231, 0.35);
 }
