@@ -1,17 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useData } from '../context/DataContext';
-import type { RoomCluster, ProbeArm } from '../types/probe';
+import type { RoomCluster } from '../types/probe';
 import {
-  Sparkles,
+  Compass,
+  Users,
+  Activity,
+  Play,
+  Pause,
+  X,
+  Menu,
+  ChevronDown,
   Maximize2,
   Minimize2,
-  ChevronDown,
-  Compass,
-  Activity,
-  Key,
-  Target,
-  Menu,
-  Play
+  ExternalLink
 } from 'lucide-react';
 import { AgentCity3D } from './agent-city/AgentCity3D';
 import type { CameraViewLevel } from './agent-city/CityLODManager';
@@ -20,15 +21,14 @@ import { CityBottomSheets } from './agent-city/CityBottomSheets';
 interface SignalMap3DProps {
   onSelectRoom?: (room: RoomCluster) => void;
   selectedRoomId?: string;
-  activeFilter?: ProbeArm | 'all';
   onOpenMenu?: () => void;
   onOpenRawEvents?: () => void;
 }
 
 const DEFAULT_ROOM: RoomCluster = {
-  id: 'live-room-technocore',
+  id: 'lot-technocore-tower',
   name: 'technocore',
-  displayName: '#technocore',
+  displayName: '#technocore-tower',
   category: 'unclassified',
   visualDistrict: 'coordination',
   signedIdentitiesObserved: null,
@@ -37,33 +37,50 @@ const DEFAULT_ROOM: RoomCluster = {
   medianSubsequentLatencySeconds: null,
   averageResponseLatency: null,
   status: 'active',
-  color: '#36D7E7',
+  color: '#00B4D8',
   coordinates: [0, 0, 0]
 };
 
 export const SignalMap3D: React.FC<SignalMap3DProps> = ({
   onSelectRoom,
   selectedRoomId: _selectedRoomId,
-  activeFilter: _activeFilter = 'all',
   onOpenMenu,
-  onOpenRawEvents
+  onOpenRawEvents: _onOpenRawEvents
 }) => {
-  const { dataMode, setDataMode, activeRoomClusters, signedRecords } = useData();
+  const { 
+    dataMode, 
+    setDataMode, 
+    activeRoomClusters, 
+    signedRecords, 
+    activeStats, 
+    observedIdentities 
+  } = useData();
   const wrapperRef = useRef<HTMLDivElement>(null);
-  
-  // Minimal internal camera and sheet state
-  const [cityViewLevel, setCityViewLevel] = useState<CameraViewLevel>('city');
-  const [cameraPerspective, setCameraPerspective] = useState<'orbit' | 'drone' | 'plaza'>('orbit');
-  const [selectedRoom, setSelectedRoom] = useState<RoomCluster>(activeRoomClusters[0] || DEFAULT_ROOM);
-  const [isSimulatingPulse, setIsSimulatingPulse] = useState<boolean>(false);
-  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
-  const [isShowcase, setIsShowcase] = useState<boolean>(false);
-  const [isModeMenuOpen, setIsModeMenuOpen] = useState<boolean>(false);
-  
-  // Bottom sheet state: 'none' | 'room' | 'signed' | 'missions' | 'activity' | 'signal'
-  const [activeSheet, setActiveSheet] = useState<'none' | 'room' | 'signed' | 'missions' | 'activity' | 'signal'>('none');
 
-  // Sync selected room when activeRoomClusters updates
+  // Camera & View states
+  const [cityViewLevel, setCityViewLevel] = useState<CameraViewLevel>('city');
+  const [selectedRoom, setSelectedRoom] = useState<RoomCluster>(activeRoomClusters[0] || DEFAULT_ROOM);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [isModeMenuOpen, setIsModeMenuOpen] = useState<boolean>(false);
+
+  // Tour State
+  const [isTourActive, setIsTourActive] = useState<boolean>(false);
+  const [tourCaption, setTourCaption] = useState<string>('');
+  const [tourShotName, setTourShotName] = useState<string>('');
+  const [tourProgress, setTourProgress] = useState<number>(0);
+
+  // Real Observed Citizens Render Count (capped at 16 in 3D viewport)
+  const [renderedAvatarCount, setRenderedAvatarCount] = useState<number>(0);
+
+  // Bottom Event Strip State
+  const [eventStripText, setEventStripText] = useState<string>(
+    '◆ Technocore Pulse Observatory online. Waiting for verified public broadcasts...'
+  );
+
+  // Bottom sheets: 'none' | 'room' | 'signed' | 'missions' | 'activity' | 'signal' | 'agents'
+  const [activeSheet, setActiveSheet] = useState<'none' | 'room' | 'signed' | 'missions' | 'activity' | 'signal' | 'agents'>('none');
+
+  // Sync selected room when activeRoomClusters update
   useEffect(() => {
     if (activeRoomClusters.length > 0) {
       setSelectedRoom(prev => {
@@ -73,16 +90,20 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
     }
   }, [activeRoomClusters]);
 
-  // Fullscreen toggle
+  // Sync latest verified message or state to event strip
   useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-      setTimeout(() => window.dispatchEvent(new Event('resize')), 80);
-    };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
+    if (signedRecords.length > 0) {
+      const latest = signedRecords[0];
+      const verifiedTag = latest.verificationStatus === 'VERIFIED' ? '✓ VERIFIED' : '● OBSERVED';
+      setEventStripText(`◆ [${verifiedTag}] #${latest.room} · ${latest.did.slice(0, 16)}...: "${latest.message.slice(0, 48)}"`);
+    } else if (observedIdentities.length > 0) {
+      setEventStripText(`◆ Technocore Pulse online. ${observedIdentities.length} real identities observed in active public rooms.`);
+    } else {
+      setEventStripText('◆ Technocore Pulse Observatory online. Polling public rooms for signed agent messages...');
+    }
+  }, [signedRecords, observedIdentities.length]);
 
+  // Fullscreen toggle
   const toggleFullscreen = async () => {
     try {
       if (!document.fullscreenElement) {
@@ -100,21 +121,17 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
     }
   };
 
-  const handleTriggerPulse = (roomToPulse?: RoomCluster) => {
-    if (roomToPulse) setSelectedRoom(roomToPulse);
-    setIsSimulatingPulse(true);
-    setTimeout(() => {
-      setIsSimulatingPulse(false);
-    }, 2800);
+  const handleTourToggle = () => {
+    setIsTourActive(prev => !prev);
+    setActiveSheet('none');
   };
 
   const handlePerspectiveCycle = () => {
-    if (cameraPerspective === 'orbit') {
-      setCameraPerspective('drone');
-    } else if (cameraPerspective === 'drone') {
-      setCameraPerspective('plaza');
+    if (cityViewLevel === 'city') {
+      setCityViewLevel('building');
+    } else if (cityViewLevel === 'building') {
+      setCityViewLevel('interior');
     } else {
-      setCameraPerspective('orbit');
       setCityViewLevel('city');
     }
   };
@@ -131,122 +148,130 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
       }`}
     >
       {/* ------------------------------------------------------------- */}
-      {/* MINIMAL TOP HUD: Brand, LIVE/DEMO/REPLAY badge, and Actions   */}
+      {/* 1. TOP-LEFT IDENTITY PANEL                                    */}
       {/* ------------------------------------------------------------- */}
-      <div className="absolute top-0 inset-x-0 z-20 flex items-center justify-between px-3 sm:px-5 py-2.5 sm:py-3 safe-top bg-[#0B1320]/80 backdrop-blur-xl border-b border-[#1B2A3D]/70 pointer-events-auto select-none">
-        {/* Left: Brand + Strict Global Mode Badge */}
-        <div className="flex items-center space-x-2 sm:space-x-2.5">
-          <div className="flex items-center space-x-1.5 sm:space-x-2">
-            <span className="font-heading font-black tracking-wider text-xs sm:text-base text-white">
-              TECHNOCORE
-            </span>
-            <span className="hidden md:inline-block text-xs font-mono text-[#6F8096]">
-              Agent City
-            </span>
-          </div>
+      <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-20 pointer-events-auto select-none">
+        <div className="flex items-center space-x-2.5 p-2 sm:p-2.5 rounded-2xl bg-[#0A1128]/85 backdrop-blur-xl border border-[#1E3048] shadow-2xl">
+          <div>
+            <div className="flex items-center space-x-2">
+              <span className="font-heading font-black tracking-wider text-xs sm:text-sm text-white">
+                TECHNOCORE PULSE
+              </span>
+              <div className="relative">
+                <button
+                  onClick={() => setIsModeMenuOpen(!isModeMenuOpen)}
+                  className={`flex items-center space-x-1 px-2 py-0.5 rounded-full text-[9px] font-mono font-bold uppercase border transition-all ${
+                    dataMode === 'LIVE'
+                      ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
+                      : 'bg-cyan-500/15 border-cyan-500/40 text-cyan-400'
+                  }`}
+                  title="Toggle Global Data Stream Mode"
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                    dataMode === 'LIVE' ? 'bg-emerald-400' : 'bg-cyan-400'
+                  }`} />
+                  <span>{dataMode}</span>
+                  <ChevronDown className="w-2.5 h-2.5 opacity-70" />
+                </button>
 
-          {/* Mode Selector Pill */}
-          <div className="relative">
-            <button
-              onClick={() => setIsModeMenuOpen(!isModeMenuOpen)}
-              className={`flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase border transition-all hover:scale-105 active:scale-95 touch-manipulation ${
-                dataMode === 'LIVE'
-                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
-                  : dataMode === 'DEMO'
-                  ? 'bg-amber-500/15 border-amber-500/40 text-amber-400'
-                  : 'bg-cyan-500/15 border-cyan-500/40 text-cyan-400'
-              }`}
-              title="Click to toggle between LIVE, DEMO, and REPLAY data modes"
-            >
-              <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${
-                dataMode === 'LIVE' ? 'bg-emerald-400' : dataMode === 'DEMO' ? 'bg-amber-400' : 'bg-cyan-400'
-              }`} />
-              <span>● {dataMode}</span>
-              <ChevronDown className="w-2.5 h-2.5 opacity-70" />
-            </button>
-
-            {/* Dropdown Menu */}
-            {isModeMenuOpen && (
-              <div className="absolute top-full left-0 mt-1.5 w-52 rounded-xl bg-[#0B1320]/95 border border-[#1B2A3D] p-1 shadow-2xl backdrop-blur-xl z-50 animate-in fade-in zoom-in-95">
-                <div className="px-2.5 py-1 text-[9px] font-mono uppercase tracking-widest text-[#6F8096] border-b border-[#1B2A3D]/50 mb-1">
-                  Global Data Stream Mode
-                </div>
-                <button
-                  onClick={() => { setDataMode('LIVE'); setIsModeMenuOpen(false); }}
-                  className="w-full text-left px-2.5 py-2 rounded-lg text-xs font-mono flex items-center justify-between hover:bg-white/5 transition-colors touch-manipulation"
-                >
-                  <span className="text-emerald-400 font-bold">● LIVE</span>
-                  <span className="text-[10px] text-[#6F8096]">Real public rooms</span>
-                </button>
-                <button
-                  onClick={() => { setDataMode('DEMO'); setIsModeMenuOpen(false); }}
-                  className="w-full text-left px-2.5 py-2 rounded-lg text-xs font-mono flex items-center justify-between hover:bg-white/5 transition-colors touch-manipulation"
-                >
-                  <span className="text-amber-400 font-bold">● DEMO</span>
-                  <span className="text-[10px] text-[#6F8096]">Synthetic illustrative</span>
-                </button>
-                <button
-                  onClick={() => { setDataMode('REPLAY'); setIsModeMenuOpen(false); }}
-                  className="w-full text-left px-2.5 py-2 rounded-lg text-xs font-mono flex items-center justify-between hover:bg-white/5 transition-colors touch-manipulation"
-                >
-                  <span className="text-cyan-400 font-bold">● REPLAY</span>
-                  <span className="text-[10px] text-[#6F8096]">Captured window</span>
-                </button>
+                {/* Dropdown Menu */}
+                {isModeMenuOpen && (
+                  <div className="absolute top-full left-0 mt-1.5 w-48 rounded-xl bg-[#0B1320]/95 border border-[#1B2A3D] p-1 shadow-2xl backdrop-blur-xl z-50 animate-in fade-in zoom-in-95">
+                    <button
+                      onClick={() => { setDataMode('LIVE'); setIsModeMenuOpen(false); }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-mono flex items-center justify-between hover:bg-white/5"
+                    >
+                      <span className="text-emerald-400 font-bold">● LIVE</span>
+                      <span className="text-[10px] text-[#6F8096]">Real Public API</span>
+                    </button>
+                    <button
+                      onClick={() => { setDataMode('REPLAY'); setIsModeMenuOpen(false); }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-mono flex items-center justify-between hover:bg-white/5"
+                    >
+                      <span className="text-cyan-400 font-bold">● REPLAY</span>
+                      <span className="text-[10px] text-[#6F8096]">Captured Session</span>
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
+            <p className="text-[10px] font-mono text-[#6F8096] mt-0.5">
+              AGENT CITY · {dataMode === 'LIVE' ? 'PUBLIC OBSERVATION' : 'SESSION CAPTURE'}
+            </p>
           </div>
-        </div>
-
-        {/* Center: District/Perspective Indicator (Desktop only) */}
-        <div className="hidden lg:flex items-center space-x-2 text-xs font-mono text-[#95A4B8]">
-          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: activeDisplayRoom.color }} />
-          <span className="text-white font-bold">{activeDisplayRoom.displayName}</span>
-          <span className="text-[#6F8096]">·</span>
-          <span className="text-[11px] text-[#36D7E7] uppercase tracking-wider">
-            {cameraPerspective.toUpperCase()} CAM
-          </span>
-        </div>
-
-        {/* Right: Actions */}
-        <div className="flex items-center space-x-1.5 sm:space-x-2">
-          {/* Showcase Mode Button */}
-          <button
-            onClick={() => setIsShowcase(!isShowcase)}
-            className={`flex items-center space-x-1 sm:space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border touch-manipulation ${
-              isShowcase
-                ? 'bg-red-500/20 text-red-400 border-red-500/50 shadow-lg shadow-red-500/20'
-                : 'bg-[#101A2A] text-[#EAF2F7] border-[#1B2A3D] hover:border-[#36D7E7]/50'
-            }`}
-            title="Play 18s automated showcase demonstration tour"
-          >
-            <Play className={`w-3 h-3 ${isShowcase ? 'text-red-400' : 'text-[#36D7E7]'}`} />
-            <span className="hidden sm:inline">SHOWCASE</span>
-          </button>
-
-          {/* Fullscreen Toggle */}
-          <button
-            onClick={toggleFullscreen}
-            className="p-1.5 sm:p-2 rounded-lg text-xs font-mono transition-all border bg-[#101A2A] text-[#95A4B8] border-[#1B2A3D] hover:text-white hover:border-[#36D7E7]/40 touch-manipulation"
-            title={isFullscreen ? "Exit Fullscreen" : "Full Screen"}
-          >
-            {isFullscreen ? <Minimize2 className="w-4 h-4 text-[#36D7E7]" /> : <Maximize2 className="w-4 h-4 text-[#36D7E7]" />}
-          </button>
-
-          {/* Menu Drawer Toggle */}
-          {onOpenMenu && (
-            <button
-              onClick={onOpenMenu}
-              className="p-1.5 sm:p-2 rounded-lg text-xs font-mono transition-all border bg-[#101A2A] text-[#95A4B8] border-[#1B2A3D] hover:text-white hover:border-[#36D7E7]/40 touch-manipulation"
-              title="Open Navigation Menu"
-            >
-              <Menu className="w-4 h-4 text-[#36D7E7]" />
-            </button>
-          )}
         </div>
       </div>
 
       {/* ------------------------------------------------------------- */}
-      {/* PRIMARY 3D CITY WORLD (occupies 100% of viewport)             */}
+      {/* 2. TOP-RIGHT SOURCE STATUS PANEL                               */}
+      {/* ------------------------------------------------------------- */}
+      <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 pointer-events-auto select-none">
+        <div className="p-2 sm:p-2.5 rounded-2xl bg-[#0A1128]/85 backdrop-blur-xl border border-[#1E3048] shadow-2xl text-right font-mono text-xs">
+          <div>
+            <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider mb-1">
+              {dataMode === 'LIVE' ? 'LIVE OBSERVATION' : 'SESSION REPLAY'}
+            </div>
+            <div className="space-y-0.5 text-[10px]">
+              <div className="flex justify-between gap-3 text-white">
+                <span className="text-[#6F8096]">Rooms:</span>
+                <span className="font-bold">{activeStats.activeRoomsMonitored}</span>
+              </div>
+              <div className="flex justify-between gap-3 text-[#38BDF8]">
+                <span className="text-[#6F8096]">Distinct DIDs:</span>
+                <span className="font-bold">{activeStats.didIdentitiesObserved ?? observedIdentities.length}</span>
+              </div>
+              <div className="flex justify-between gap-3 text-purple-400">
+                <span className="text-[#6F8096]">Verified DIDs:</span>
+                <span className="font-bold">{activeStats.verifiedSigningDids ?? 0}</span>
+              </div>
+              <div className="flex justify-between gap-3 text-amber-400">
+                <span className="text-[#6F8096]">Rendered 3D:</span>
+                <span className="font-bold">{renderedAvatarCount} of {observedIdentities.length}</span>
+              </div>
+              <div className="flex justify-between gap-3 text-emerald-400">
+                <span className="text-[#6F8096]">Freshness:</span>
+                <span className="font-bold">&lt; 25s</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ------------------------------------------------------------- */}
+      {/* 3. CINEMATIC TOUR BANNER & CONTROLS (during active tour)      */}
+      {/* ------------------------------------------------------------- */}
+      {isTourActive && (
+        <div className="absolute top-16 sm:top-20 inset-x-0 z-30 flex items-center justify-center px-3 pointer-events-none select-none">
+          <div className="flex items-center space-x-3 px-4 py-2.5 rounded-2xl bg-[#0A1128]/95 backdrop-blur-2xl border border-[#00B4D8]/50 shadow-2xl shadow-[#00B4D8]/20 pointer-events-auto max-w-xl text-xs font-mono animate-in fade-in slide-in-from-top-4">
+            <button
+              onClick={() => setIsTourActive(false)}
+              className="p-1 rounded-lg bg-[#142337] text-[#00B4D8] hover:text-white hover:bg-[#1E3048] transition-colors"
+              title="Pause Tour"
+            >
+              <Pause className="w-3.5 h-3.5" />
+            </button>
+            <div className="flex-grow">
+              <div className="flex items-center justify-between text-[10px] text-[#00B4D8] mb-0.5">
+                <span className="font-bold uppercase tracking-wider">{tourShotName || 'Cinematic Tour'}</span>
+                <span>{Math.round(tourProgress * 100)}%</span>
+              </div>
+              <p className="text-white text-[11px] truncate max-w-sm sm:max-w-md">
+                {tourCaption}
+              </p>
+            </div>
+            <button
+              onClick={() => setIsTourActive(false)}
+              className="p-1 rounded-lg text-[#6F8096] hover:text-white hover:bg-white/10 transition-colors"
+              title="Exit Tour"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* 4. PRIMARY 3D CITY WORLD                                      */}
       {/* ------------------------------------------------------------- */}
       <div className="w-full h-full relative">
         <AgentCity3D
@@ -254,9 +279,20 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
           selectedRoom={activeDisplayRoom}
           viewLevel={cityViewLevel}
           onViewLevelChange={setCityViewLevel}
-          cameraPerspective={cameraPerspective}
-          onPerspectiveChange={setCameraPerspective}
           theme="dark"
+          isTourActive={isTourActive}
+          onTourStepChange={(caption, shotName, prog) => {
+            setTourCaption(caption);
+            setTourShotName(shotName);
+            setTourProgress(prog);
+          }}
+          onExitTour={() => setIsTourActive(false)}
+          onSimulationEvent={(msg) => setEventStripText(msg)}
+          onCitizensUpdate={(rendered, _total) => {
+            setRenderedAvatarCount(rendered);
+          }}
+          observedIdentities={observedIdentities}
+          latestSignedRecord={signedRecords[0]}
           onSelectRoom={(room) => {
             setSelectedRoom(room);
             if (onSelectRoom) onSelectRoom(room);
@@ -265,136 +301,134 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
             setSelectedRoom(room);
             setActiveSheet('room');
           }}
-          isSimulatingPulse={isSimulatingPulse}
-          onPulseComplete={() => setIsSimulatingPulse(false)}
-          isShowcase={isShowcase}
-          onExitShowcase={() => setIsShowcase(false)}
         />
       </div>
 
       {/* ------------------------------------------------------------- */}
-      {/* CONTEXTUAL ACTIVE ROOM FLOATING CHIP (Mobile Quick Entry)     */}
+      {/* 5. BOTTOM EVENT TICKER STRIP                                  */}
       {/* ------------------------------------------------------------- */}
-      {selectedRoom && cityViewLevel !== 'interior' && activeSheet === 'none' && (
-        <div className="absolute bottom-20 sm:bottom-22 inset-x-0 z-20 flex items-center justify-center px-3 pointer-events-none">
-          <div className="flex items-center space-x-2.5 px-3 py-1.5 rounded-xl bg-[#0B1320]/95 backdrop-blur-md border border-[#1E3048] text-xs font-mono shadow-xl pointer-events-auto max-w-sm truncate animate-in fade-in slide-in-from-bottom-2 select-none">
-            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: selectedRoom.color }} />
-            <span className="font-bold text-white truncate">#{selectedRoom.name}</span>
-            <span className="text-[#6F8096]">·</span>
-            <button
-              onClick={() => {
-                setCityViewLevel('interior');
-                setActiveSheet('none');
-              }}
-              className="text-[#36D7E7] hover:underline font-bold text-[11px] shrink-0 touch-manipulation"
-            >
-              Enter Office →
-            </button>
-            <span className="text-[#6F8096]">·</span>
-            <button
-              onClick={() => setActiveSheet('room')}
-              className="text-[#95A4B8] hover:text-white text-[11px] shrink-0 touch-manipulation"
-            >
-              Info
-            </button>
-          </div>
+      <div className="absolute bottom-18 sm:bottom-20 inset-x-0 z-20 flex items-center justify-center px-3 pointer-events-none select-none">
+        <div className="flex items-center space-x-2 px-3.5 py-1.5 rounded-xl bg-[#0A1128]/85 backdrop-blur-xl border border-[#1E3048] shadow-lg pointer-events-auto max-w-xl text-[11px] font-mono text-[#CAD4E0] truncate animate-in fade-in">
+          <span className="w-2 h-2 rounded-full bg-[#00B4D8] animate-ping shrink-0" />
+          <span className="truncate">{eventStripText}</span>
         </div>
-      )}
+      </div>
 
       {/* ------------------------------------------------------------- */}
-      {/* STREAMLINED HERO BOTTOM NAVIGATION (Touch-first Dock)          */}
+      {/* 6. RESTRAINED HERO BOTTOM DOCK (5 Primary Controls)           */}
       {/* ------------------------------------------------------------- */}
-      <div className="absolute bottom-3 sm:bottom-4 inset-x-0 z-20 flex items-center justify-center px-2 safe-bottom pointer-events-none select-none">
-        <div className="flex items-center gap-1 sm:gap-2 p-1.5 rounded-2xl bg-[#0B1320]/90 backdrop-blur-xl border border-[#1B2A3D] shadow-2xl shadow-black/80 pointer-events-auto max-w-[calc(100vw-1rem)] overflow-x-auto no-scrollbar">
-          {/* 1. Explore Perspective Switcher */}
+      <div className="absolute bottom-3 sm:bottom-4 inset-x-0 z-20 flex items-center justify-between px-3 sm:px-6 safe-bottom pointer-events-none select-none">
+        {/* Left attribution link: "Built by Asad Lee" */}
+        <div className="hidden md:flex items-center space-x-1.5 text-[11px] font-mono pointer-events-auto bg-[#0A1128]/85 px-3 py-1.5 rounded-xl border border-[#1E3048]">
+          <span className="text-[#6F8096]">Built by</span>
+          <a
+            href="https://asad-lee-portfolio.vercel.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[#00B4D8] hover:underline font-bold flex items-center space-x-1"
+          >
+            <span>Asad Lee</span>
+            <ExternalLink className="w-3 h-3" />
+          </a>
+        </div>
+
+        {/* Center: 5 Primary Dock Controls */}
+        <div className="flex items-center gap-1.5 sm:gap-2 p-1.5 rounded-2xl bg-[#0A1128]/90 backdrop-blur-xl border border-[#1E3048] shadow-2xl pointer-events-auto mx-auto md:mx-0">
+          {/* 1. Explore View Switcher */}
           <button
             onClick={handlePerspectiveCycle}
-            className="flex items-center space-x-1.5 min-h-[44px] px-3 sm:px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition-all bg-[#101A2A] hover:bg-white/10 text-white border border-[#1B2A3D] active:scale-95 touch-manipulation shrink-0"
-            title={`Camera: ${cameraPerspective.toUpperCase()} (Click to cycle Orbit / Drone / Plaza)`}
+            className="flex items-center space-x-1.5 min-h-[42px] px-3 sm:px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition-all bg-[#101E31] hover:bg-white/10 text-white border border-[#1E3048] active:scale-95 touch-manipulation shrink-0"
+            title={`Camera View Scale: ${cityViewLevel.toUpperCase()}`}
           >
-            <Compass className="w-4 h-4 text-[#36D7E7]" />
-            <span className="text-[11px] sm:text-xs">EXPLORE</span>
-            <span className="hidden md:inline text-[10px] text-[#6F8096] uppercase">({cameraPerspective})</span>
+            <Compass className="w-3.5 h-3.5 text-[#00B4D8]" />
+            <span className="text-[11px] sm:text-xs uppercase">{cityViewLevel}</span>
           </button>
 
-          {/* 2. Activity Drawer / Sheet */}
+          {/* 2. Agents Sheet */}
           <button
-            onClick={() => {
-              if (onOpenRawEvents) {
-                onOpenRawEvents();
-              } else {
-                setActiveSheet(activeSheet === 'activity' ? 'none' : 'activity');
-              }
-            }}
-            className={`flex items-center space-x-1.5 min-h-[44px] px-3 sm:px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition-all border active:scale-95 touch-manipulation shrink-0 ${
-              activeSheet === 'activity'
-                ? 'bg-[#36D7E7] text-[#050A12] border-[#36D7E7]'
-                : 'bg-[#101A2A] text-white border-[#1B2A3D] hover:bg-white/10'
+            onClick={() => setActiveSheet(activeSheet === 'agents' ? 'none' : 'agents')}
+            className={`flex items-center space-x-1.5 min-h-[42px] px-3 sm:px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition-all border active:scale-95 touch-manipulation shrink-0 ${
+              activeSheet === 'agents'
+                ? 'bg-[#00B4D8] text-[#050A12] border-[#00B4D8]'
+                : 'bg-[#101E31] text-white border-[#1E3048] hover:bg-white/10'
             }`}
-            title="Inspect Recent Observed Activity"
+            title="Inspect Observed Agent Identities"
           >
-            <Activity className="w-4 h-4 text-[#2FD27F]" />
+            <Users className="w-3.5 h-3.5 text-[#38BDF8]" />
+            <span className="text-[11px] sm:text-xs">AGENTS</span>
+          </button>
+
+          {/* 3. Activity Sheet */}
+          <button
+            onClick={() => setActiveSheet(activeSheet === 'activity' ? 'none' : 'activity')}
+            className={`flex items-center space-x-1.5 min-h-[42px] px-3 sm:px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition-all border active:scale-95 touch-manipulation shrink-0 ${
+              activeSheet === 'activity'
+                ? 'bg-[#00B4D8] text-[#050A12] border-[#00B4D8]'
+                : 'bg-[#101E31] text-white border-[#1E3048] hover:bg-white/10'
+            }`}
+            title="Inspect Recent Message Feed"
+          >
+            <Activity className="w-3.5 h-3.5 text-emerald-400" />
             <span className="text-[11px] sm:text-xs">ACTIVITY</span>
           </button>
 
-          {/* 3. Signed Activity & DID Inspector */}
+          {/* 4. 58s Cinematic Tour Toggle */}
           <button
-            onClick={() => setActiveSheet(activeSheet === 'signed' ? 'none' : 'signed')}
-            className={`flex items-center space-x-1.5 min-h-[44px] px-3 sm:px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition-all border active:scale-95 touch-manipulation shrink-0 ${
-              activeSheet === 'signed'
-                ? 'bg-[#36D7E7] text-[#050A12] border-[#36D7E7]'
-                : 'bg-[#101A2A] text-white border-[#1B2A3D] hover:bg-white/10'
+            onClick={handleTourToggle}
+            className={`flex items-center space-x-1.5 min-h-[42px] px-3 sm:px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition-all border active:scale-95 touch-manipulation shrink-0 ${
+              isTourActive
+                ? 'bg-[#F72585] text-white border-[#F72585] shadow-lg shadow-[#F72585]/30'
+                : 'bg-[#101E31] text-white border-[#1E3048] hover:border-[#00B4D8]/50'
             }`}
-            title="Inspect Signed Records and DIDs"
+            title="Play 58-second Directed Cinematic Tour"
           >
-            <Key className="w-4 h-4 text-[#F0A824]" />
-            <span className="text-[11px] sm:text-xs">SIGNAL</span>
+            <Play className="w-3.5 h-3.5 text-[#F72585]" />
+            <span className="text-[11px] sm:text-xs">TOUR</span>
           </button>
 
-          {/* 4. Compact Missions Trigger */}
-          <button
-            onClick={() => setActiveSheet(activeSheet === 'missions' ? 'none' : 'missions')}
-            className={`flex items-center space-x-1.5 min-h-[44px] px-3 sm:px-3 py-2 rounded-xl text-xs font-mono transition-all border active:scale-95 touch-manipulation shrink-0 ${
-              activeSheet === 'missions' || activeSheet === 'room'
-                ? 'bg-[#1E3048] text-[#38BDF8] border-[#38BDF8]/50'
-                : 'bg-[#101A2A] text-[#95A4B8] border-[#1B2A3D] hover:text-white hover:bg-white/10'
-            }`}
-            title="Missions & Exploration Guide"
-          >
-            <Target className="w-4 h-4 text-[#A855F7]" />
-            <span className="text-[11px] sm:text-xs">MISSIONS</span>
-          </button>
+          {/* 5. Navigation Menu Drawer */}
+          {onOpenMenu && (
+            <button
+              onClick={onOpenMenu}
+              className="flex items-center space-x-1.5 min-h-[42px] px-3 sm:px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition-all bg-[#101E31] text-[#95A4B8] border border-[#1E3048] hover:text-white hover:bg-white/10 active:scale-95 touch-manipulation shrink-0"
+              title="Open Navigation Menu"
+            >
+              <Menu className="w-3.5 h-3.5 text-[#00B4D8]" />
+              <span className="text-[11px] sm:text-xs">MENU</span>
+            </button>
+          )}
+        </div>
 
-          {/* 5. Demo Signal Wave */}
+        {/* Right fullscreen button */}
+        <div className="hidden md:flex pointer-events-auto">
           <button
-            onClick={() => handleTriggerPulse(activeDisplayRoom)}
-            disabled={isSimulatingPulse}
-            className="flex items-center space-x-1.5 min-h-[44px] px-2.5 sm:px-3 py-2 rounded-xl text-xs font-mono font-bold transition-all bg-[#132235] text-[#38BDF8] border border-[#1F3652] hover:bg-[#1A2E46] active:scale-95 disabled:opacity-50 touch-manipulation shrink-0"
-            title="Visual demonstration signal wave"
+            onClick={toggleFullscreen}
+            className="p-2 rounded-xl text-xs font-mono transition-all border bg-[#0A1128]/85 text-[#95A4B8] border-[#1E3048] hover:text-white hover:border-[#00B4D8]/40"
+            title={isFullscreen ? 'Exit Fullscreen' : 'Full Screen'}
           >
-            <Sparkles className="w-3.5 h-3.5 text-[#F0A824]" />
-            <span className="text-[11px]">{isSimulatingPulse ? 'PULSING...' : 'WAVE'}</span>
+            {isFullscreen ? <Minimize2 className="w-4 h-4 text-[#00B4D8]" /> : <Maximize2 className="w-4 h-4 text-[#00B4D8]" />}
           </button>
         </div>
       </div>
 
       {/* ------------------------------------------------------------- */}
-      {/* MOBILE-FIRST SLIDING BOTTOM SHEETS                            */}
+      {/* 7. SLIDING BOTTOM SHEETS                                      */}
       {/* ------------------------------------------------------------- */}
       <CityBottomSheets
         activeSheet={activeSheet}
         selectedRoom={activeDisplayRoom}
         signedRecords={signedRecords}
-        isDemoMode={dataMode === 'DEMO'}
+        observedIdentities={observedIdentities}
+        onSelectAgent={(_identity) => {
+          setCityViewLevel('interior');
+        }}
         onOpenSheet={setActiveSheet}
         onCloseRoomSheet={() => setActiveSheet('none')}
         onEnterBuilding={() => {
           setCityViewLevel('interior');
           setActiveSheet('none');
         }}
-        onTriggerPulse={() => {
-          handleTriggerPulse(activeDisplayRoom);
-        }}
+        onTriggerPulse={() => {}}
       />
     </div>
   );

@@ -4,129 +4,157 @@ export class CityEnvironment {
   public group: THREE.Group;
   private streetLanterns: THREE.InstancedMesh | null = null;
   private digitalTrees: THREE.Group | null = null;
+  private groundPlane: THREE.Mesh | null = null;
+  private gridMesh: THREE.LineSegments | null = null;
 
-  constructor(theme: 'dark' | 'light' = 'dark') {
+  constructor(_theme: 'dark' | 'light' = 'dark') {
     this.group = new THREE.Group();
     this.group.name = 'city-environment';
 
-    this.buildMetropolitanIslandPlatform(theme);
-    this.buildStreetLanterns(theme);
-    this.buildDigitalFlora(theme);
+    this.buildInfiniteDiamondGrid();
+    this.buildStreetLanterns();
+    this.buildDigitalFlora();
   }
 
   /**
-   * Builds the foundational digital island platform:
+   * Continuous dark ground plane with glowing neon diamond grid lines
+   * fading into the distance with subtle depth fog.
    */
-  private buildMetropolitanIslandPlatform(theme: 'dark' | 'light') {
-    const isLight = theme === 'light';
-
-    // 1. Primary ground base
-    const platformGeo = new THREE.CylinderGeometry(95, 100, 3.5, 64);
-    const platformMat = new THREE.MeshStandardMaterial({
-      color: isLight ? 0xE8EEF5 : 0x040810,
-      roughness: isLight ? 0.5 : 0.8,
-      metalness: isLight ? 0.2 : 0.3
+  private buildInfiniteDiamondGrid() {
+    // 1. Dark navy/graphite ground plane (#0A1128 / #050814)
+    const groundGeo = new THREE.PlaneGeometry(300, 300);
+    const groundMat = new THREE.MeshStandardMaterial({
+      color: 0x050814,
+      roughness: 0.85,
+      metalness: 0.2
     });
-    const platformMesh = new THREE.Mesh(platformGeo, platformMat);
-    platformMesh.position.y = -1.75;
-    platformMesh.receiveShadow = true;
-    this.group.add(platformMesh);
+    this.groundPlane = new THREE.Mesh(groundGeo, groundMat);
+    this.groundPlane.rotation.x = -Math.PI / 2;
+    this.groundPlane.position.y = -0.05;
+    this.groundPlane.receiveShadow = true;
+    this.group.add(this.groundPlane);
 
-    // 2. Subterranean Glowing Energy Edge Ring
-    const edgeRingGeo = new THREE.TorusGeometry(95.2, 0.3, 8, 96);
-    const edgeRingMat = new THREE.MeshBasicMaterial({
-      color: isLight ? 0x0284C7 : 0x36D7E7,
+    // 2. Primary Rectilinear Grid (diamond pattern when viewed at 45° azimuth)
+    const gridExtent = 90;
+    const gridStep = 4.5;
+    const gridLinesCount = Math.round((gridExtent * 2) / gridStep) + 1;
+    const vertices: number[] = [];
+    const colors: number[] = [];
+
+    const cyanColor = new THREE.Color(0x00B4D8);
+    const darkLineColor = new THREE.Color(0x0E2138);
+    const magentaAccent = new THREE.Color(0xF72585);
+
+    for (let i = 0; i < gridLinesCount; i++) {
+      const coord = -gridExtent + i * gridStep;
+      // Is this a major street line?
+      const isMajor = Math.abs(coord % 18) < 0.1;
+      const isCenter = Math.abs(coord) < 0.1;
+      const lineCol = isCenter ? magentaAccent : isMajor ? cyanColor : darkLineColor;
+
+      // X-parallel line
+      vertices.push(-gridExtent, 0.01, coord);
+      vertices.push(gridExtent, 0.01, coord);
+      colors.push(lineCol.r, lineCol.g, lineCol.b);
+      colors.push(lineCol.r, lineCol.g, lineCol.b);
+
+      // Z-parallel line
+      vertices.push(coord, 0.01, -gridExtent);
+      vertices.push(coord, 0.01, gridExtent);
+      colors.push(lineCol.r, lineCol.g, lineCol.b);
+      colors.push(lineCol.r, lineCol.g, lineCol.b);
+    }
+
+    const gridGeo = new THREE.BufferGeometry();
+    gridGeo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    gridGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+    const gridMat = new THREE.LineBasicMaterial({
+      vertexColors: true,
       transparent: true,
-      opacity: 0.7
+      opacity: 0.75
     });
-    const edgeRing = new THREE.Mesh(edgeRingGeo, edgeRingMat);
-    edgeRing.rotation.x = Math.PI / 2;
-    edgeRing.position.y = -0.05;
-    this.group.add(edgeRing);
 
-    // 3. Subtle Concentric Foundation Grid
-    const gridHelper = new THREE.GridHelper(
-      180,
-      60,
-      isLight ? 0x94A3B8 : 0x1B2A3D,
-      isLight ? 0xCBD5E1 : 0x08101A
-    );
-    gridHelper.position.y = 0.01;
-    this.group.add(gridHelper);
-
-    // 4. District Boundary Circular Glow Accents
-    [14, 28, 43, 60].forEach((radius) => {
-      const ringGeo = new THREE.RingGeometry(radius - 0.08, radius + 0.08, 64);
-      const ringMat = new THREE.MeshBasicMaterial({
-        color: isLight ? 0x94A3B8 : 0x1B2A3D,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: isLight ? 0.6 : 0.4
-      });
-      const ring = new THREE.Mesh(ringGeo, ringMat);
-      ring.rotation.x = -Math.PI / 2;
-      ring.position.y = 0.02;
-      this.group.add(ring);
-    });
+    this.gridMesh = new THREE.LineSegments(gridGeo, gridMat);
+    this.group.add(this.gridMesh);
   }
 
-  private buildStreetLanterns(theme: 'dark' | 'light') {
-    const isLight = theme === 'light';
-    const lanternCount = 48;
-    const lampGeo = new THREE.CylinderGeometry(0.05, 0.05, 1.8, 6);
-    const lampMat = new THREE.MeshStandardMaterial({
-      color: isLight ? 0x64748B : 0x1B2A3D
+  /**
+   * Street-level ground light studs along pedestrian crossings
+   */
+  private buildStreetLanterns() {
+    const lanternCount = 36;
+    const studGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.08, 8);
+    const studMat = new THREE.MeshBasicMaterial({
+      color: 0x00B4D8
     });
-    this.streetLanterns = new THREE.InstancedMesh(lampGeo, lampMat, lanternCount);
+    this.streetLanterns = new THREE.InstancedMesh(studGeo, studMat, lanternCount);
 
     const dummy = new THREE.Object3D();
-    for (let i = 0; i < lanternCount; i++) {
-      const angle = (i / lanternCount) * Math.PI * 2;
-      const ringChoice = i % 3;
-      const radius = ringChoice === 0 ? 12.8 : ringChoice === 1 ? 26.8 : 41.6;
-      const x = Math.cos(angle) * radius;
-      const z = Math.sin(angle) * radius;
-
-      dummy.position.set(x, 0.9, z);
-      dummy.updateMatrix();
-      this.streetLanterns.setMatrixAt(i, dummy.matrix);
+    let idx = 0;
+    const coords = [-27, -9, 9, 27];
+    for (const x of coords) {
+      for (const z of coords) {
+        if (idx < lanternCount) {
+          dummy.position.set(x, 0.04, z);
+          dummy.updateMatrix();
+          this.streetLanterns.setMatrixAt(idx, dummy.matrix);
+          idx++;
+        }
+      }
     }
     this.streetLanterns.instanceMatrix.needsUpdate = true;
     this.group.add(this.streetLanterns);
   }
 
-  private buildDigitalFlora(theme: 'dark' | 'light') {
-    const isLight = theme === 'light';
+  /**
+   * Digital flora matching reference video:
+   * Small round luminous trees on slender trunks (spherical glowing orbs in cyan, emerald, magenta)
+   */
+  private buildDigitalFlora() {
     this.digitalTrees = new THREE.Group();
-    const treeTrunkMat = new THREE.MeshBasicMaterial({
-      color: isLight ? 0x64748B : 0x1B2A3D
-    });
-    const foliageMat = new THREE.MeshBasicMaterial({
-      color: isLight ? 0x10B981 : 0x2FD27F,
-      transparent: true,
-      opacity: isLight ? 0.75 : 0.65,
-      wireframe: true
+
+    const trunkGeo = new THREE.CylinderGeometry(0.04, 0.05, 0.8, 6);
+    const trunkMat = new THREE.MeshStandardMaterial({
+      color: 0x1E293B,
+      roughness: 0.8
     });
 
-    const trunkGeo = new THREE.CylinderGeometry(0.06, 0.1, 1.2, 5);
-    const canopyGeo = new THREE.ConeGeometry(0.7, 1.6, 5);
+    const sphereGeo = new THREE.SphereGeometry(0.45, 12, 10);
 
-    const treePositions: [number, number][] = [
-      [8, 7], [9, 5], [7, 9],
-      [-8, -7], [-9, -5], [-7, -9],
-      [14, 2], [15, -2],
-      [-14, 2], [-15, -2]
+    const treeColors = [
+      0x00B4D8, // Cyan
+      0x32D74B, // Emerald
+      0xF72585, // Magenta
+      0x4CC9F0  // Sky Blue
     ];
 
-    treePositions.forEach(([x, z]) => {
+    // Tree locations along sidewalks and Terrace Park (around [-18, 0, 18])
+    const treePositions: [number, number, number][] = [
+      // Terrace Park cluster
+      [-16, 16, 1], [-20, 16, 1], [-16, 20, 0], [-20, 20, 2],
+      [-18, 14.5, 3], [-14.5, 18, 0],
+      // Sidewalk corners
+      [9, 9, 0], [-9, 9, 1], [9, -9, 2], [-9, -9, 0],
+      [27, 9, 1], [27, -9, 3], [-27, 9, 2], [-27, -9, 0],
+      [9, 27, 3], [-9, 27, 1], [9, -27, 0], [-9, -27, 2]
+    ];
+
+    treePositions.forEach(([x, z, colIdx]) => {
       const tree = new THREE.Group();
-      const trunk = new THREE.Mesh(trunkGeo, treeTrunkMat);
-      trunk.position.y = 0.6;
+      const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+      trunk.position.y = 0.4;
       tree.add(trunk);
 
-      const canopy = new THREE.Mesh(canopyGeo, foliageMat);
-      canopy.position.y = 1.8;
-      tree.add(canopy);
+      const orbMat = new THREE.MeshStandardMaterial({
+        color: treeColors[colIdx],
+        emissive: treeColors[colIdx],
+        emissiveIntensity: 0.65,
+        roughness: 0.3
+      });
+      const orb = new THREE.Mesh(sphereGeo, orbMat);
+      orb.position.y = 1.05;
+      tree.add(orb);
 
       tree.position.set(x, 0, z);
       this.digitalTrees?.add(tree);

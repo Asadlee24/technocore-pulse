@@ -23,7 +23,7 @@ import {
 
 function AppContent() {
   const { activeRoomClusters } = useData();
-  const [hasEnteredCity, setHasEnteredCity] = useState<boolean>(false);
+  const [hasEnteredCity, setHasEnteredCity] = useState<boolean>(true);
   const [isRawDrawerOpen, setIsRawDrawerOpen] = useState<boolean>(false);
   const [isNavMenuOpen, setIsNavMenuOpen] = useState<boolean>(false);
   const [selectedRoom, setSelectedRoom] = useState<RoomCluster>(activeRoomClusters[0]);

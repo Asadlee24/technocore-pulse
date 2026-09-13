@@ -203,6 +203,17 @@ export class AgentWorker {
     }
   }
 
+  public dispose() {
+    this.group.traverse(obj => {
+      if (obj instanceof THREE.Mesh) {
+        if (obj.material !== AgentWorker.bodyMat && obj.material !== AgentWorker.visorMat && obj.material !== AgentWorker.visorSurgeMat) {
+          if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+          else (obj.material as THREE.Material).dispose();
+        }
+      }
+    });
+  }
+
   public static dispose() {
     this.headGeo?.dispose();
     this.bodyGeo?.dispose();

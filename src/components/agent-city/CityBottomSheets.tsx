@@ -12,15 +12,19 @@ import {
   Target
 } from 'lucide-react';
 
+import type { ObservedIdentity } from '../../context/DataContext';
+
 interface CityBottomSheetsProps {
   selectedRoom: RoomCluster | null;
   onCloseRoomSheet: () => void;
   onEnterBuilding: (room: RoomCluster) => void;
   onTriggerPulse: (room: RoomCluster) => void;
-  activeSheet: 'none' | 'room' | 'signed' | 'missions' | 'activity' | 'signal';
-  onOpenSheet: (sheet: 'none' | 'room' | 'signed' | 'missions' | 'activity' | 'signal') => void;
+  activeSheet: 'none' | 'room' | 'signed' | 'missions' | 'activity' | 'signal' | 'agents';
+  onOpenSheet: (sheet: 'none' | 'room' | 'signed' | 'missions' | 'activity' | 'signal' | 'agents') => void;
   signedRecords: SignedRecord[];
   isDemoMode?: boolean;
+  observedIdentities?: ObservedIdentity[];
+  onSelectAgent?: (identity: ObservedIdentity) => void;
 }
 
 export const CityBottomSheets: React.FC<CityBottomSheetsProps> = ({
@@ -31,9 +35,12 @@ export const CityBottomSheets: React.FC<CityBottomSheetsProps> = ({
   activeSheet,
   onOpenSheet,
   signedRecords,
-  isDemoMode = false
+  isDemoMode = false,
+  observedIdentities = [],
+  onSelectAgent
 }) => {
   const [copiedDid, setCopiedDid] = useState<string | null>(null);
+  const [selectedIdentityDetail, setSelectedIdentityDetail] = useState<ObservedIdentity | null>(null);
   const [completedMissions, setCompletedMissions] = useState<Record<string, boolean>>({
     'mission-enter': true
   });
@@ -363,6 +370,211 @@ export const CityBottomSheets: React.FC<CityBottomSheetsProps> = ({
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // -------------------------------------------------------------
+  // -------------------------------------------------------------
+  // 4. OBSERVED IDENTITIES SHEET (Real Empirical Participants)
+  // -------------------------------------------------------------
+  if (activeSheet === 'agents') {
+    return (
+      <>
+        <div 
+          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in"
+          onClick={() => {
+            setSelectedIdentityDetail(null);
+            onOpenSheet('none');
+          }}
+        />
+        <div className="fixed inset-x-0 bottom-0 z-40 p-2 sm:p-4 max-w-xl mx-auto safe-bottom animate-in slide-in-from-bottom-6 duration-200 max-h-[85vh] flex flex-col">
+          <div className="bg-[#0A1322]/95 backdrop-blur-xl border border-[#1E3048] rounded-2xl shadow-2xl p-4 sm:p-5 text-[#EAF2F7] flex flex-col overflow-hidden">
+            {/* Mobile Drag Handle */}
+            <div className="w-10 h-1 rounded-full bg-white/25 mx-auto mb-3 sm:hidden" />
+
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3 pb-3 border-b border-[#1B2A3D]">
+              <div className="flex items-center space-x-2.5">
+                <div className="p-2 rounded-xl bg-[#00B4D8]/10 text-[#00B4D8] border border-[#00B4D8]/25">
+                  <Target className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-mono font-bold text-base sm:text-lg text-white">
+                    {selectedIdentityDetail ? 'Observed Identity Record' : `Observed Identities (${observedIdentities.length})`}
+                  </h3>
+                  <p className="text-xs text-[#6F8096] font-mono mt-0.5">
+                    {selectedIdentityDetail 
+                      ? selectedIdentityDetail.shortDid 
+                      : 'Empirical participants · Monitored public rooms'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  if (selectedIdentityDetail) {
+                    setSelectedIdentityDetail(null);
+                  } else {
+                    onOpenSheet('none');
+                  }
+                }}
+                className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-[#6F8096] hover:text-white hover:bg-[#142337] transition-colors touch-manipulation"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content: Detail view if selected, or full observed identities list */}
+            {selectedIdentityDetail ? (
+              <div className="overflow-y-auto space-y-3 mt-3 pr-1 flex-grow font-mono text-xs">
+                {/* Full DID & Copy */}
+                <div className="p-3 rounded-xl bg-[#060D18] border border-[#142337]">
+                  <div className="flex items-center justify-between mb-1 text-[10px] text-[#6F8096] uppercase">
+                    <span>Full Identifier (DID)</span>
+                    <button
+                      onClick={() => handleCopy(selectedIdentityDetail.did, 'selected-did')}
+                      className="flex items-center space-x-1 text-[#00B4D8] hover:underline"
+                    >
+                      {copiedDid === 'selected-did' ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-400" />
+                          <span className="text-emerald-400 font-bold">COPIED</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>COPY</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <code className="text-[11px] text-white break-all select-all font-mono">
+                    {selectedIdentityDetail.did}
+                  </code>
+                </div>
+
+                {/* Verification Status */}
+                <div className="p-3 rounded-xl bg-[#060D18] border border-[#142337] flex items-center justify-between">
+                  <span className="text-[#6F8096]">Signature Verification:</span>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase font-bold border ${
+                    selectedIdentityDetail.isVerified 
+                      ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40' 
+                      : selectedIdentityDetail.verificationStatus === 'PRESENT_UNVERIFIED'
+                      ? 'bg-amber-500/15 text-amber-400 border-amber-500/40'
+                      : 'bg-gray-500/15 text-gray-400 border-gray-500/40'
+                  }`}>
+                    {selectedIdentityDetail.isVerified ? '✓ VERIFIED (Ed25519)' : selectedIdentityDetail.verificationStatus}
+                  </span>
+                </div>
+
+                {/* Observed Telemetry */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-2.5 rounded-xl bg-[#060D18] border border-[#142337]">
+                    <span className="text-[10px] text-[#6F8096] block uppercase">Messages Observed</span>
+                    <span className="text-sm font-bold text-white mt-0.5 block">{selectedIdentityDetail.observedMessageCount}</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-[#060D18] border border-[#142337]">
+                    <span className="text-[10px] text-[#6F8096] block uppercase">Freshness</span>
+                    <span className="text-sm font-bold text-[#00B4D8] mt-0.5 block">{selectedIdentityDetail.freshnessLabel}</span>
+                  </div>
+                </div>
+
+                {/* Rooms Observed */}
+                <div className="p-3 rounded-xl bg-[#060D18] border border-[#142337]">
+                  <span className="text-[#6F8096] block mb-1.5 uppercase text-[10px]">Monitored Rooms Seen:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedIdentityDetail.roomsSeen.map((r, i) => (
+                      <span key={i} className="px-2 py-0.5 rounded bg-[#101E31] text-[#38BDF8] border border-[#1B2A3D] text-[11px]">
+                        #{r}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Latest Observed Message */}
+                {selectedIdentityDetail.latestMessage && (
+                  <div className="p-3 rounded-xl bg-[#060D18] border border-[#142337]">
+                    <div className="flex items-center justify-between text-[10px] text-[#6F8096] mb-1">
+                      <span>LATEST MESSAGE #{selectedIdentityDetail.latestMessage.room}</span>
+                      <span>Seq {selectedIdentityDetail.latestMessage.sequence}</span>
+                    </div>
+                    <p className="text-[11px] text-[#EAF2F7] italic bg-[#0A1322] p-2 rounded border border-[#1E3048]">
+                      "{selectedIdentityDetail.latestMessage.text}"
+                    </p>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex gap-2 pt-1">
+                  {onSelectAgent && (
+                    <button
+                      onClick={() => {
+                        onSelectAgent(selectedIdentityDetail);
+                        onOpenSheet('none');
+                      }}
+                      className="w-full py-2.5 rounded-xl bg-[#00B4D8] text-[#050A12] font-bold text-xs hover:bg-[#00B4D8]/90 transition-all shadow-md shadow-[#00B4D8]/20"
+                    >
+                      Follow Agent in City →
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setSelectedIdentityDetail(null)}
+                    className="px-4 py-2.5 rounded-xl bg-[#101E31] text-[#EAF2F7] border border-[#1E3048] font-bold text-xs"
+                  >
+                    Back to List
+                  </button>
+                </div>
+              </div>
+            ) : observedIdentities.length === 0 ? (
+              <div className="p-8 text-center text-xs font-mono text-[#6F8096] flex flex-col items-center">
+                <ShieldCheck className="w-8 h-8 text-[#1E3048] mb-2" />
+                <p className="text-white font-bold mb-1">0 Identities Observed</p>
+                <p className="max-w-xs text-[11px] leading-relaxed">
+                  No participant messages or signed DIDs detected yet in the current collection window. Monitoring public endpoints...
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2 overflow-y-auto pr-1 mt-3 flex-grow">
+                {observedIdentities.map(id => {
+                  const badgeColor = id.isVerified
+                    ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
+                    : id.verificationStatus === 'PRESENT_UNVERIFIED'
+                    ? 'text-amber-400 bg-amber-500/10 border-amber-500/30'
+                    : 'text-gray-400 bg-gray-500/10 border-gray-500/30';
+
+                  return (
+                    <div
+                      key={id.did}
+                      onClick={() => setSelectedIdentityDetail(id)}
+                      className="p-2.5 rounded-xl border border-[#142337] bg-[#060D18] hover:border-[#1E3048] transition-all cursor-pointer flex items-center justify-between touch-manipulation"
+                    >
+                      <div className="flex items-center space-x-2.5">
+                        <div
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: id.isVerified ? '#32D74B' : '#94A3B8' }}
+                        />
+                        <div>
+                          <div className="font-mono text-xs font-bold text-white flex items-center space-x-2">
+                            <span>{id.shortDid}</span>
+                            <span className={`text-[9px] px-1.5 py-0.2 rounded border font-mono uppercase ${badgeColor}`}>
+                              {id.isVerified ? 'VERIFIED' : id.verificationStatus}
+                            </span>
+                          </div>
+                          <p className="text-[11px] font-mono text-[#6F8096] mt-0.5">
+                            Seen in {id.roomsSeen.map(r => `#${r}`).join(', ')} · {id.observedMessageCount} msgs · {id.freshnessLabel}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-mono text-[#00B4D8] hover:underline shrink-0 ml-2">
+                        Inspect →
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </>

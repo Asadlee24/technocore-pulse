@@ -11,31 +11,41 @@
 
 ## Overview
 
-**Technocore Pulse** is a standalone public data observatory and experimental intelligence atlas dedicated to Technocore’s labelled **`probe v1`** experiment.
+**Technocore Pulse** is an interactive 3D agent communication observatory and living metropolis dedicated to Technocore’s labelled **`probe v1`** experiment.
 
-Unlike standard explorers, **Pulse** measures subsequent autonomous AI agent activity across HTTP-native, zero-auth chat rooms under strict **120-second observation windows**.
+Featuring a procedural rectilinear diamond-grid city inspired by autonomous agent civilization simulations, Pulse combines empirical observation of real agent networks with a high-fidelity 50-citizen simulation environment:
+
+- **Rectilinear Diamond-Grid Metropolis**: 13 cuboid structures positioned on a 45° rotated street grid with glowing neon wireframes, 3D text roof signs, inset windows, and street entrance doorways.
+- **4 Open Stage Office Interiors**: Tower Control Room (triple video monitors, dual operator desks), Institute Classroom (presentation screen, scholar desks), Engineering Bay (tall server racks with blinking multicolored LED matrices, blue workstations), and Compute Foundry (compute cabinets, coolant pipes).
+- **50 Persistent Simulated Citizens**: Calibrated in DEMO mode across 4 mutually exclusive states (`acting`: 25, `learning`: 21, `idle`: 4, `offline`: 0 = 50 total). Features sidewalk graph pedestrian walking and a repeatable RIVET scholar graduation sequence.
+- **Cinematic Camera Director**: 58-second continuous directed tour with narrative caption banners, smooth isometric framing (60–75% viewport fill), building focus, interior cutaways, and agent tracking.
+- **Minimal Reference HUD**: Restrained 5-button bottom dock (`[ EXPLORE ]`, `[ AGENTS ]`, `[ ACTIVITY ]`, `[ TOUR ]`, `[ MENU ]`), floating event ticker strip, and live status diagnostics.
 
 ---
 
 ## Data Honesty & Dual-Mode Architecture
 
-To prevent presenting simulated baseline metrics as empirical findings, Technocore Pulse implements a global **LIVE vs DEMO** data engine:
+To prevent presenting simulated baseline metrics as empirical findings, Technocore Pulse implements a global **LIVE vs DEMO vs REPLAY** data engine:
 
-### 1. DEMO Mode (Illustrative Benchmark)
-- Explicitly labeled: *"Demo dataset — illustrative data, not live Technocore experiment results."*
-- Uses calibrated reference values for user interface testing and architectural demonstrations.
-- Uses strict non-causal terminology: *"120s window activity rate"* and *"median subsequent message latency"*.
+### 1. DEMO Mode (50 Simulated Citizens Benchmark)
+- Explicitly labeled: *"Agent City · 50 Simulated Citizens (Demo mode simulation)"*
+- Reconciles 50 persistent citizens across four mutually exclusive states with sidewalk wayfinding and graduation storyline.
+- Uses strict non-causal terminology and provides interactive inspection of citizen roles, states, and action logs.
 
 ### 2. LIVE Mode (Real-Time Technocore Ingestion)
 - Connects directly to documented public read-only endpoints:
   - `GET /rooms?format=json` (sampling currently observed active rooms from the public index)
   - `GET /r/<room>?format=json` (inspecting chronological message sequences, Ed25519 signatures, and signed DIDs)
+- Strict cryptographic truthfulness: distinct verified signing DID deduplication (`new Set(liveSignedRecords.filter(r => r.verificationStatus === 'VERIFIED').map(r => r.did)).size`).
 - Detects documented probe format:
   ```text
   probe v1 | <run>.<n> | <arm> | <payload>
   ```
 - If zero probe posts are active in the recent ephemeral buffer, displays an honest collector status:
   `Observation began <timestamp> · 0 probe v1 events detected in recent ephemeral window`
+
+### 3. REPLAY Mode (Captured Session Playback)
+- Plays back messages captured in the current user session. If no session data has been recorded yet, honestly displays an empty capture state rather than mocking synthetic historical events.
 
 ---
 
