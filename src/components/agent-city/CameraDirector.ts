@@ -45,7 +45,7 @@ export class CameraDirector {
     buildings.forEach(b => this.buildingsMap.set(b.id, b));
 
     // Near-isometric default overview angle (~38° elevation, 45° azimuth)
-    this.targetCameraPos = new THREE.Vector3(55, 42, 55);
+    this.targetCameraPos = new THREE.Vector3(56, 44, 56);
     this.targetLookAt = new THREE.Vector3(0, 4, 0);
     this.currentLookAt = new THREE.Vector3(0, 4, 0);
 
@@ -56,137 +56,146 @@ export class CameraDirector {
   }
 
   private setupTourSteps() {
-    // 55–60 Second Directed Tour matching reference video script
+    // 60-Second Directed Tour matching reference video aesthetic
     this.tourSteps = [
-      // Shot 1 (0–8s): Distant diamond grid reveal into full city overview
+      // Shot 1 (0–10s): Distant diamond grid sweep into full 22-building metropolis
       {
         startTime: 0,
-        endTime: 8,
-        shotName: 'Distant Grid Reveal',
+        endTime: 10,
+        shotName: 'Metropolis Skyline Orbit',
         caption: 'Technocore Pulse: Visual observatory representing real observed public agent communications.',
         targetPos: (t: number) => {
-          const p = THREE.MathUtils.smoothstep(t, 0, 8);
-          return new THREE.Vector3(
-            THREE.MathUtils.lerp(105, 55, p),
-            THREE.MathUtils.lerp(75, 42, p),
-            THREE.MathUtils.lerp(105, 55, p)
-          );
+          const p = THREE.MathUtils.smoothstep(t, 0, 10);
+          const angle = Math.PI / 4 + p * 0.4;
+          const radius = THREE.MathUtils.lerp(90, 60, p);
+          const y = THREE.MathUtils.lerp(65, 42, p);
+          return new THREE.Vector3(Math.cos(angle) * radius, y, Math.sin(angle) * radius);
         },
         lookAtPos: () => new THREE.Vector3(0, 4, 0),
         onEnter: () => {
           if (this.onRequestCutaway) this.onRequestCutaway(null);
         }
       },
-      // Shot 2 (8–17s): Gentle low approach past Technocore Tower with illuminating windows
+      // Shot 2 (10–20s): Low-altitude avenue run between Cobalt Block and Main Tower
       {
-        startTime: 8,
-        endTime: 17,
-        shotName: 'Technocore Tower Approach',
-        caption: 'Technocore Tower: Flagship coordination hub. Inset windows pulse on actual observed message arrivals.',
+        startTime: 10,
+        endTime: 20,
+        shotName: 'Neon Avenue Skim',
+        caption: 'Live protocol messages flowing across public channels with zero synthetic seeding.',
         targetPos: (t: number) => {
-          const p = THREE.MathUtils.smoothstep(t, 8, 17);
+          const p = THREE.MathUtils.smoothstep(t, 10, 20);
           return new THREE.Vector3(
-            THREE.MathUtils.lerp(55, 24, p),
-            THREE.MathUtils.lerp(42, 16, p),
-            THREE.MathUtils.lerp(55, 24, p)
+            THREE.MathUtils.lerp(-28, -6, p),
+            THREE.MathUtils.lerp(12, 6, p),
+            THREE.MathUtils.lerp(22, -10, p)
           );
         },
         lookAtPos: (t: number) => {
-          const p = THREE.MathUtils.smoothstep(t, 8, 17);
-          return new THREE.Vector3(0, THREE.MathUtils.lerp(4, 12, p), 0);
-        }
-      },
-      // Shot 3 (17–27s): Enter Tower Control Room and observe workers
-      {
-        startTime: 17,
-        endTime: 27,
-        shotName: 'Control Room Interior',
-        caption: 'Tower Control Room: Open stage interior with live telemetry monitors and real observed sender desks.',
-        targetPos: (t: number) => {
-          const p = THREE.MathUtils.smoothstep(t, 17, 27);
+          const p = THREE.MathUtils.smoothstep(t, 10, 20);
           return new THREE.Vector3(
-            THREE.MathUtils.lerp(24, 7.5, p),
-            THREE.MathUtils.lerp(16, 4.2, p),
-            THREE.MathUtils.lerp(24, 7.5, p)
+            THREE.MathUtils.lerp(-10, 0, p),
+            THREE.MathUtils.lerp(3, 8, p),
+            THREE.MathUtils.lerp(6, 0, p)
           );
-        },
-        lookAtPos: () => new THREE.Vector3(0, 1.8, 0),
-        onEnter: () => {
-          if (this.onRequestCutaway) this.onRequestCutaway('technocore-tower');
         }
       },
-      // Shot 4 (27–38s): Return outside and approach The Institute
+      // Shot 3 (20–32s): Technocore Tower Multi-Floor Cutaway & Interior Ascent
       {
-        startTime: 27,
-        endTime: 38,
-        shotName: 'The Institute Exterior',
-        caption: 'The Institute & Research Library: Architectural landmarks for public knowledge and observatory methodology.',
+        startTime: 20,
+        endTime: 32,
+        shotName: 'Multi-Floor Operations Cutaway',
+        caption: 'Inside the tower: Multi-floor workstations bound to real observed identities.',
         targetPos: (t: number) => {
-          const p = THREE.MathUtils.smoothstep(t, 27, 38);
+          const p = THREE.MathUtils.smoothstep(t, 20, 32);
           return new THREE.Vector3(
-            THREE.MathUtils.lerp(7.5, 34, p),
-            THREE.MathUtils.lerp(4.2, 16, p),
-            THREE.MathUtils.lerp(7.5, 14, p)
+            THREE.MathUtils.lerp(12, 6.5, p),
+            THREE.MathUtils.lerp(4.5, 9.5, p),
+            THREE.MathUtils.lerp(14, 11.5, p)
           );
         },
         lookAtPos: (t: number) => {
-          const p = THREE.MathUtils.smoothstep(t, 27, 38);
+          const p = THREE.MathUtils.smoothstep(t, 20, 32);
           return new THREE.Vector3(
-            THREE.MathUtils.lerp(0, 18, p),
-            THREE.MathUtils.lerp(1.8, 8, p),
+            0,
+            THREE.MathUtils.lerp(2.0, 7.5, p),
             0
           );
         },
         onEnter: () => {
-          if (this.onRequestCutaway) this.onRequestCutaway(null);
+          if (this.onRequestCutaway) this.onRequestCutaway('technocore-tower');
         }
       },
-      // Shot 5 (38–48s): Engineering Bay & Verified Records sequence
+      // Shot 4 (32–42s): The Institute & Engineering Server Vault
       {
-        startTime: 38,
-        endTime: 48,
-        shotName: 'Engineering Bay & Verified Records',
-        caption: 'Engineering Bay: Distinctive interior for observed room telemetry with verifiable Ed25519 signatures.',
+        startTime: 32,
+        endTime: 42,
+        shotName: 'Institute & Server Vault',
+        caption: 'The Institute & Engineering Bay: Solvers indexing tasks and submitting attestations.',
         targetPos: (t: number) => {
-          const p = THREE.MathUtils.smoothstep(t, 38, 48);
+          const p = THREE.MathUtils.smoothstep(t, 32, 42);
           return new THREE.Vector3(
-            THREE.MathUtils.lerp(34, 28, p),
-            THREE.MathUtils.lerp(16, 12, p),
-            THREE.MathUtils.lerp(14, -6, p)
+            THREE.MathUtils.lerp(6.5, 26, p),
+            THREE.MathUtils.lerp(9.5, 14, p),
+            THREE.MathUtils.lerp(11.5, -4, p)
           );
         },
         lookAtPos: (t: number) => {
-          const p = THREE.MathUtils.smoothstep(t, 38, 48);
+          const p = THREE.MathUtils.smoothstep(t, 32, 42);
           return new THREE.Vector3(
-            18,
-            THREE.MathUtils.lerp(8, 4, p),
-            THREE.MathUtils.lerp(0, -12, p)
+            THREE.MathUtils.lerp(0, 18, p),
+            THREE.MathUtils.lerp(7.5, 6, p),
+            THREE.MathUtils.lerp(0, -6, p)
           );
         },
         onEnter: () => {
           if (this.onRequestCutaway) this.onRequestCutaway('engineering-bay');
         }
       },
-      // Shot 6 (48–58s): Pullback to the living city and builder credit
+      // Shot 5 (42–52s): Terrace Park Garden & Signal Exchange
       {
-        startTime: 48,
-        endTime: 58,
-        shotName: 'City Overview & Attribution',
-        caption: 'Built by Asad Lee · Community-built · Not an official FLOP Labs product.',
+        startTime: 42,
+        endTime: 52,
+        shotName: 'Terrace Park & Signal Exchange',
+        caption: 'Terrace Park & Signal Exchange: Zero synthetic personas · 100% real observed telemetry.',
         targetPos: (t: number) => {
-          const p = THREE.MathUtils.smoothstep(t, 48, 58);
+          const p = THREE.MathUtils.smoothstep(t, 42, 52);
           return new THREE.Vector3(
-            THREE.MathUtils.lerp(28, 55, p),
-            THREE.MathUtils.lerp(12, 42, p),
-            THREE.MathUtils.lerp(-6, 55, p)
+            THREE.MathUtils.lerp(26, -4, p),
+            THREE.MathUtils.lerp(14, 18, p),
+            THREE.MathUtils.lerp(-4, 32, p)
           );
         },
         lookAtPos: (t: number) => {
-          const p = THREE.MathUtils.smoothstep(t, 48, 58);
+          const p = THREE.MathUtils.smoothstep(t, 42, 52);
           return new THREE.Vector3(
-            THREE.MathUtils.lerp(18, 0, p),
-            THREE.MathUtils.lerp(4, 4, p),
-            THREE.MathUtils.lerp(-12, 0, p)
+            THREE.MathUtils.lerp(18, 4, p),
+            THREE.MathUtils.lerp(6, 8, p),
+            THREE.MathUtils.lerp(-6, 20, p)
+          );
+        },
+        onEnter: () => {
+          if (this.onRequestCutaway) this.onRequestCutaway(null);
+        }
+      },
+      // Shot 6 (52–60s): Ascending Horizon Orbit & Builder Attribution
+      {
+        startTime: 52,
+        endTime: 60,
+        shotName: 'City Overview & Attribution',
+        caption: 'Built by Asad Lee · Community-built · Not an official FLOP Labs product.',
+        targetPos: (t: number) => {
+          const p = THREE.MathUtils.smoothstep(t, 52, 60);
+          const angle = Math.PI / 4 + 0.4 + p * 0.5;
+          const radius = THREE.MathUtils.lerp(50, 68, p);
+          const y = THREE.MathUtils.lerp(35, 52, p);
+          return new THREE.Vector3(Math.cos(angle) * radius, y, Math.sin(angle) * radius);
+        },
+        lookAtPos: (t: number) => {
+          const p = THREE.MathUtils.smoothstep(t, 52, 60);
+          return new THREE.Vector3(
+            THREE.MathUtils.lerp(4, 0, p),
+            THREE.MathUtils.lerp(8, 4, p),
+            THREE.MathUtils.lerp(20, 0, p)
           );
         },
         onEnter: () => {
@@ -199,48 +208,63 @@ export class CameraDirector {
   public setMode(mode: CameraMode) {
     this.mode = mode;
     if (mode === 'overview') {
-      this.targetCameraPos.set(55, 42, 55);
+      this.targetCameraPos.set(56, 44, 56);
       this.targetLookAt.set(0, 4, 0);
+      this.smoothFactor = 3.8;
       this.controls.enabled = true;
       if (this.onRequestCutaway) this.onRequestCutaway(null);
-    } else if (mode === 'tour') {
-      this.startTour();
     }
   }
 
   public focusBuilding(buildingId: string) {
-    const b = this.buildingsMap.get(buildingId);
-    if (!b) return;
+    const layout = this.buildingsMap.get(buildingId);
+    if (!layout) return;
 
     this.mode = 'building';
-    this.targetLookAt.set(b.position[0], b.height * 0.45, b.position[2]);
-    this.targetCameraPos.set(
-      b.position[0] + 16,
-      b.height * 0.6 + 10,
-      b.position[2] + 16
-    );
     this.controls.enabled = true;
-    if (this.onRequestCutaway) this.onRequestCutaway(null);
+
+    const [bx, , bz] = layout.position;
+    const distance = Math.max(layout.width, layout.depth) * 2.8 + 10;
+
+    this.targetCameraPos.set(bx + distance * 0.7, layout.height * 0.65 + 10, bz + distance * 0.7);
+    this.targetLookAt.set(bx, layout.height * 0.45, bz);
+    this.smoothFactor = 5.0;
+
+    if (this.onRequestCutaway) this.onRequestCutaway(buildingId);
   }
 
-  public enterBuildingInterior(buildingId: string) {
-    const b = this.buildingsMap.get(buildingId);
-    if (!b) return;
+  public enterBuildingInterior(buildingId: string, floor: 1 | 2 | 3 | 'all' = 'all') {
+    const layout = this.buildingsMap.get(buildingId);
+    if (!layout) return;
 
     this.mode = 'interior';
-    this.targetLookAt.set(b.position[0], 1.8, b.position[2]);
-    this.targetCameraPos.set(
-      b.position[0] + 6.5,
-      4.2,
-      b.position[2] + 6.5
-    );
     this.controls.enabled = true;
+
+    const [bx, , bz] = layout.position;
+
+    if (floor === 1) {
+      this.targetCameraPos.set(bx, 3.2, bz + 8.0);
+      this.targetLookAt.set(bx, 1.8, bz);
+    } else if (floor === 2) {
+      this.targetCameraPos.set(bx, 7.8, bz + 8.0);
+      this.targetLookAt.set(bx, 6.2, bz);
+    } else if (floor === 3) {
+      this.targetCameraPos.set(bx, 12.2, bz + 8.0);
+      this.targetLookAt.set(bx, 10.6, bz);
+    } else {
+      // Stacked multi-floor cutaway framing
+      this.targetCameraPos.set(bx, 9.5, bz + 18.0);
+      this.targetLookAt.set(bx, 5.5, bz);
+    }
+
+    this.smoothFactor = 4.8;
     if (this.onRequestCutaway) this.onRequestCutaway(buildingId);
   }
 
   public followAgent(agentMesh: THREE.Object3D) {
     this.mode = 'follow';
     this.followTarget = agentMesh;
+    this.smoothFactor = 6.0;
     this.controls.enabled = false;
   }
 
@@ -263,76 +287,65 @@ export class CameraDirector {
   public exitTour() {
     this.isTourPlaying = false;
     this.setMode('overview');
-    if (this.onTourEnd) this.onTourEnd();
+    if (this.onRequestCutaway) this.onRequestCutaway(null);
+  }
+
+  public handleUserInteraction() {
+    if (this.mode === 'tour') {
+      this.exitTour();
+    }
   }
 
   public update(delta: number) {
-    if (this.mode === 'tour' && this.isTourPlaying) {
-      this.tourElapsedTime += delta;
+    if (this.mode === 'tour') {
+      if (!this.isTourPlaying) return;
 
-      // Find current step
+      this.tourElapsedTime += delta;
+      const totalTourDuration = 60.0;
+      const progress = Math.min(this.tourElapsedTime / totalTourDuration, 1.0);
+
       const stepIdx = this.tourSteps.findIndex(
         s => this.tourElapsedTime >= s.startTime && this.tourElapsedTime < s.endTime
       );
 
       if (stepIdx !== -1) {
         const step = this.tourSteps[stepIdx];
+
         if (stepIdx !== this.activeStepIdx) {
           this.activeStepIdx = stepIdx;
-          this.currentCaption = step.caption;
           if (step.onEnter) step.onEnter();
-        }
-
-        const progress = (this.tourElapsedTime - step.startTime) / (step.endTime - step.startTime);
-        if (this.onTourStepChange) {
-          this.onTourStepChange(step.caption, step.shotName, progress);
         }
 
         const newPos = step.targetPos(this.tourElapsedTime);
         const newLook = step.lookAtPos(this.tourElapsedTime);
 
-        this.camera.position.lerp(newPos, delta * 3.5);
-        this.currentLookAt.lerp(newLook, delta * 3.5);
+        this.camera.position.lerp(newPos, delta * 4.5);
+        this.currentLookAt.lerp(newLook, delta * 4.5);
         this.camera.lookAt(this.currentLookAt);
         this.controls.target.copy(this.currentLookAt);
-      } else if (this.tourElapsedTime >= 58) {
-        // Tour complete! Pullback to settled overview
+
+        this.currentCaption = step.caption;
+        if (this.onTourStepChange) {
+          this.onTourStepChange(step.caption, step.shotName, progress);
+        }
+      } else if (this.tourElapsedTime >= totalTourDuration) {
         this.exitTour();
+        if (this.onTourEnd) this.onTourEnd();
       }
       return;
     }
 
     if (this.mode === 'follow' && this.followTarget) {
-      const targetP = this.followTarget.position;
-      this.targetLookAt.set(targetP.x, targetP.y + 0.8, targetP.z);
-      this.targetCameraPos.set(targetP.x + 8, targetP.y + 6, targetP.z + 8);
+      const targetPos = new THREE.Vector3();
+      this.followTarget.getWorldPosition(targetPos);
 
-      this.camera.position.lerp(this.targetCameraPos, delta * 3.0);
-      this.currentLookAt.lerp(this.targetLookAt, delta * 4.0);
-      this.camera.lookAt(this.currentLookAt);
-      this.controls.target.copy(this.currentLookAt);
-      return;
+      this.targetLookAt.copy(targetPos);
+      this.targetCameraPos.set(targetPos.x + 8, targetPos.y + 7, targetPos.z + 8);
     }
 
-    // Smooth transition in overview, building, and interior modes
-    if (this.controls.enabled) {
-      const dPos = this.camera.position.distanceTo(this.targetCameraPos);
-      const dLook = this.controls.target.distanceTo(this.targetLookAt);
-
-      if (dPos > 0.1 || dLook > 0.1) {
-        this.camera.position.lerp(this.targetCameraPos, delta * this.smoothFactor);
-        this.currentLookAt.lerp(this.targetLookAt, delta * this.smoothFactor);
-        this.controls.target.copy(this.currentLookAt);
-      }
-      this.controls.update();
-    }
-  }
-
-  public handleUserInteraction() {
-    // If user drags or interacts during tour, cleanly pause/exit tour
-    if (this.mode === 'tour' && this.isTourPlaying) {
-      this.pauseTour();
-      this.controls.enabled = true;
-    }
+    // Smooth lerp camera position and orbit target during user navigation
+    const lerpRate = Math.min(delta * this.smoothFactor, 0.25);
+    this.camera.position.lerp(this.targetCameraPos, lerpRate);
+    this.controls.target.lerp(this.targetLookAt, lerpRate);
   }
 }

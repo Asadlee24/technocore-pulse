@@ -9,7 +9,6 @@ export class CityBuilding {
   public group: THREE.Group;
   public layout: BuildingLayout;
   public beaconMesh: THREE.Mesh | null = null;
-  public beaconGlowMesh: THREE.Mesh | null = null;
   public windowMesh: THREE.InstancedMesh | null = null;
   public interior: OfficeInterior;
   public rooftopAgents: AgentWorker[] = [];
@@ -28,7 +27,7 @@ export class CityBuilding {
     this.group.position.set(...layout.position);
     this.group.name = `building-${layout.id}`;
 
-    // 1. Raycast Hit Mesh: Full volume bounding box for seamless selection
+    // 1. Raycast Hit Mesh: Full volume bounding box for seamless mouse selection
     const hitTotalH = layout.height + 2.0;
     const hitGeo = new THREE.BoxGeometry(layout.width * 1.15, hitTotalH, layout.depth * 1.15);
     const hitMat = new THREE.MeshBasicMaterial({
@@ -62,7 +61,7 @@ export class CityBuilding {
     this.buildingMesh.userData = { room: layout.room, buildingId: layout.id };
     this.group.add(this.buildingMesh);
 
-    // 4. Crisp Luminous Wireframe Corners & Outlines (Matching reference neon edges)
+    // 4. Crisp Luminous Wireframe Corners & Outlines (Matching reference neon edges from frame_12s)
     const edges = new THREE.EdgesGeometry(bodyGeo);
     const lineMat = new THREE.LineBasicMaterial({
       color: edgeCol,
@@ -80,13 +79,17 @@ export class CityBuilding {
     // 6. Roof 3D Signboard (World-space building name)
     this.createRoofSignboard(layout, edgeCol);
 
-    // 7. Multi-Hue Inset Night Windows
+    // 7. Multi-Floor Illuminated Windows
     this.createWindows(layout);
 
-    // 8. Rooftop Antenna & Beacon
-    this.createRooftopBeacon(layout);
+    // 8. Rooftop Antenna & Beacon / Terrace Park Garden
+    if (layout.id === 'terrace-park') {
+      this.createTerraceParkRooftop(layout);
+    } else {
+      this.createRooftopBeacon(layout);
+    }
 
-    // 9. Living Office Interior Stage
+    // 9. Multi-Floor Living Office Interior Stage
     this.interior = new OfficeInterior(layout);
     this.group.add(this.interior.group);
   }
@@ -103,7 +106,7 @@ export class CityBuilding {
     // Lit warm doorway aperture
     const doorGeo = new THREE.PlaneGeometry(doorW, doorH);
     const doorMat = new THREE.MeshBasicMaterial({
-      color: 0xFDE047, // Warm inviting interior glow
+      color: 0xFDE047,
       transparent: true,
       opacity: 0.85
     });
@@ -132,7 +135,7 @@ export class CityBuilding {
   }
 
   /**
-   * World-space roof text sign showing building name (e.g. "The Institute", "Technocore Tower")
+   * World-space roof text sign showing building name matching reference screenshots
    */
   private createRoofSignboard(layout: BuildingLayout, edgeCol: THREE.Color) {
     this.roofSignGroup = new THREE.Group();
@@ -143,16 +146,13 @@ export class CityBuilding {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Dark semi-transparent background
     ctx.fillStyle = '#060E1A';
     ctx.fillRect(0, 0, 512, 128);
 
-    // Bright border
     ctx.strokeStyle = layout.edgeColor || '#00B4D8';
     ctx.lineWidth = 6;
     ctx.strokeRect(6, 6, 500, 116);
 
-    // Text
     ctx.fillStyle = '#FFFFFF';
     ctx.font = 'bold 44px sans-serif';
     ctx.textAlign = 'center';
@@ -160,8 +160,8 @@ export class CityBuilding {
     ctx.fillText(layout.name.toUpperCase(), 256, 64);
 
     const texture = new THREE.CanvasTexture(canvas);
-    const signW = Math.min(layout.width * 0.9, 5.5);
-    const signH = 1.2;
+    const signW = Math.min(layout.width * 0.88, 5.2);
+    const signH = 1.1;
     const signGeo = new THREE.PlaneGeometry(signW, signH);
     const signMat = new THREE.MeshBasicMaterial({
       map: texture,
@@ -171,12 +171,10 @@ export class CityBuilding {
     });
 
     const sign = new THREE.Mesh(signGeo, signMat);
-    // Face towards isometric camera (+X and +Z)
     sign.rotation.y = Math.PI / 4;
     sign.position.set(0, layout.height + signH / 2 + 0.2, 0);
     this.roofSignGroup.add(sign);
 
-    // Add glowing neon support posts
     [-signW * 0.35, signW * 0.35].forEach(xOff => {
       const postGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.5, 6);
       const postMat = new THREE.MeshBasicMaterial({ color: edgeCol });
@@ -189,7 +187,7 @@ export class CityBuilding {
   }
 
   /**
-   * Multi-Hue Inset Windows with restrained organic illumination
+   * Multi-Floor Windows arranged in distinct floor rows showing activity
    */
   private createWindows(layout: BuildingLayout) {
     const startY = 2.4;
@@ -198,7 +196,7 @@ export class CityBuilding {
     const colsPerFace = Math.min(4, Math.max(2, Math.floor(layout.width / 1.6)));
     const totalWindows = rows * colsPerFace * 4;
 
-    const windowGeo = new THREE.PlaneGeometry(0.38, 0.48);
+    const windowGeo = new THREE.PlaneGeometry(0.40, 0.52);
     const instancedMat = new THREE.MeshBasicMaterial({
       color: 0xFFFFFF,
       transparent: true,
@@ -214,8 +212,8 @@ export class CityBuilding {
     const halfD = layout.depth / 2 + 0.02;
 
     const warmGold = new THREE.Color(0xFDE047);
-    const brightCyan = new THREE.Color(0x00B4D8);
-    const iceWhite = new THREE.Color(0xF5F7FA);
+    const brightCyan = new THREE.Color(0x38BDF8);
+    const iceWhite = new THREE.Color(0xF8FAFC);
     const darkGlass = new THREE.Color(0x07111D);
 
     for (let r = 0; r < rows; r++) {
@@ -228,9 +226,9 @@ export class CityBuilding {
         const hash = Math.sin(layout.position[0] * 7.1 + layout.position[2] * 4.3 + instanceIdx * 1.9);
         const norm = Math.abs(hash);
         let winCol = darkGlass;
-        if (norm > 0.75) winCol = iceWhite;
-        else if (norm > 0.45) winCol = warmGold;
-        else if (norm > 0.25) winCol = brightCyan;
+        if (norm > 0.72) winCol = iceWhite;
+        else if (norm > 0.42) winCol = warmGold;
+        else if (norm > 0.22) winCol = brightCyan;
 
         // Front face (+Z)
         dummy.position.set(xOffset, y, halfD);
@@ -256,9 +254,9 @@ export class CityBuilding {
         const hash = Math.sin(layout.position[0] * 3.7 + layout.position[2] * 8.9 + instanceIdx * 2.1);
         const norm = Math.abs(hash);
         let winCol = darkGlass;
-        if (norm > 0.78) winCol = iceWhite;
-        else if (norm > 0.48) winCol = warmGold;
-        else if (norm > 0.28) winCol = brightCyan;
+        if (norm > 0.74) winCol = iceWhite;
+        else if (norm > 0.44) winCol = warmGold;
+        else if (norm > 0.24) winCol = brightCyan;
 
         // Right face (+X)
         dummy.position.set(halfW, y, zOffset);
@@ -285,34 +283,69 @@ export class CityBuilding {
     this.group.add(this.windowMesh);
   }
 
+  /**
+   * Terrace Park Rooftop Garden matching reference screenshot frame_12s
+   */
+  private createTerraceParkRooftop(layout: BuildingLayout) {
+    const roofY = layout.height;
+    const gardenGroup = new THREE.Group();
+
+    // 1. Green Lawn Pad
+    const lawnGeo = new THREE.PlaneGeometry(layout.width * 0.88, layout.depth * 0.88);
+    const lawnMat = new THREE.MeshStandardMaterial({ color: 0x064E3B, roughness: 0.9 });
+    const lawn = new THREE.Mesh(lawnGeo, lawnMat);
+    lawn.rotation.x = -Math.PI / 2;
+    lawn.position.y = roofY + 0.04;
+    gardenGroup.add(lawn);
+
+    // 2. Cyan Water Pond (matching frame_12s)
+    const pondGeo = new THREE.CylinderGeometry(1.2, 1.2, 0.05, 14);
+    const pondMat = new THREE.MeshBasicMaterial({ color: 0x00B4D8 });
+    const pond = new THREE.Mesh(pondGeo, pondMat);
+    pond.position.set(-0.6, roofY + 0.06, 0.4);
+    gardenGroup.add(pond);
+
+    // 3. Mini Rooftop Lollipop Trees
+    [-1.8, 1.8].forEach(tx => {
+      const treeOrb = new THREE.Mesh(
+        new THREE.SphereGeometry(0.35, 12, 10),
+        new THREE.MeshStandardMaterial({ color: 0x34D399, emissive: 0x34D399, emissiveIntensity: 0.6 })
+      );
+      treeOrb.position.set(tx, roofY + 0.7, -1.2);
+      gardenGroup.add(treeOrb);
+    });
+
+    this.group.add(gardenGroup);
+  }
+
   private createRooftopBeacon(layout: BuildingLayout) {
     const roofY = layout.height;
 
     // Sleek antenna mast
-    const mastGeo = new THREE.CylinderGeometry(0.04, 0.08, 2.2, 6);
+    const mastGeo = new THREE.CylinderGeometry(0.04, 0.08, 2.4, 6);
     const mastMat = new THREE.MeshStandardMaterial({ color: 0x1E293B, metalness: 0.85 });
     const mast = new THREE.Mesh(mastGeo, mastMat);
-    mast.position.set(layout.width * 0.3, roofY + 1.1, -layout.depth * 0.3);
+    mast.position.set(layout.width * 0.3, roofY + 1.2, -layout.depth * 0.3);
     this.group.add(mast);
 
-    // Rooftop beacon orb for primary landmarks
+    // Rooftop beacon orb
     if (layout.isPrimaryRoom) {
-      const beaconGeo = new THREE.SphereGeometry(0.24, 12, 12);
+      const beaconGeo = new THREE.SphereGeometry(0.26, 12, 12);
       const beaconMat = new THREE.MeshBasicMaterial({
         color: new THREE.Color(layout.edgeColor || layout.color)
       });
       this.beaconMesh = new THREE.Mesh(beaconGeo, beaconMat);
-      this.beaconMesh.position.set(layout.width * 0.3, roofY + 2.3, -layout.depth * 0.3);
+      this.beaconMesh.position.set(layout.width * 0.3, roofY + 2.5, -layout.depth * 0.3);
       this.group.add(this.beaconMesh);
     }
   }
 
   /**
-   * Smooth cutaway handling: hides exterior geometry so interior open stage is visible
+   * Cutaway handling: hides exterior geometry so 3-floor interior is visible
    */
   public setCutaway(cutaway: boolean) {
     this.isCutaway = cutaway;
-    this.interior.setCutawayVisible(cutaway);
+    this.interior.setVisible(cutaway);
 
     if (cutaway) {
       this.buildingMesh.visible = false;
@@ -331,13 +364,15 @@ export class CityBuilding {
     }
   }
 
+  public focusFloor(floor: 1 | 2 | 3 | 'all') {
+    return this.interior.getFloorCameraFocus(floor);
+  }
+
   public update(time: number) {
-    // If cutaway open, update interior animations (seated workers, blinking LEDs)
     if (this.isCutaway) {
       this.interior.update(time);
     }
 
-    // Subtle beacon breathing
     if (this.beaconMesh) {
       const scale = 1.0 + Math.sin(time * 3) * 0.15;
       this.beaconMesh.scale.set(scale, scale, scale);
@@ -346,7 +381,6 @@ export class CityBuilding {
 
   public updateRoomData(room: RoomCluster) {
     this.layout.room = room;
-    this.interior.updateRoomData(room);
   }
 
   public dispose() {

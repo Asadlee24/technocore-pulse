@@ -12,7 +12,8 @@ import {
   ChevronDown,
   Maximize2,
   Minimize2,
-  ExternalLink
+  ExternalLink,
+  Layers
 } from 'lucide-react';
 import { AgentCity3D } from './agent-city/AgentCity3D';
 import type { CameraViewLevel } from './agent-city/CityLODManager';
@@ -27,8 +28,8 @@ interface SignalMap3DProps {
 
 const DEFAULT_ROOM: RoomCluster = {
   id: 'lot-technocore-tower',
-  name: 'technocore',
-  displayName: '#technocore-tower',
+  name: 'Main Tower',
+  displayName: '#main-tower',
   category: 'unclassified',
   visualDistrict: 'coordination',
   signedIdentitiesObserved: null,
@@ -37,7 +38,7 @@ const DEFAULT_ROOM: RoomCluster = {
   medianSubsequentLatencySeconds: null,
   averageResponseLatency: null,
   status: 'active',
-  color: '#00B4D8',
+  color: '#E11D48',
   coordinates: [0, 0, 0]
 };
 
@@ -59,6 +60,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
 
   // Camera & View states
   const [cityViewLevel, setCityViewLevel] = useState<CameraViewLevel>('city');
+  const [focusedFloor, setFocusedFloor] = useState<1 | 2 | 3 | 'all'>('all');
   const [selectedRoom, setSelectedRoom] = useState<RoomCluster>(activeRoomClusters[0] || DEFAULT_ROOM);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [isModeMenuOpen, setIsModeMenuOpen] = useState<boolean>(false);
@@ -69,7 +71,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
   const [tourShotName, setTourShotName] = useState<string>('');
   const [tourProgress, setTourProgress] = useState<number>(0);
 
-  // Real Observed Citizens Render Count (capped at 16 in 3D viewport)
+  // Real Observed Citizens Render Count (budgeted for frame rate)
   const [renderedAvatarCount, setRenderedAvatarCount] = useState<number>(0);
 
   // Bottom Event Strip State
@@ -131,6 +133,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
       setCityViewLevel('building');
     } else if (cityViewLevel === 'building') {
       setCityViewLevel('interior');
+      setFocusedFloor('all');
     } else {
       setCityViewLevel('city');
     }
@@ -148,19 +151,21 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
       }`}
     >
       {/* ------------------------------------------------------------- */}
-      {/* 1. TOP-LEFT IDENTITY PANEL                                    */}
+      {/* 1. TOP-LEFT IDENTITY PANEL (Reference Style)                  */}
       {/* ------------------------------------------------------------- */}
-      <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-20 pointer-events-auto select-none">
-        <div className="flex items-center space-x-2.5 p-2 sm:p-2.5 rounded-2xl bg-[#0A1128]/85 backdrop-blur-xl border border-[#1E3048] shadow-2xl">
+      <div className={`absolute top-2 left-2 sm:top-4 sm:left-4 z-20 pointer-events-auto select-none transition-all ${
+        isTourActive ? 'hidden sm:block' : ''
+      }`}>
+        <div className="flex items-center space-x-1.5 sm:space-x-2.5 p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl bg-[#0A1128]/90 backdrop-blur-xl border border-[#00B4D8]/40 shadow-2xl">
           <div>
-            <div className="flex items-center space-x-2">
-              <span className="font-heading font-black tracking-wider text-xs sm:text-sm text-white">
-                TECHNOCORE PULSE
+            <div className="flex items-center space-x-1.5 sm:space-x-2">
+              <span className="font-heading font-black tracking-wider text-[11px] sm:text-sm text-white">
+                TECHNOCORE
               </span>
               <div className="relative">
                 <button
                   onClick={() => setIsModeMenuOpen(!isModeMenuOpen)}
-                  className={`flex items-center space-x-1 px-2 py-0.5 rounded-full text-[9px] font-mono font-bold uppercase border transition-all ${
+                  className={`flex items-center space-x-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-[9px] font-mono font-bold uppercase border transition-all ${
                     dataMode === 'LIVE'
                       ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
                       : 'bg-cyan-500/15 border-cyan-500/40 text-cyan-400'
@@ -176,27 +181,27 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
 
                 {/* Dropdown Menu */}
                 {isModeMenuOpen && (
-                  <div className="absolute top-full left-0 mt-1.5 w-48 rounded-xl bg-[#0B1320]/95 border border-[#1B2A3D] p-1 shadow-2xl backdrop-blur-xl z-50 animate-in fade-in zoom-in-95">
+                  <div className="absolute top-full left-0 mt-1.5 w-44 rounded-xl bg-[#0B1320]/95 border border-[#1B2A3D] p-1 shadow-2xl backdrop-blur-xl z-50 animate-in fade-in zoom-in-95">
                     <button
                       onClick={() => { setDataMode('LIVE'); setIsModeMenuOpen(false); }}
                       className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-mono flex items-center justify-between hover:bg-white/5"
                     >
                       <span className="text-emerald-400 font-bold">● LIVE</span>
-                      <span className="text-[10px] text-[#6F8096]">Real Public API</span>
+                      <span className="text-[10px] text-[#6F8096]">Real API</span>
                     </button>
                     <button
                       onClick={() => { setDataMode('REPLAY'); setIsModeMenuOpen(false); }}
                       className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-mono flex items-center justify-between hover:bg-white/5"
                     >
                       <span className="text-cyan-400 font-bold">● REPLAY</span>
-                      <span className="text-[10px] text-[#6F8096]">Captured Session</span>
+                      <span className="text-[10px] text-[#6F8096]">Session</span>
                     </button>
                   </div>
                 )}
               </div>
             </div>
-            <p className="text-[10px] font-mono text-[#6F8096] mt-0.5">
-              AGENT CITY · {dataMode === 'LIVE' ? 'PUBLIC OBSERVATION' : 'SESSION CAPTURE'}
+            <p className="text-[9px] sm:text-[10px] font-mono text-[#6F8096] mt-0.5">
+              METROPOLIS · 22 LOTS
             </p>
           </div>
         </div>
@@ -205,32 +210,30 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
       {/* ------------------------------------------------------------- */}
       {/* 2. TOP-RIGHT SOURCE STATUS PANEL                               */}
       {/* ------------------------------------------------------------- */}
-      <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 pointer-events-auto select-none">
-        <div className="p-2 sm:p-2.5 rounded-2xl bg-[#0A1128]/85 backdrop-blur-xl border border-[#1E3048] shadow-2xl text-right font-mono text-xs">
+      <div className={`absolute top-2 right-2 sm:top-4 sm:right-4 z-20 pointer-events-auto select-none transition-all ${
+        isTourActive ? 'hidden sm:block' : ''
+      }`}>
+        <div className="p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl bg-[#0A1128]/90 backdrop-blur-xl border border-[#00B4D8]/40 shadow-2xl text-right font-mono text-[9px] sm:text-xs">
           <div>
-            <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider mb-1">
-              {dataMode === 'LIVE' ? 'LIVE OBSERVATION' : 'SESSION REPLAY'}
+            <div className="text-[9px] sm:text-[10px] text-emerald-400 font-bold uppercase tracking-wider mb-0.5 sm:mb-1">
+              {dataMode === 'LIVE' ? 'LIVE STREAM' : 'REPLAY'}
             </div>
-            <div className="space-y-0.5 text-[10px]">
-              <div className="flex justify-between gap-3 text-white">
+            <div className="space-y-0.5 text-[9px] sm:text-[10px]">
+              <div className="flex justify-between gap-2 sm:gap-3 text-white">
                 <span className="text-[#6F8096]">Rooms:</span>
                 <span className="font-bold">{activeStats.activeRoomsMonitored}</span>
               </div>
-              <div className="flex justify-between gap-3 text-[#38BDF8]">
-                <span className="text-[#6F8096]">Distinct DIDs:</span>
+              <div className="flex justify-between gap-2 sm:gap-3 text-[#38BDF8]">
+                <span className="text-[#6F8096]">DIDs:</span>
                 <span className="font-bold">{activeStats.didIdentitiesObserved ?? observedIdentities.length}</span>
               </div>
-              <div className="flex justify-between gap-3 text-purple-400">
-                <span className="text-[#6F8096]">Verified DIDs:</span>
+              <div className="flex justify-between gap-2 sm:gap-3 text-purple-400">
+                <span className="text-[#6F8096]">Verified:</span>
                 <span className="font-bold">{activeStats.verifiedSigningDids ?? 0}</span>
               </div>
-              <div className="flex justify-between gap-3 text-amber-400">
-                <span className="text-[#6F8096]">Rendered 3D:</span>
+              <div className="hidden sm:flex justify-between gap-3 text-amber-400">
+                <span className="text-[#6F8096]">Rendered:</span>
                 <span className="font-bold">{renderedAvatarCount} of {observedIdentities.length}</span>
-              </div>
-              <div className="flex justify-between gap-3 text-emerald-400">
-                <span className="text-[#6F8096]">Freshness:</span>
-                <span className="font-bold">&lt; 25s</span>
               </div>
             </div>
           </div>
@@ -238,7 +241,53 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
       </div>
 
       {/* ------------------------------------------------------------- */}
-      {/* 3. CINEMATIC TOUR BANNER & CONTROLS (during active tour)      */}
+      {/* 3. MULTI-FLOOR SELECTOR (When Viewing Interior)               */}
+      {/* ------------------------------------------------------------- */}
+      {cityViewLevel === 'interior' && !isTourActive && (
+        <div className="absolute top-18 sm:top-20 inset-x-0 z-20 flex items-center justify-center px-3 pointer-events-auto select-none animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center space-x-1 p-1 rounded-2xl bg-[#0A1128]/95 border border-[#1E3048] backdrop-blur-xl shadow-2xl">
+            <div className="flex items-center space-x-1 px-2 text-[10px] font-mono text-[#6F8096]">
+              <Layers className="w-3.5 h-3.5 text-[#00B4D8]" />
+              <span className="hidden sm:inline">FLOOR:</span>
+            </div>
+            <button
+              onClick={() => setFocusedFloor(1)}
+              className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all ${
+                focusedFloor === 1 ? 'bg-[#00B4D8] text-[#050A12] shadow-lg shadow-[#00B4D8]/20' : 'text-[#94A3B8] hover:text-white hover:bg-white/5'
+              }`}
+            >
+              F1: OPERATIONS
+            </button>
+            <button
+              onClick={() => setFocusedFloor(2)}
+              className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all ${
+                focusedFloor === 2 ? 'bg-[#00B4D8] text-[#050A12] shadow-lg shadow-[#00B4D8]/20' : 'text-[#94A3B8] hover:text-white hover:bg-white/5'
+              }`}
+            >
+              F2: ENGINEERING
+            </button>
+            <button
+              onClick={() => setFocusedFloor(3)}
+              className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all ${
+                focusedFloor === 3 ? 'bg-[#00B4D8] text-[#050A12] shadow-lg shadow-[#00B4D8]/20' : 'text-[#94A3B8] hover:text-white hover:bg-white/5'
+              }`}
+            >
+              F3: SKY DECK
+            </button>
+            <button
+              onClick={() => setFocusedFloor('all')}
+              className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all ${
+                focusedFloor === 'all' ? 'bg-[#F72585] text-white shadow-lg shadow-[#F72585]/30' : 'text-[#94A3B8] hover:text-white hover:bg-white/5'
+              }`}
+            >
+              STACKED
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* 4. CINEMATIC TOUR BANNER & CONTROLS (during active tour)      */}
       {/* ------------------------------------------------------------- */}
       {isTourActive && (
         <div className="absolute top-16 sm:top-20 inset-x-0 z-30 flex items-center justify-center px-3 pointer-events-none select-none">
@@ -255,9 +304,12 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
                 <span className="font-bold uppercase tracking-wider">{tourShotName || 'Cinematic Tour'}</span>
                 <span>{Math.round(tourProgress * 100)}%</span>
               </div>
-              <p className="text-white text-[11px] truncate max-w-sm sm:max-w-md">
-                {tourCaption}
-              </p>
+              <div className="w-full bg-[#1B2A3D] h-1.5 rounded-full overflow-hidden">
+                <div 
+                  className="bg-gradient-to-r from-[#00B4D8] to-[#F72585] h-full transition-all duration-300" 
+                  style={{ width: `${Math.round(tourProgress * 100)}%` }}
+                />
+              </div>
             </div>
             <button
               onClick={() => setIsTourActive(false)}
@@ -271,7 +323,20 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
       )}
 
       {/* ------------------------------------------------------------- */}
-      {/* 4. PRIMARY 3D CITY WORLD                                      */}
+      {/* 5. CINEMATIC SUBTITLE BAR (Matching Reference Video frame_12s) */}
+      {/* ------------------------------------------------------------- */}
+      {isTourActive && tourCaption && (
+        <div className="absolute bottom-24 sm:bottom-28 inset-x-0 z-30 flex items-center justify-center px-4 pointer-events-none select-none">
+          <div className="px-6 py-3.5 rounded-2xl bg-[#060D1A]/95 backdrop-blur-2xl border-2 border-[#F72585]/60 shadow-2xl shadow-[#F72585]/30 max-w-xl text-center animate-in fade-in slide-in-from-bottom-2">
+            <p className="text-white font-mono text-xs sm:text-sm font-semibold tracking-wide leading-relaxed">
+              {tourCaption}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* 6. PRIMARY 3D CITY WORLD                                      */}
       {/* ------------------------------------------------------------- */}
       <div className="w-full h-full relative">
         <AgentCity3D
@@ -279,6 +344,8 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
           selectedRoom={activeDisplayRoom}
           viewLevel={cityViewLevel}
           onViewLevelChange={setCityViewLevel}
+          focusedFloor={focusedFloor}
+          onFloorChange={setFocusedFloor}
           theme="dark"
           isTourActive={isTourActive}
           onTourStepChange={(caption, shotName, prog) => {
@@ -305,17 +372,19 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
       </div>
 
       {/* ------------------------------------------------------------- */}
-      {/* 5. BOTTOM EVENT TICKER STRIP                                  */}
+      {/* 7. BOTTOM EVENT TICKER STRIP                                  */}
       {/* ------------------------------------------------------------- */}
-      <div className="absolute bottom-18 sm:bottom-20 inset-x-0 z-20 flex items-center justify-center px-3 pointer-events-none select-none">
-        <div className="flex items-center space-x-2 px-3.5 py-1.5 rounded-xl bg-[#0A1128]/85 backdrop-blur-xl border border-[#1E3048] shadow-lg pointer-events-auto max-w-xl text-[11px] font-mono text-[#CAD4E0] truncate animate-in fade-in">
-          <span className="w-2 h-2 rounded-full bg-[#00B4D8] animate-ping shrink-0" />
-          <span className="truncate">{eventStripText}</span>
+      {!isTourActive && (
+        <div className="absolute bottom-18 sm:bottom-20 inset-x-0 z-20 flex items-center justify-center px-3 pointer-events-none select-none">
+          <div className="flex items-center space-x-2 px-3.5 py-1.5 rounded-xl bg-[#0A1128]/90 backdrop-blur-xl border border-[#1E3048] shadow-lg pointer-events-auto max-w-xl text-[11px] font-mono text-[#CAD4E0] truncate animate-in fade-in">
+            <span className="w-2 h-2 rounded-full bg-[#00B4D8] animate-ping shrink-0" />
+            <span className="truncate">{eventStripText}</span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ------------------------------------------------------------- */}
-      {/* 6. RESTRAINED HERO BOTTOM DOCK (5 Primary Controls)           */}
+      {/* 8. RESTRAINED HERO BOTTOM DOCK (5 Primary Controls)           */}
       {/* ------------------------------------------------------------- */}
       <div className="absolute bottom-3 sm:bottom-4 inset-x-0 z-20 flex items-center justify-between px-3 sm:px-6 safe-bottom pointer-events-none select-none">
         {/* Left attribution link: "Built by Asad Lee" */}
@@ -372,7 +441,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
             <span className="text-[11px] sm:text-xs">ACTIVITY</span>
           </button>
 
-          {/* 4. 58s Cinematic Tour Toggle */}
+          {/* 4. 60s Cinematic Tour Toggle */}
           <button
             onClick={handleTourToggle}
             className={`flex items-center space-x-1.5 min-h-[42px] px-3 sm:px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition-all border active:scale-95 touch-manipulation shrink-0 ${
@@ -380,7 +449,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
                 ? 'bg-[#F72585] text-white border-[#F72585] shadow-lg shadow-[#F72585]/30'
                 : 'bg-[#101E31] text-white border-[#1E3048] hover:border-[#00B4D8]/50'
             }`}
-            title="Play 58-second Directed Cinematic Tour"
+            title="Play 60-second Directed Cinematic Tour"
           >
             <Play className="w-3.5 h-3.5 text-[#F72585]" />
             <span className="text-[11px] sm:text-xs">TOUR</span>
@@ -412,7 +481,7 @@ export const SignalMap3D: React.FC<SignalMap3DProps> = ({
       </div>
 
       {/* ------------------------------------------------------------- */}
-      {/* 7. SLIDING BOTTOM SHEETS                                      */}
+      {/* 9. SLIDING BOTTOM SHEETS                                      */}
       {/* ------------------------------------------------------------- */}
       <CityBottomSheets
         activeSheet={activeSheet}

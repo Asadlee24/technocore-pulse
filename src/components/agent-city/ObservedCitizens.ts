@@ -142,6 +142,18 @@ export class ObservedCitizens {
         }
       }
 
+      const suitPalettes = ['#0284C7', '#0EA5E9', '#2563EB', '#7C3AED', '#D97706', '#059669', '#DB2777', '#4F46E5'];
+      const suitColor = suitPalettes[h % suitPalettes.length];
+
+      // Give alternating citizens dynamic walking patrol paths along sidewalks
+      const isWalking = idx % 2 === 1;
+      let walkPath: { start: THREE.Vector3; end: THREE.Vector3; speed: number } | undefined;
+      if (isWalking) {
+        const pStart = new THREE.Vector3(posX, 0, posZ);
+        const pEnd = new THREE.Vector3(posX + Math.cos(angle) * 3.5, 0, posZ + Math.sin(angle) * 3.5);
+        walkPath = { start: pStart, end: pEnd, speed: 0.8 + (h % 3) * 0.2 };
+      }
+
       const worker = new AgentWorker({
         x: posX,
         y: posY,
@@ -149,6 +161,9 @@ export class ObservedCitizens {
         rotationY: angle + Math.PI,
         isSeated: false,
         visorColor,
+        suitColor,
+        isWalking,
+        walkPath,
         activityState: id.isVerified ? 'surge' : 'active'
       });
 

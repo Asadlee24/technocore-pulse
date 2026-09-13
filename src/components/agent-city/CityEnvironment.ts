@@ -3,6 +3,7 @@ import * as THREE from 'three';
 export class CityEnvironment {
   public group: THREE.Group;
   private streetLanterns: THREE.InstancedMesh | null = null;
+  private gridIntersectionDots: THREE.InstancedMesh | null = null;
   private digitalTrees: THREE.Group | null = null;
   private groundPlane: THREE.Mesh | null = null;
   private gridMesh: THREE.LineSegments | null = null;
@@ -18,15 +19,15 @@ export class CityEnvironment {
 
   /**
    * Continuous dark ground plane with glowing neon diamond grid lines
-   * fading into the distance with subtle depth fog.
+   * and glowing dots at line intersections matching reference screenshot frame_12s.
    */
   private buildInfiniteDiamondGrid() {
     // 1. Dark navy/graphite ground plane (#0A1128 / #050814)
-    const groundGeo = new THREE.PlaneGeometry(300, 300);
+    const groundGeo = new THREE.PlaneGeometry(360, 360);
     const groundMat = new THREE.MeshStandardMaterial({
-      color: 0x050814,
+      color: 0x050A14,
       roughness: 0.85,
-      metalness: 0.2
+      metalness: 0.25
     });
     this.groundPlane = new THREE.Mesh(groundGeo, groundMat);
     this.groundPlane.rotation.x = -Math.PI / 2;
@@ -34,21 +35,20 @@ export class CityEnvironment {
     this.groundPlane.receiveShadow = true;
     this.group.add(this.groundPlane);
 
-    // 2. Primary Rectilinear Grid (diamond pattern when viewed at 45° azimuth)
-    const gridExtent = 90;
-    const gridStep = 4.5;
+    // 2. Diamond Grid Lines
+    const gridExtent = 100;
+    const gridStep = 5.0;
     const gridLinesCount = Math.round((gridExtent * 2) / gridStep) + 1;
     const vertices: number[] = [];
     const colors: number[] = [];
 
     const cyanColor = new THREE.Color(0x00B4D8);
-    const darkLineColor = new THREE.Color(0x0E2138);
+    const darkLineColor = new THREE.Color(0x0D1D30);
     const magentaAccent = new THREE.Color(0xF72585);
 
     for (let i = 0; i < gridLinesCount; i++) {
       const coord = -gridExtent + i * gridStep;
-      // Is this a major street line?
-      const isMajor = Math.abs(coord % 18) < 0.1;
+      const isMajor = Math.abs(coord % 20) < 0.1;
       const isCenter = Math.abs(coord) < 0.1;
       const lineCol = isCenter ? magentaAccent : isMajor ? cyanColor : darkLineColor;
 
@@ -72,27 +72,45 @@ export class CityEnvironment {
     const gridMat = new THREE.LineBasicMaterial({
       vertexColors: true,
       transparent: true,
-      opacity: 0.75
+      opacity: 0.85
     });
 
     this.gridMesh = new THREE.LineSegments(gridGeo, gridMat);
     this.group.add(this.gridMesh);
+
+    // 3. Luminous Intersection Dots on Grid (from frame_12s)
+    const dotCoords = [-40, -30, -20, -10, 0, 10, 20, 30, 40];
+    const totalDots = dotCoords.length * dotCoords.length;
+    const dotGeo = new THREE.BoxGeometry(0.25, 0.04, 0.25);
+    const dotMat = new THREE.MeshBasicMaterial({ color: 0x38BDF8 });
+    this.gridIntersectionDots = new THREE.InstancedMesh(dotGeo, dotMat, totalDots);
+
+    const dummy = new THREE.Object3D();
+    let dIdx = 0;
+    dotCoords.forEach(x => {
+      dotCoords.forEach(z => {
+        dummy.position.set(x, 0.02, z);
+        dummy.updateMatrix();
+        this.gridIntersectionDots?.setMatrixAt(dIdx, dummy.matrix);
+        dIdx++;
+      });
+    });
+    this.gridIntersectionDots.instanceMatrix.needsUpdate = true;
+    this.group.add(this.gridIntersectionDots);
   }
 
   /**
    * Street-level ground light studs along pedestrian crossings
    */
   private buildStreetLanterns() {
-    const lanternCount = 36;
+    const lanternCount = 48;
     const studGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.08, 8);
-    const studMat = new THREE.MeshBasicMaterial({
-      color: 0x00B4D8
-    });
+    const studMat = new THREE.MeshBasicMaterial({ color: 0x00B4D8 });
     this.streetLanterns = new THREE.InstancedMesh(studGeo, studMat, lanternCount);
 
     const dummy = new THREE.Object3D();
     let idx = 0;
-    const coords = [-27, -9, 9, 27];
+    const coords = [-30, -20, -10, 10, 20, 30];
     for (const x of coords) {
       for (const z of coords) {
         if (idx < lanternCount) {
@@ -109,51 +127,55 @@ export class CityEnvironment {
 
   /**
    * Digital flora matching reference video:
-   * Small round luminous trees on slender trunks (spherical glowing orbs in cyan, emerald, magenta)
+   * Glowing round lollipop trees on slender trunks (spherical luminous orbs in mint green, cyan, hot pink)
    */
   private buildDigitalFlora() {
     this.digitalTrees = new THREE.Group();
 
-    const trunkGeo = new THREE.CylinderGeometry(0.04, 0.05, 0.8, 6);
+    const trunkGeo = new THREE.CylinderGeometry(0.04, 0.05, 0.85, 6);
     const trunkMat = new THREE.MeshStandardMaterial({
-      color: 0x1E293B,
+      color: 0x0F172A,
       roughness: 0.8
     });
 
-    const sphereGeo = new THREE.SphereGeometry(0.45, 12, 10);
+    const sphereGeo = new THREE.SphereGeometry(0.48, 14, 12);
 
     const treeColors = [
-      0x00B4D8, // Cyan
-      0x32D74B, // Emerald
-      0xF72585, // Magenta
-      0x4CC9F0  // Sky Blue
+      0x34D399, // Mint green (from frame_12s)
+      0x38BDF8, // Cyan (from frame_12s)
+      0xF43F5E, // Radiant hot pink (from frame_12s)
+      0x818CF8  // Lavender
     ];
 
-    // Tree locations along sidewalks and Terrace Park (around [-18, 0, 18])
+    // Tree locations along avenues, corners, and Terrace Park
     const treePositions: [number, number, number][] = [
       // Terrace Park cluster
-      [-16, 16, 1], [-20, 16, 1], [-16, 20, 0], [-20, 20, 2],
-      [-18, 14.5, 3], [-14.5, 18, 0],
-      // Sidewalk corners
-      [9, 9, 0], [-9, 9, 1], [9, -9, 2], [-9, -9, 0],
-      [27, 9, 1], [27, -9, 3], [-27, 9, 2], [-27, -9, 0],
-      [9, 27, 3], [-9, 27, 1], [9, -27, 0], [-9, -27, 2]
+      [-12, 16, 0], [-8, 16, 0], [-12, 20, 1], [-8, 20, 2],
+      [-10, 15, 0], [-14, 18, 1], [-6, 18, 2],
+      // Main Avenue corners around Main Tower
+      [7, 6, 0], [-7, 6, 1], [7, -6, 2], [-7, -6, 0],
+      [11, 2, 1], [-11, 2, 2], [2, 11, 0], [2, -11, 1],
+      // Outer Avenues
+      [22, 6, 0], [22, -6, 1], [-22, 6, 2], [-22, -6, 0],
+      [6, 22, 1], [-6, 22, 0], [6, -22, 2], [-6, -22, 1],
+      [28, 16, 0], [-28, 16, 1], [28, -16, 2], [-28, -16, 0],
+      [16, 28, 1], [-16, 28, 0], [16, -28, 2], [-16, -28, 1]
     ];
 
     treePositions.forEach(([x, z, colIdx]) => {
       const tree = new THREE.Group();
       const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-      trunk.position.y = 0.4;
+      trunk.position.y = 0.42;
       tree.add(trunk);
 
       const orbMat = new THREE.MeshStandardMaterial({
         color: treeColors[colIdx],
         emissive: treeColors[colIdx],
-        emissiveIntensity: 0.65,
-        roughness: 0.3
+        emissiveIntensity: 0.75,
+        roughness: 0.25
       });
       const orb = new THREE.Mesh(sphereGeo, orbMat);
-      orb.position.y = 1.05;
+      orb.position.y = 1.15;
       tree.add(orb);
 
       tree.position.set(x, 0, z);

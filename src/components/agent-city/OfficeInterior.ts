@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import type { RoomCluster } from '../../types/probe';
 import type { BuildingLayout, InteriorStageType } from './cityLayout';
 import type { ObservedIdentity } from '../../context/DataContext';
 import { AgentWorker } from './AgentWorker';
@@ -7,6 +6,7 @@ import { AgentDeskFactory } from './AgentDesk';
 
 interface DeskSlot {
   group: THREE.Group;
+  floor: 1 | 2 | 3;
   worker?: AgentWorker;
   assignedDid?: string;
   activeUntil?: number;
@@ -18,9 +18,10 @@ export class OfficeInterior {
   private interiorType: InteriorStageType;
   private deskSlots: DeskSlot[] = [];
   private blinkingLeds: { mesh: THREE.Mesh; baseIntensity: number; speed: number; color: THREE.Color }[] = [];
-  private interiorLight: THREE.PointLight;
+  private interiorLights: THREE.PointLight[] = [];
   private screens: THREE.Mesh[] = [];
   private activeMessagePulseUntil: number = 0;
+  private currentFocusedFloor: 1 | 2 | 3 | 'all' = 'all';
 
   constructor(layout: BuildingLayout) {
     this.layout = layout;
@@ -29,101 +30,234 @@ export class OfficeInterior {
     this.group.name = `interior-${layout.id}`;
     this.group.visible = false; // Hidden until cutaway / enter
 
-    // Interior Warm / Themed Illumination
-    const lightColor = this.interiorType === 'tower-control' ? 0xFDE047
-      : this.interiorType === 'institute-classroom' ? 0x00B4D8
-      : this.interiorType === 'engineering-bay' ? 0x4CC9F0
-      : 0xC77DFF;
+    // Multi-tier Lighting: Lights on each floor level
+    const lightColors = [0xFDE047, 0x38BDF8, 0xC084FC];
+    [1.8, 6.2, 10.6].forEach((ly, idx) => {
+      const pLight = new THREE.PointLight(lightColors[idx], 1.8, 22);
+      pLight.position.set(0, ly, 0);
+      this.group.add(pLight);
+      this.interiorLights.push(pLight);
+    });
 
-    this.interiorLight = new THREE.PointLight(lightColor, 2.2, 28);
-    this.interiorLight.position.set(0, 4.5, 0);
-    this.group.add(this.interiorLight);
-
-    this.buildOpenStage();
+    this.buildMultiFloorStructure();
   }
 
   /**
-   * Constructs an open stage interior matching the reference video:
-   * - Hexagonal dark floor slab with glowing neon border
-   * - Partial back wall with luminous building/room signage
-   * - 3 large video monitors / server racks / podium
-   * - Workstations with seated real observed senders
+   * Constructs a 3-Floor Multi-Tier Architectural Stage matching reference:
+   * - Floor 1: Ground Operations & Control Room (Y = 0.3)
+   * - Floor 2: Mezzanine Engineering & Labs (Y = 4.8)
+   * - Floor 3: Observation Deck & Sky Lounge (Y = 9.2)
    */
-  private buildOpenStage() {
-    const stageRadius = Math.max(4.2, Math.min(this.layout.width, this.layout.depth) * 0.95);
-    const floorY = 0.3;
+  private buildMultiFloorStructure() {
+    const stageRadius = Math.max(4.6, Math.min(this.layout.width, this.layout.depth) * 0.95);
+    const borderColor = this.layout.edgeColor || '#00B4D8';
 
-    // 1. Hexagonal Dark Technical Floor
-    const hexGeo = new THREE.CylinderGeometry(stageRadius, stageRadius, 0.25, 6);
+    // Shared floor slab material
     const floorMat = new THREE.MeshStandardMaterial({
       color: 0x0A1128,
       roughness: 0.65,
       metalness: 0.45
     });
-    const hexFloor = new THREE.Mesh(hexGeo, floorMat);
-    hexFloor.position.y = floorY;
-    hexFloor.receiveShadow = true;
-    this.group.add(hexFloor);
-
-    // Glowing Neon Perimeter Border around hexagon
-    const borderEdges = new THREE.EdgesGeometry(hexGeo);
-    const borderColor = this.interiorType === 'tower-control' ? 0xF0A824
-      : this.interiorType === 'institute-classroom' ? 0x00B4D8
-      : this.interiorType === 'engineering-bay' ? 0x4CC9F0
-      : 0xC77DFF;
 
     const borderMat = new THREE.LineBasicMaterial({
       color: borderColor,
       transparent: true,
       opacity: 0.95
     });
-    const borderLine = new THREE.LineSegments(borderEdges, borderMat);
-    borderLine.position.y = floorY;
-    this.group.add(borderLine);
 
-    // 2. Partial Back Wall Panel
-    const wallW = stageRadius * 1.6;
-    const wallH = 4.2;
-    const wallGeo = new THREE.BoxGeometry(wallW, wallH, 0.25);
-    const wallMat = new THREE.MeshStandardMaterial({
-      color: 0x0D1929,
-      roughness: 0.8,
-      metalness: 0.3
+    // 4 Corner Architectural Columns supporting the structure
+    const colGeo = new THREE.BoxGeometry(0.35, 12.5, 0.35);
+    const colMat = new THREE.MeshStandardMaterial({ color: 0x1E2A3E, roughness: 0.5, metalness: 0.8 });
+    const colOffsets = [
+      [-stageRadius * 0.7, 6.0, -stageRadius * 0.65],
+      [stageRadius * 0.7, 6.0, -stageRadius * 0.65],
+      [-stageRadius * 0.7, 6.0, stageRadius * 0.65],
+      [stageRadius * 0.7, 6.0, stageRadius * 0.65]
+    ];
+    colOffsets.forEach(([cx, cy, cz]) => {
+      const col = new THREE.Mesh(colGeo, colMat);
+      col.position.set(cx, cy, cz);
+      this.group.add(col);
     });
-    const backWall = new THREE.Mesh(wallGeo, wallMat);
-    backWall.position.set(0, floorY + wallH / 2, -stageRadius * 0.75);
-    this.group.add(backWall);
 
-    // Wall frame neon border
-    const wallEdges = new THREE.EdgesGeometry(wallGeo);
-    const wallFrame = new THREE.LineSegments(wallEdges, borderMat);
-    wallFrame.position.copy(backWall.position);
-    this.group.add(wallFrame);
+    // =========================================================================
+    // FLOOR 1: GROUND LEVEL — OPERATIONS & CONTROL ROOM (Y = 0.3)
+    // =========================================================================
+    const f1Y = 0.3;
+    const hexGeo1 = new THREE.CylinderGeometry(stageRadius, stageRadius, 0.3, 6);
+    const floor1 = new THREE.Mesh(hexGeo1, floorMat);
+    floor1.position.y = f1Y;
+    floor1.receiveShadow = true;
+    this.group.add(floor1);
 
-    // 3. Wall Signboard (Room / Building Title)
-    this.buildWallSignboard(backWall.position.y + wallH * 0.35, backWall.position.z + 0.14, wallW);
+    const f1Border = new THREE.LineSegments(new THREE.EdgesGeometry(hexGeo1), borderMat);
+    f1Border.position.y = f1Y;
+    this.group.add(f1Border);
 
-    // 4. Themed Elements by Interior Type
-    switch (this.interiorType) {
-      case 'tower-control':
-        this.buildTowerControlRoom(floorY, backWall.position.z);
-        break;
-      case 'institute-classroom':
-        this.buildInstituteClassroom(floorY, backWall.position.z);
-        break;
-      case 'engineering-bay':
-        this.buildEngineeringBay(floorY, backWall.position.z);
-        break;
-      case 'compute-floor':
-        this.buildComputeFoundryFloor(floorY, backWall.position.z);
-        break;
-      default:
-        this.buildGenericOffice(floorY);
-        break;
-    }
+    // Floor 1 Back Wall & Video Screens
+    const wall1W = stageRadius * 1.5;
+    const wall1H = 3.8;
+    const wall1Geo = new THREE.BoxGeometry(wall1W, wall1H, 0.2);
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x0C1626, roughness: 0.8 });
+    const backWall1 = new THREE.Mesh(wall1Geo, wallMat);
+    backWall1.position.set(0, f1Y + wall1H / 2, -stageRadius * 0.72);
+    this.group.add(backWall1);
+
+    // Floor 1 Signboard: "MAIN TOWER // OPERATIONS HUB"
+    this.buildWallSignboard(backWall1.position.y + wall1H * 0.35, backWall1.position.z + 0.12, wall1W, 'FLOOR 1 // OPERATIONS & CONTROL');
+
+    // 3 Large Video Wall Screens (frame_22s)
+    const screenOffsets = [-1.8, 0, 1.8];
+    screenOffsets.forEach((sx, sIdx) => {
+      const sGeo = new THREE.PlaneGeometry(1.5, 1.1);
+      const sMat = new THREE.MeshBasicMaterial({
+        color: sIdx === 1 ? 0x00B4D8 : 0xF59E0B,
+        transparent: true,
+        opacity: 0.85
+      });
+      const scr = new THREE.Mesh(sGeo, sMat);
+      scr.position.set(sx, f1Y + 2.0, backWall1.position.z + 0.13);
+      this.group.add(scr);
+      this.screens.push(scr);
+
+      const fGeo = new THREE.EdgesGeometry(sGeo);
+      const frame = new THREE.LineSegments(fGeo, new THREE.LineBasicMaterial({ color: 0xFDE047 }));
+      frame.position.copy(scr.position);
+      this.group.add(frame);
+    });
+
+    // Floor 1 Server Racks with Blinking LEDs (frame_44s)
+    this.buildServerRacks(f1Y, stageRadius * 0.75, backWall1.position.z + 0.8);
+
+    // Floor 1 Workstations (4 Desks)
+    const f1DeskCoords = [
+      { x: -1.4, z: -0.6, rot: 0, screen: 'gold' as const },
+      { x: 1.4, z: -0.6, rot: 0, screen: 'gold' as const },
+      { x: -1.4, z: 1.2, rot: Math.PI, screen: 'terminal' as const },
+      { x: 1.4, z: 1.2, rot: Math.PI, screen: 'terminal' as const }
+    ];
+    f1DeskCoords.forEach(d => {
+      const deskGroup = AgentDeskFactory.createWorkstation({
+        x: d.x,
+        y: f1Y + 0.15,
+        z: d.z,
+        rotationY: d.rot,
+        screenType: d.screen
+      });
+      this.group.add(deskGroup);
+      this.deskSlots.push({ group: deskGroup, floor: 1 });
+    });
+
+    // =========================================================================
+    // FLOOR 2: MEZZANINE LEVEL — ENGINEERING & LABS (Y = 4.8)
+    // =========================================================================
+    const f2Y = 4.8;
+    const f2Radius = stageRadius * 0.92;
+    const hexGeo2 = new THREE.CylinderGeometry(f2Radius, f2Radius, 0.25, 6);
+    const floor2 = new THREE.Mesh(hexGeo2, floorMat);
+    floor2.position.y = f2Y;
+    this.group.add(floor2);
+
+    const f2Border = new THREE.LineSegments(new THREE.EdgesGeometry(hexGeo2), borderMat);
+    f2Border.position.y = f2Y;
+    this.group.add(f2Border);
+
+    // Translucent Safety Railing around Mezzanine
+    const railGeo = new THREE.CylinderGeometry(f2Radius, f2Radius, 0.8, 6, 1, true);
+    const railMat = new THREE.MeshStandardMaterial({
+      color: 0x38BDF8,
+      transparent: true,
+      opacity: 0.25,
+      side: THREE.DoubleSide
+    });
+    const railing = new THREE.Mesh(railGeo, railMat);
+    railing.position.y = f2Y + 0.4;
+    this.group.add(railing);
+
+    // Floor 2 Back Wall & Engineering Display
+    const backWall2 = new THREE.Mesh(new THREE.BoxGeometry(wall1W * 0.9, 3.6, 0.2), wallMat);
+    backWall2.position.set(0, f2Y + 1.8, -stageRadius * 0.65);
+    this.group.add(backWall2);
+
+    this.buildWallSignboard(backWall2.position.y + 1.2, backWall2.position.z + 0.12, wall1W * 0.9, 'FLOOR 2 // ENGINEERING & RESEARCH');
+
+    // Floor 2 Engineering Display Screens
+    [-1.5, 1.5].forEach(ex => {
+      const scrGeo = new THREE.PlaneGeometry(1.6, 0.9);
+      const scr = new THREE.Mesh(scrGeo, new THREE.MeshBasicMaterial({ color: 0x38BDF8, transparent: true, opacity: 0.8 }));
+      scr.position.set(ex, f2Y + 1.8, backWall2.position.z + 0.12);
+      this.group.add(scr);
+      this.screens.push(scr);
+    });
+
+    // Floor 2 Workstations (4 Desks)
+    const f2DeskCoords = [
+      { x: -1.3, z: -0.5, rot: 0, screen: 'terminal' as const },
+      { x: 1.3, z: -0.5, rot: 0, screen: 'terminal' as const },
+      { x: -1.3, z: 1.1, rot: Math.PI, screen: 'telemetry' as const },
+      { x: 1.3, z: 1.1, rot: Math.PI, screen: 'telemetry' as const }
+    ];
+    f2DeskCoords.forEach(d => {
+      const deskGroup = AgentDeskFactory.createWorkstation({
+        x: d.x,
+        y: f2Y + 0.12,
+        z: d.z,
+        rotationY: d.rot,
+        screenType: d.screen
+      });
+      this.group.add(deskGroup);
+      this.deskSlots.push({ group: deskGroup, floor: 2 });
+    });
+
+    // =========================================================================
+    // FLOOR 3: SKY OBSERVATION DECK & RELAY LOUNGE (Y = 9.2)
+    // =========================================================================
+    const f3Y = 9.2;
+    const f3Radius = stageRadius * 0.85;
+    const hexGeo3 = new THREE.CylinderGeometry(f3Radius, f3Radius, 0.25, 6);
+    const floor3 = new THREE.Mesh(hexGeo3, floorMat);
+    floor3.position.y = f3Y;
+    this.group.add(floor3);
+
+    const f3Border = new THREE.LineSegments(new THREE.EdgesGeometry(hexGeo3), new THREE.LineBasicMaterial({ color: 0xF72585, transparent: true, opacity: 0.95 }));
+    f3Border.position.y = f3Y;
+    this.group.add(f3Border);
+
+    // Floor 3 Glass Sky Railing
+    const f3Rail = new THREE.Mesh(new THREE.CylinderGeometry(f3Radius, f3Radius, 0.7, 6, 1, true), railMat);
+    f3Rail.position.y = f3Y + 0.35;
+    this.group.add(f3Rail);
+
+    // Central Holographic Projector Pedestal
+    const holoBase = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 0.6, 12), new THREE.MeshStandardMaterial({ color: 0x1E293B, metalness: 0.8 }));
+    holoBase.position.set(0, f3Y + 0.3, 0);
+    this.group.add(holoBase);
+
+    const holoGlobe = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 12), new THREE.MeshBasicMaterial({ color: 0x38BDF8, wireframe: true, transparent: true, opacity: 0.7 }));
+    holoGlobe.position.set(0, f3Y + 0.9, 0);
+    this.group.add(holoGlobe);
+
+    // Floor 3 Observation Workstations (4 Desks)
+    const f3DeskCoords = [
+      { x: -1.2, z: -0.6, rot: 0.2, screen: 'signal' as const },
+      { x: 1.2, z: -0.6, rot: -0.2, screen: 'signal' as const },
+      { x: -1.2, z: 0.8, rot: Math.PI - 0.2, screen: 'telemetry' as const },
+      { x: 1.2, z: 0.8, rot: Math.PI + 0.2, screen: 'telemetry' as const }
+    ];
+    f3DeskCoords.forEach(d => {
+      const deskGroup = AgentDeskFactory.createWorkstation({
+        x: d.x,
+        y: f3Y + 0.12,
+        z: d.z,
+        rotationY: d.rot,
+        screenType: d.screen
+      });
+      this.group.add(deskGroup);
+      this.deskSlots.push({ group: deskGroup, floor: 3 });
+    });
   }
 
-  private buildWallSignboard(y: number, z: number, maxW: number) {
+  private buildWallSignboard(y: number, z: number, maxW: number, customTitle?: string) {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
     canvas.height = 96;
@@ -138,20 +272,21 @@ export class OfficeInterior {
     ctx.strokeRect(4, 4, 504, 88);
 
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 36px monospace';
+    ctx.font = 'bold 30px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    const title = this.interiorType === 'tower-control' ? 'TECHNOCORE TOWER // CONTROL ROOM'
-      : this.interiorType === 'institute-classroom' ? 'THE INSTITUTE // ACADEMY'
-      : this.interiorType === 'engineering-bay' ? 'ENGINEERING BAY // CLUSTER OPS'
-      : this.interiorType === 'compute-floor' ? 'COMPUTE FOUNDRY // INFERENCE CORE'
-      : `${this.layout.name.toUpperCase()} // INTERIOR`;
-
+    const title = customTitle || (
+      this.interiorType === 'tower-control' ? 'TECHNOCORE TOWER // OPERATIONS' :
+      this.interiorType === 'institute-classroom' ? 'THE INSTITUTE // ACADEMY' :
+      this.interiorType === 'engineering-bay' ? 'ENGINEERING BAY // CLUSTER OPS' :
+      this.interiorType === 'compute-floor' ? 'COMPUTE FOUNDRY // INFERENCE CORE' :
+      `${this.layout.name.toUpperCase()} // OPERATIONS`
+    );
     ctx.fillText(title, 256, 48);
 
     const texture = new THREE.CanvasTexture(canvas);
-    const signGeo = new THREE.PlaneGeometry(Math.min(maxW * 0.85, 5.0), 0.9);
+    const signGeo = new THREE.PlaneGeometry(Math.min(maxW * 0.85, 4.8), 0.8);
     const signMat = new THREE.MeshBasicMaterial({
       map: texture,
       transparent: true,
@@ -162,291 +297,175 @@ export class OfficeInterior {
     this.group.add(signMesh);
   }
 
-  private buildTowerControlRoom(floorY: number, wallZ: number) {
-    const screenWidths = [1.5, 1.8, 1.5];
-    const offsets = [-1.9, 0, 1.9];
-
-    offsets.forEach((xOff, idx) => {
-      const sw = screenWidths[idx];
-      const sh = 1.1;
-      const sGeo = new THREE.PlaneGeometry(sw, sh);
-      const sMat = new THREE.MeshBasicMaterial({
-        color: idx === 1 ? 0x00B4D8 : 0x0466C8,
-        transparent: true,
-        opacity: 0.85
-      });
-      const scr = new THREE.Mesh(sGeo, sMat);
-      scr.position.set(xOff, floorY + 2.1, wallZ + 0.14);
-      this.group.add(scr);
-      this.screens.push(scr);
-
-      const frame = new THREE.LineSegments(
-        new THREE.EdgesGeometry(sGeo),
-        new THREE.LineBasicMaterial({ color: 0xFDE047 })
-      );
-      frame.position.copy(scr.position);
-      this.group.add(frame);
+  /**
+   * Server Racks with Blinking LED Arrays matching reference screenshot frame_44s
+   */
+  private buildServerRacks(baseY: number, rightX: number, zPos: number) {
+    const rackW = 0.5;
+    const rackH = 2.4;
+    const rackD = 0.6;
+    const rackGeo = new THREE.BoxGeometry(rackW, rackH, rackD);
+    const rackMat = new THREE.MeshStandardMaterial({
+      color: 0x080E18,
+      roughness: 0.4,
+      metalness: 0.85
     });
 
-    const rows = [-0.8, 0.8];
-    const cols = [-1.2, 0, 1.2];
+    const ledColors = [0x10B981, 0x38BDF8, 0xF59E0B, 0xEC4899];
+    const ledGeo = new THREE.BoxGeometry(0.04, 0.04, 0.02);
 
-    rows.forEach((zRow, rIdx) => {
-      cols.forEach((xCol) => {
-        const deskGroup = AgentDeskFactory.createWorkstation({
-          x: xCol,
-          y: floorY + 0.12,
-          z: zRow,
-          rotationY: rIdx === 0 ? 0 : Math.PI,
-          screenType: rIdx === 0 ? 'terminal' : 'telemetry'
-        });
-        this.group.add(deskGroup);
-        this.deskSlots.push({ group: deskGroup });
-      });
-    });
-  }
-
-  private buildInstituteClassroom(floorY: number, wallZ: number) {
-    const scrGeo = new THREE.PlaneGeometry(3.6, 1.4);
-    const scrMat = new THREE.MeshBasicMaterial({
-      color: 0x00B4D8,
-      transparent: true,
-      opacity: 0.8
-    });
-    const scr = new THREE.Mesh(scrGeo, scrMat);
-    scr.position.set(0, floorY + 2.2, wallZ + 0.14);
-    this.group.add(scr);
-    this.screens.push(scr);
-
-    const podiumGeo = new THREE.BoxGeometry(0.8, 0.9, 0.5);
-    const podiumMat = new THREE.MeshStandardMaterial({ color: 0x1E293B, metalness: 0.7 });
-    const podium = new THREE.Mesh(podiumGeo, podiumMat);
-    podium.position.set(0, floorY + 0.45, -1.2);
-    this.group.add(podium);
-
-    const studentCols = [-1.4, -0.4, 0.6, 1.6];
-    const studentRows = [0.2, 1.4];
-
-    studentRows.forEach(zR => {
-      studentCols.forEach(xC => {
-        const deskGroup = AgentDeskFactory.createWorkstation({
-          x: xC,
-          y: floorY + 0.12,
-          z: zR,
-          rotationY: 0,
-          screenType: 'terminal'
-        });
-        this.group.add(deskGroup);
-        this.deskSlots.push({ group: deskGroup });
-      });
-    });
-  }
-
-  private buildEngineeringBay(floorY: number, wallZ: number) {
-    const rackW = 0.8;
-    const rackH = 2.8;
-    const rackD = 0.55;
-    const rackPositions = [-2.1, -0.7, 0.7, 2.1];
-
-    rackPositions.forEach((xP) => {
-      const rackGeo = new THREE.BoxGeometry(rackW, rackH, rackD);
-      const rackMat = new THREE.MeshStandardMaterial({
-        color: 0x0A0F1D,
-        roughness: 0.5,
-        metalness: 0.8
-      });
+    [-0.6, 0, 0.6].forEach((xOff, rIdx) => {
       const rack = new THREE.Mesh(rackGeo, rackMat);
-      rack.position.set(xP, floorY + rackH / 2, wallZ + 0.35);
+      rack.position.set(rightX + xOff, baseY + rackH / 2, zPos);
       this.group.add(rack);
 
-      const rackEdges = new THREE.LineSegments(
-        new THREE.EdgesGeometry(rackGeo),
-        new THREE.LineBasicMaterial({ color: 0x4CC9F0 })
-      );
-      rackEdges.position.copy(rack.position);
-      this.group.add(rackEdges);
-
-      const ledColors = [0x32D74B, 0x00B4D8, 0xF72585, 0xFDE047];
-      for (let r = 0; r < 5; r++) {
-        for (let c = 0; c < 3; c++) {
-          const lGeo = new THREE.PlaneGeometry(0.08, 0.08);
-          const col = ledColors[(r + c) % ledColors.length];
-          const lMat = new THREE.MeshBasicMaterial({
-            color: col,
-            transparent: true,
-            opacity: 0.9
-          });
-          const led = new THREE.Mesh(lGeo, lMat);
+      // Grid of LED activity dots on rack face
+      for (let row = 0; row < 6; row++) {
+        for (let col = 0; col < 3; col++) {
+          const colorHex = ledColors[(row + col + rIdx) % ledColors.length];
+          const ledMat = new THREE.MeshBasicMaterial({ color: colorHex });
+          const led = new THREE.Mesh(ledGeo, ledMat);
           led.position.set(
-            xP - 0.22 + c * 0.22,
-            floorY + 0.6 + r * 0.45,
-            wallZ + 0.35 + rackD / 2 + 0.02
+            rack.position.x - 0.15 + col * 0.15,
+            rack.position.y - 0.8 + row * 0.28,
+            rack.position.z + rackD / 2 + 0.015
           );
           this.group.add(led);
+
           this.blinkingLeds.push({
             mesh: led,
-            baseIntensity: 0.9,
-            speed: 3 + (r * 3 + c) * 0.7,
-            color: new THREE.Color(col)
+            baseIntensity: 0.8,
+            speed: 3.0 + (row * col) % 4,
+            color: new THREE.Color(colorHex)
           });
         }
       }
     });
-
-    [-1.2, 0, 1.2].forEach(xP => {
-      const deskGroup = AgentDeskFactory.createWorkstation({
-        x: xP,
-        y: floorY + 0.12,
-        z: 0.5,
-        rotationY: 0,
-        screenType: 'terminal'
-      });
-      this.group.add(deskGroup);
-      this.deskSlots.push({ group: deskGroup });
-    });
-  }
-
-  private buildComputeFoundryFloor(floorY: number, wallZ: number) {
-    [-1.8, 0, 1.8].forEach(xP => {
-      const cabGeo = new THREE.BoxGeometry(1.2, 2.5, 0.7);
-      const cabMat = new THREE.MeshStandardMaterial({
-        color: 0x080D1A,
-        metalness: 0.9,
-        roughness: 0.4
-      });
-      const cab = new THREE.Mesh(cabGeo, cabMat);
-      cab.position.set(xP, floorY + 1.25, wallZ + 0.45);
-      this.group.add(cab);
-
-      const frame = new THREE.LineSegments(
-        new THREE.EdgesGeometry(cabGeo),
-        new THREE.LineBasicMaterial({ color: 0xC77DFF })
-      );
-      frame.position.copy(cab.position);
-      this.group.add(frame);
-    });
-
-    [-1.1, 0, 1.1].forEach(xP => {
-      const deskGroup = AgentDeskFactory.createWorkstation({
-        x: xP,
-        y: floorY + 0.12,
-        z: 0.6,
-        rotationY: 0,
-        screenType: 'telemetry'
-      });
-      this.group.add(deskGroup);
-      this.deskSlots.push({ group: deskGroup });
-    });
-  }
-
-  private buildGenericOffice(floorY: number) {
-    [-0.9, 0.9].forEach(xP => {
-      const deskGroup = AgentDeskFactory.createWorkstation({
-        x: xP,
-        y: floorY + 0.12,
-        z: 0.5,
-        rotationY: 0,
-        screenType: 'terminal'
-      });
-      this.group.add(deskGroup);
-      this.deskSlots.push({ group: deskGroup });
-    });
   }
 
   /**
-   * Binds real observed senders from this room to desk slots.
-   * If zero identities have posted here, desks remain cleanly vacant.
+   * Dynamically binds real observed senders across all 3 floors.
+   * If identities is empty, desks remain honestly vacant.
    */
-  public updateRoomIdentities(identities: ObservedIdentity[]) {
-    // Clear previous workers
+  public bindRealObservedIdentities(identities: ObservedIdentity[]) {
+    // 1. Clear previous workers from desks
     this.deskSlots.forEach(slot => {
       if (slot.worker) {
         slot.group.remove(slot.worker.group);
         slot.worker.dispose();
         slot.worker = undefined;
-        slot.assignedDid = undefined;
       }
+      slot.assignedDid = undefined;
     });
 
-    // Populate desks with real identities
-    identities.slice(0, this.deskSlots.length).forEach((id, idx) => {
+    if (!identities || identities.length === 0) return;
+
+    // Distribute observed identities across Floor 1, Floor 2, and Floor 3 desks
+    const suitPalettes = ['#0284C7', '#0EA5E9', '#2563EB', '#7C3AED', '#D97706', '#059669', '#DB2777'];
+
+    identities.forEach((id, idx) => {
+      if (idx >= this.deskSlots.length) return;
       const slot = this.deskSlots[idx];
-      const visorColor = id.isVerified ? '#00B4D8' : id.verificationStatus === 'PRESENT_UNVERIFIED' ? '#F0A824' : '#94A3B8';
+      slot.assignedDid = id.did;
+
+      // Deterministic suit & visor colors
+      let hash = 0;
+      for (let i = 0; i < id.did.length; i++) hash = (hash * 31 + id.did.charCodeAt(i)) >>> 0;
+      const suitColor = suitPalettes[hash % suitPalettes.length];
+      const visorColor = id.verificationStatus === 'VERIFIED' ? '#38BDF8' : '#F59E0B';
+
+      // Create stylized seated worker at desk
       const worker = new AgentWorker({
         x: 0,
-        y: 0.25,
-        z: 0.46,
-        rotationY: 0,
+        y: 0,
+        z: 0.44, // seated in high-back chair behind desk
+        rotationY: Math.PI, // facing desk monitors
         isSeated: true,
+        activityState: id.isVerified ? 'surge' : 'active',
         visorColor,
-        activityState: id.isVerified ? 'surge' : 'active'
+        suitColor
       });
-      slot.group.add(worker.group);
+
       slot.worker = worker;
-      slot.assignedDid = id.did;
+      slot.group.add(worker.group);
     });
+  }
+
+  public triggerMessageActivity(did: string) {
+    const slot = this.deskSlots.find(s => s.assignedDid === did);
+    if (slot && slot.worker) {
+      slot.activeUntil = performance.now() + 3500;
+    }
+    this.activeMessagePulseUntil = performance.now() + 1500;
   }
 
   /**
-   * Triggers a brief 3.5s typing activity strictly when an observed message arrives.
+   * Camera focus target offsets for Floor 1, Floor 2, Floor 3, or All Floors
    */
-  public triggerMessageActivity(did: string) {
-    const slot = this.deskSlots.find(s => s.assignedDid === did) || this.deskSlots[0];
-    if (slot) {
-      slot.activeUntil = performance.now() + 3500;
+  public getFloorCameraFocus(floor: 1 | 2 | 3 | 'all'): { cameraOffset: THREE.Vector3; targetOffset: THREE.Vector3 } {
+    this.currentFocusedFloor = floor;
+    if (floor === 1) {
+      return {
+        cameraOffset: new THREE.Vector3(0, 3.2, 7.5),
+        targetOffset: new THREE.Vector3(0, 1.8, 0)
+      };
+    } else if (floor === 2) {
+      return {
+        cameraOffset: new THREE.Vector3(0, 7.6, 7.5),
+        targetOffset: new THREE.Vector3(0, 6.2, 0)
+      };
+    } else if (floor === 3) {
+      return {
+        cameraOffset: new THREE.Vector3(0, 12.0, 7.5),
+        targetOffset: new THREE.Vector3(0, 10.6, 0)
+      };
     }
-    this.activeMessagePulseUntil = performance.now() + 3500;
+    // All floors stacked cutaway view
+    return {
+      cameraOffset: new THREE.Vector3(0, 9.0, 17.0),
+      targetOffset: new THREE.Vector3(0, 5.2, 0)
+    };
   }
 
-  public setCutawayVisible(visible: boolean) {
-    this.group.visible = visible;
+  public getFocusedFloor(): 1 | 2 | 3 | 'all' {
+    return this.currentFocusedFloor;
   }
 
   public update(time: number) {
     if (!this.group.visible) return;
-    const now = performance.now();
 
-    // Animate seated workers: active typing if triggered by real event, subtle resting breathing otherwise
+    // Animate blinking server LEDs
+    this.blinkingLeds.forEach(led => {
+      const pulse = Math.sin(time * led.speed) > 0.1 ? 1 : 0.2;
+      (led.mesh.material as THREE.MeshBasicMaterial).opacity = pulse;
+    });
+
+    // Animate workers at workstations
+    const now = performance.now();
     this.deskSlots.forEach(slot => {
       if (slot.worker) {
-        if (slot.activeUntil && now < slot.activeUntil) {
-          slot.worker.update(time * 1.5);
-        } else {
-          slot.worker.update(time * 0.2);
-        }
+        slot.worker.update(time);
       }
     });
 
-    // Animate blinking server rack LEDs
-    this.blinkingLeds.forEach(led => {
-      const blink = (Math.sin(time * led.speed) > 0.1) ? 1.0 : 0.2;
-      (led.mesh.material as THREE.MeshBasicMaterial).opacity = blink;
-    });
-
-    // Screens glow pulse if recent real message pulse is active
-    const isPulsing = now < this.activeMessagePulseUntil;
-    this.screens.forEach((s, idx) => {
-      const baseOpacity = isPulsing ? 0.95 : 0.75;
-      (s.material as THREE.MeshBasicMaterial).opacity = baseOpacity + Math.sin(time * 2 + idx) * 0.1;
-    });
-
-    this.interiorLight.intensity = (isPulsing ? 2.8 : 2.0) + Math.sin(time * 3) * 0.2;
+    // Screen pulse on active protocol message
+    if (now < this.activeMessagePulseUntil) {
+      const pulse = 0.5 + Math.sin(time * 20) * 0.5;
+      this.screens.forEach(s => {
+        (s.material as THREE.MeshBasicMaterial).opacity = 0.8 + pulse * 0.2;
+      });
+    }
   }
 
-  public updateRoomData(room: RoomCluster) {
-    this.layout.room = room;
+  public setVisible(visible: boolean) {
+    this.group.visible = visible;
   }
 
   public dispose() {
-    this.group.traverse(obj => {
-      if (obj instanceof THREE.Mesh) {
-        obj.geometry.dispose();
-        if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
-        else obj.material.dispose();
-      }
-    });
     this.deskSlots.forEach(slot => {
-      if (slot.worker) slot.worker.dispose();
+      if (slot.worker) {
+        slot.worker.dispose();
+      }
     });
     this.deskSlots = [];
     this.blinkingLeds = [];
