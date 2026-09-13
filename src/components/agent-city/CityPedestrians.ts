@@ -13,6 +13,8 @@ export class CityPedestrians {
 
     this.spawnAvenuePedestrians(roadWaypoints);
     this.spawnBoulevardPromenadePedestrians(roadWaypoints);
+    this.spawnCrosswalkZebraWalkers(roadWaypoints);
+    this.spawnParkStrollers();
     this.spawnBuildingLobbyEntrants(buildings);
     this.spawnStreetCornerGatherings(roadWaypoints);
   }
@@ -21,15 +23,15 @@ export class CityPedestrians {
    * 1. Pedestrians actively walking along the sidewalks of the 8 radial grand avenues
    */
   private spawnAvenuePedestrians(roadWaypoints: RoadWaypoints) {
-    const avenueSidewalkOffsets = [-1.6, 1.6]; // Left and right sidewalks bordering the 2.4m road
+    const avenueSidewalkOffsets = [-1.65, 1.65]; // Left and right sidewalks bordering the 2.4m road
 
     roadWaypoints.radialAvenues.forEach((ave, aveIdx) => {
       avenueSidewalkOffsets.forEach((offset, sideIdx) => {
-        // Spawn 2 pedestrians per sidewalk side on each avenue (Total: 8 * 2 * 2 = 32 avenue walkers)
-        for (let i = 0; i < 2; i++) {
+        // Spawn 4 pedestrians per sidewalk side on each avenue (Total: 8 * 2 * 4 = 64 avenue walkers)
+        for (let i = 0; i < 4; i++) {
           const normalAngle = ave.angle + Math.PI / 2;
-          const startR = 10 + i * 16 + sideIdx * 4;
-          const endR = startR + 14 + (aveIdx % 3) * 3;
+          const startR = 8 + i * 11 + sideIdx * 3;
+          const endR = startR + 12 + (aveIdx % 3) * 3;
 
           const startX = Math.cos(ave.angle) * startR + Math.cos(normalAngle) * offset;
           const startZ = Math.sin(ave.angle) * startR + Math.sin(normalAngle) * offset;
@@ -37,9 +39,8 @@ export class CityPedestrians {
           const endX = Math.cos(ave.angle) * endR + Math.cos(normalAngle) * offset;
           const endZ = Math.sin(ave.angle) * endR + Math.sin(normalAngle) * offset;
 
-          // Distinct neon visors based on avenue index
           const visorColors = ['#36D7E7', '#4DA3FF', '#38BDF8', '#A855F7', '#2FD27F', '#F472B6', '#F0A824', '#818CF8'];
-          const vColor = visorColors[aveIdx % visorColors.length];
+          const vColor = visorColors[(aveIdx + i) % visorColors.length];
 
           const walker = new AgentWorker({
             x: startX,
@@ -49,7 +50,7 @@ export class CityPedestrians {
             walkPath: {
               start: new THREE.Vector3(startX, 0.04, startZ),
               end: new THREE.Vector3(endX, 0.04, endZ),
-              speed: 0.55 + Math.random() * 0.35
+              speed: 0.52 + Math.random() * 0.38
             },
             visorColor: vColor,
             activityState: (i + aveIdx) % 3 === 0 ? 'surge' : 'active'
@@ -73,10 +74,10 @@ export class CityPedestrians {
     ];
 
     sidewalkRadii.forEach((radius, ringIdx) => {
-      const walkerCount = 6;
+      const walkerCount = 10;
       for (let i = 0; i < walkerCount; i++) {
         const baseAngle = (i / walkerCount) * Math.PI * 2 + ringIdx * 0.4;
-        const spanAngle = 0.5; // Walk along a ~30 degree arc on the circular sidewalk
+        const spanAngle = 0.65;
 
         const startAngle = baseAngle;
         const endAngle = baseAngle + spanAngle;
@@ -95,7 +96,7 @@ export class CityPedestrians {
           walkPath: {
             start: new THREE.Vector3(startX, 0.04, startZ),
             end: new THREE.Vector3(endX, 0.04, endZ),
-            speed: 0.45 + (i % 3) * 0.15
+            speed: 0.48 + (i % 3) * 0.14
           },
           visorColor: i % 2 === 0 ? '#36D7E7' : '#FDE047',
           activityState: 'active'
@@ -104,6 +105,99 @@ export class CityPedestrians {
         this.pedestrians.push(walker);
         this.group.add(walker.group);
       }
+    });
+  }
+
+  /**
+   * 3. Pedestrians actively crossing NYC white zebra crosswalks from one sidewalk to the other
+   */
+  private spawnCrosswalkZebraWalkers(roadWaypoints: RoadWaypoints) {
+    const crosswalkRadii = [
+      waypointsRadius(roadWaypoints.innerRingRadius + 2.2),
+      waypointsRadius(roadWaypoints.outerRingRadius - 2.2),
+      waypointsRadius(roadWaypoints.outerRingRadius + 2.2)
+    ];
+
+    function waypointsRadius(r: number) { return r; }
+
+    roadWaypoints.radialAvenues.forEach((ave, aveIdx) => {
+      crosswalkRadii.forEach((radius, cIdx) => {
+        // Only spawn on alternate intersections to keep realistic pacing
+        if ((aveIdx + cIdx) % 2 !== 0) return;
+
+        const normalAngle = ave.angle + Math.PI / 2;
+        const roadHalfSpan = 1.7; // From left curb to right curb
+
+        const cx = Math.cos(ave.angle) * radius;
+        const cz = Math.sin(ave.angle) * radius;
+
+        // Side A (Left sidewalk) to Side B (Right sidewalk)
+        const startX = cx - Math.cos(normalAngle) * roadHalfSpan;
+        const startZ = cz - Math.sin(normalAngle) * roadHalfSpan;
+        const endX = cx + Math.cos(normalAngle) * roadHalfSpan;
+        const endZ = cz + Math.sin(normalAngle) * roadHalfSpan;
+
+        const crossWalker = new AgentWorker({
+          x: startX,
+          y: 0.04,
+          z: startZ,
+          isWalking: true,
+          walkPath: {
+            start: new THREE.Vector3(startX, 0.04, startZ),
+            end: new THREE.Vector3(endX, 0.04, endZ),
+            speed: 0.5 + Math.random() * 0.25
+          },
+          visorColor: aveIdx % 2 === 0 ? '#F0A824' : '#38BDF8',
+          activityState: 'active'
+        });
+
+        this.pedestrians.push(crossWalker);
+        this.group.add(crossWalker.group);
+      });
+    });
+  }
+
+  /**
+   * 4. Central Park strollers & park bench sitters
+   */
+  private spawnParkStrollers() {
+    const parkZones = [
+      { cx: 8, cz: 8 },
+      { cx: -8, cz: -8 },
+      { cx: -8, cz: 8 },
+      { cx: 8, cz: -8 }
+    ];
+
+    parkZones.forEach((pz, idx) => {
+      // 1 walker strolling through park
+      const walker = new AgentWorker({
+        x: pz.cx - 1.5,
+        y: 0.04,
+        z: pz.cz - 1.5,
+        isWalking: true,
+        walkPath: {
+          start: new THREE.Vector3(pz.cx - 1.5, 0.04, pz.cz - 1.5),
+          end: new THREE.Vector3(pz.cx + 1.5, 0.04, pz.cz + 1.5),
+          speed: 0.38 + Math.random() * 0.15
+        },
+        visorColor: '#2FD27F',
+        activityState: 'active'
+      });
+      this.pedestrians.push(walker);
+      this.group.add(walker.group);
+
+      // 1 agent seated on the park bench
+      const benchSitter = new AgentWorker({
+        x: pz.cx + 1.2,
+        y: 0.22,
+        z: pz.cz - 1.2,
+        isSeated: true,
+        rotationY: idx % 2 === 0 ? Math.PI / 2 : -Math.PI / 2,
+        visorColor: '#36D7E7',
+        activityState: 'active'
+      });
+      this.pedestrians.push(benchSitter);
+      this.group.add(benchSitter.group);
     });
   }
 

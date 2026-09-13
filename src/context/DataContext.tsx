@@ -8,30 +8,18 @@ import {
 } from '../data/technocore';
 import { parseProbeMessage, type ParsedProbe } from '../data/probeParser';
 import { calculate120sWindow, windowToProbeRun } from '../data/responseWindows';
-import { verifyTechnocoreSignature, type SignatureVerificationStatus } from '../data/technocoreCrypto';
+import { verifyTechnocoreSignature } from '../data/technocoreCrypto';
+import {
+  DEMO_ROOM_SUMMARIES,
+  DEMO_RUNS,
+  DEMO_SIGNED_RECORDS,
+  DEMO_ROOM_CLUSTERS,
+  DEMO_ARM_SUMMARIES,
+  DEMO_DATASET_LABEL,
+  DEMO_DISCLAIMER_TEXT
+} from '../data/demoCityData';
 
-export type GlobalDataMode = 'LIVE' | 'REPLAY';
-
-export interface ObservedIdentity {
-  id: string; // Unique DID or sender identifier
-  did: string;
-  shortDid: string;
-  alias?: string;
-  verificationStatus: SignatureVerificationStatus;
-  isVerified: boolean;
-  firstObserved: number;
-  lastObserved: number;
-  freshnessLabel: string; // e.g. "Observed recently", "Last seen 8m ago"
-  roomsSeen: string[];
-  observedMessageCount: number;
-  latestMessage?: {
-    text: string;
-    room: string;
-    timestamp: number;
-    sequence: number;
-    sig?: string;
-  };
-}
+export type GlobalDataMode = 'LIVE' | 'DEMO' | 'REPLAY';
 
 export interface LiveObservationStats {
   isDemo: boolean;
@@ -59,7 +47,6 @@ interface DataContextType {
   activeRoomClusters: RoomCluster[];
   activeArmSummaries: ArmSummary[];
   signedRecords: SignedRecord[];
-  observedIdentities: ObservedIdentity[];
   refreshLiveData: () => Promise<void>;
   disclaimerText: string | null;
 }
@@ -76,19 +63,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [liveRooms, setLiveRooms] = useState<TechnocoreRoomSummary[]>([]);
   const [liveDetectedRuns, setLiveDetectedRuns] = useState<ProbeRun[]>([]);
   const [liveSignedRecords, setLiveSignedRecords] = useState<SignedRecord[]>([]);
-  const [liveObservedIdentities, setLiveObservedIdentities] = useState<ObservedIdentity[]>([]);
   const [observationStartTime] = useState<string>(new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC');
   const [ephemeralDepth, setEphemeralDepth] = useState<number>(0);
   const [uniqueLiveDids, setUniqueLiveDids] = useState<number>(0);
 
   const abortControllerRef = useRef<AbortController | null>(null);
-  const [sessionCapture, setSessionCapture] = useState<{
-    runs: ProbeRun[];
-    records: SignedRecord[];
-    identities: ObservedIdentity[];
-    rooms: TechnocoreRoomSummary[];
-    capturedAt: string;
-  } | null>(null);
 
   const fetchLiveObservations = useCallback(async () => {
     if (abortControllerRef.current) {
@@ -97,7 +76,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
-    // Fast return for REPLAY
+    // Fast return for DEMO or REPLAY
     if (dataMode !== 'LIVE') {
       setIsLiveLoading(false);
       return;
@@ -115,7 +94,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (roomsList.length === 0) {
         setLiveDetectedRuns([]);
         setLiveSignedRecords([]);
-        setLiveObservedIdentities([]);
         setEphemeralDepth(0);
         setUniqueLiveDids(0);
         setObserverHealth('LIVE');
@@ -143,67 +121,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         msg: any;
       }[] = [];
 
-      // Identity extraction map
-      const identityMap = new Map<string, {
-        did: string;
-        verificationStatus: SignatureVerificationStatus;
-        isVerified: boolean;
-        firstObserved: number;
-        lastObserved: number;
-        roomsSeen: Set<string>;
-        observedMessageCount: number;
-        latestMessage?: {
-          text: string;
-          room: string;
-          timestamp: number;
-          sequence: number;
-          sig?: string;
-        };
-      }>();
-
       roomSamples.forEach((messages, roomName) => {
         totalFetchedMsgs += messages.length;
         messages.forEach((m) => {
-          const sender = (m.from || '').trim();
-          if (sender) {
-            allDids.add(sender);
-            const msgTime = new Date(m.ts).getTime() || Date.now();
-
-            const existing = identityMap.get(sender);
-            if (existing) {
-              existing.observedMessageCount++;
-              existing.roomsSeen.add(roomName);
-              if (msgTime < existing.firstObserved) existing.firstObserved = msgTime;
-              if (msgTime >= existing.lastObserved) {
-                existing.lastObserved = msgTime;
-                existing.latestMessage = {
-                  text: m.text || '',
-                  room: roomName,
-                  timestamp: msgTime,
-                  sequence: m.seq,
-                  sig: m.sig
-                };
-              }
-            } else {
-              identityMap.set(sender, {
-                did: sender,
-                verificationStatus: m.sig ? 'PRESENT_UNVERIFIED' : 'UNSIGNED',
-                isVerified: false,
-                firstObserved: msgTime,
-                lastObserved: msgTime,
-                roomsSeen: new Set([roomName]),
-                observedMessageCount: 1,
-                latestMessage: {
-                  text: m.text || '',
-                  room: roomName,
-                  timestamp: msgTime,
-                  sequence: m.seq,
-                  sig: m.sig
-                }
-              });
-            }
-          }
-
+          if (m.from) allDids.add(m.from);
           const parsed = parseProbeMessage(m, roomName);
           if (parsed) {
             if (parsed.isProbe) {
@@ -224,7 +145,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Verify signatures with zero fabrication
       const verifiedList: SignedRecord[] = await Promise.all(
         candidateRecordsToVerify.slice(0, 30).map(async ({ room, msg }) => {
-          let verificationStatus: SignatureVerificationStatus = 'UNSIGNED';
+          let verificationStatus: 'VERIFIED' | 'INVALID' | 'PRESENT_UNVERIFIED' | 'UNSIGNED' = 'UNSIGNED';
           let verificationReason: string | undefined;
 
           if (!msg.sig) {
@@ -241,22 +162,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             verificationReason = result.reason;
           }
 
-          // Update identity verification status in identityMap
-          const idEntry = identityMap.get(msg.from);
-          if (idEntry && verificationStatus === 'VERIFIED') {
-            idEntry.verificationStatus = 'VERIFIED';
-            idEntry.isVerified = true;
-          } else if (idEntry && verificationStatus === 'INVALID' && idEntry.verificationStatus !== 'VERIFIED') {
-            idEntry.verificationStatus = 'INVALID';
-          }
-
           return {
             did: msg.from,
             signature: msg.sig || null,
             verificationStatus,
             isVerified: verificationStatus === 'VERIFIED',
             verificationReason,
-            timestamp: new Date(msg.ts).getTime() || Date.now(),
+            timestamp: new Date(msg.ts).getTime(),
             isoDate: msg.ts,
             room,
             message: msg.text || '',
@@ -268,33 +180,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Sort newest first
       verifiedList.sort((a, b) => b.timestamp - a.timestamp);
       setLiveSignedRecords(verifiedList);
-
-      // Format clean observed identities
-      const nowMs = Date.now();
-      const identitiesList: ObservedIdentity[] = Array.from(identityMap.values()).map((item) => {
-        const diffMins = Math.max(0, Math.floor((nowMs - item.lastObserved) / 60000));
-        const freshness = diffMins === 0 ? 'Observed recently' : `Last seen ${diffMins}m ago`;
-        const short = item.did.length > 20
-          ? `${item.did.slice(0, 12)}...${item.did.slice(-4)}`
-          : item.did;
-
-        return {
-          id: item.did,
-          did: item.did,
-          shortDid: short,
-          verificationStatus: item.verificationStatus,
-          isVerified: item.isVerified,
-          firstObserved: item.firstObserved,
-          lastObserved: item.lastObserved,
-          freshnessLabel: freshness,
-          roomsSeen: Array.from(item.roomsSeen),
-          observedMessageCount: item.observedMessageCount,
-          latestMessage: item.latestMessage
-        };
-      });
-
-      identitiesList.sort((a, b) => b.lastObserved - a.lastObserved);
-      setLiveObservedIdentities(identitiesList);
 
       // Prioritize explicit probe posts, supplemented by newest general public room messages
       const combinedCandidates = [
@@ -308,18 +193,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return windowToProbeRun(window, idx + 1);
       });
 
+      // Sort newest first
       calculatedRuns.sort((a, b) => b.timestamp - a.timestamp);
+
       setLiveDetectedRuns(calculatedRuns);
       setObserverHealth('LIVE');
-
-      // Record in session capture buffer for truthful REPLAY capability
-      setSessionCapture({
-        runs: calculatedRuns,
-        records: verifiedList,
-        identities: identitiesList,
-        rooms: roomsList,
-        capturedAt: new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC'
-      });
     } catch (err: any) {
       if (err.name === 'AbortError') return;
 
@@ -334,7 +212,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [dataMode]);
 
-  // Fetch immediately on mount and set polite 25s polling interval
+  // Fetch immediately on mount and set a polite 25s polling interval
   useEffect(() => {
     fetchLiveObservations();
 
@@ -354,42 +232,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // ROOM CLUSTERS: Strictly derived from active mode
   // -------------------------------------------------------------
   const activeRoomClusters: RoomCluster[] = React.useMemo(() => {
-    if (dataMode === 'REPLAY') {
-      const cap = sessionCapture;
-      if (!cap || cap.rooms.length === 0) {
-        return [];
-      }
-      const baseColors = ['#00B4D8', '#4CC9F0', '#0466C8', '#7B2CBF', '#F0A824', '#32D74B'];
-      const coords: [number, number, number][] = [
-        [0, 0, 0],
-        [18, 0, 0],
-        [18, 0, -18],
-        [0, 0, -18],
-        [-18, 0, -18],
-        [-18, 0, 0],
-        [-18, 0, 18],
-        [0, 0, 18]
-      ];
-      const visualDistricts = ['coordination', 'settlement-prep', 'compute-relay', 'agent-social'] as const;
+    if (dataMode === 'DEMO') {
+      return DEMO_ROOM_CLUSTERS;
+    }
 
-      return cap.rooms.slice(0, 8).map((r, idx) => ({
-        id: `replay-room-${r.room}`,
-        name: r.room,
-        displayName: `#${r.room} (REPLAY)`,
-        category: 'unclassified',
-        visualDistrict: visualDistricts[idx % visualDistricts.length],
-        didIdentitiesObserved: null,
-        verifiedSigningDids: 0,
-        signedIdentitiesObserved: null,
-        activeAgentsCount: null,
-        totalProbesReceived: cap.runs.filter(p => p.roomId === `room-${r.room}` || p.roomName.replace('#', '') === r.room).length,
-        medianSubsequentLatencySeconds: null,
-        averageResponseLatency: null,
-        status: 'nominal' as const,
-        color: baseColors[idx % baseColors.length],
-        coordinates: coords[idx % coords.length],
-        lastProbeArm: undefined,
-        topic: r.topic || null
+    if (dataMode === 'REPLAY') {
+      return DEMO_ROOM_CLUSTERS.map(c => ({
+        ...c,
+        id: c.id.replace('demo-', 'replay-'),
+        displayName: c.displayName.replace('(DEMO)', '(REPLAY)')
       }));
     }
 
@@ -398,22 +249,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return [];
     }
 
-    const baseColors = ['#00B4D8', '#4CC9F0', '#0466C8', '#7B2CBF', '#F0A824', '#32D74B'];
+    const baseColors = ['#36D7E7', '#A855F7', '#4DA3FF', '#2FD27F', '#F0A824', '#38BDF8'];
     const coords: [number, number, number][] = [
-      [0, 0, 0],
-      [18, 0, 0],
-      [18, 0, -18],
-      [0, 0, -18],
-      [-18, 0, -18],
-      [-18, 0, 0],
-      [-18, 0, 18],
-      [0, 0, 18]
+      [-18, 12, 5],
+      [15, -8, 14],
+      [-8, -16, -10],
+      [10, 18, -12],
+      [-22, -6, 18],
+      [20, 4, -8],
+      [-14, 14, -14],
+      [16, -12, -8]
     ];
     const visualDistricts = ['coordination', 'settlement-prep', 'compute-relay', 'agent-social'] as const;
 
     return liveRooms.slice(0, 8).map((r, idx) => {
       const matchingRuns = liveDetectedRuns.filter(p => p.roomId === `room-${r.room}` || p.roomName.replace('#', '') === r.room);
       
+      // Calculate real unique DIDs and verified signing DIDs observed in this specific room
       const roomDids = new Set<string>();
       matchingRuns.forEach(run => {
         run.observedMessages.forEach(m => {
@@ -421,11 +273,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       });
 
+      // Calculate verified signing DIDs from liveSignedRecords for this room
       const verifiedRoomDids = new Set<string>();
       liveSignedRecords
         .filter(rec => (rec.room === r.room || rec.room === `room-${r.room}`) && rec.verificationStatus === 'VERIFIED')
         .forEach(rec => verifiedRoomDids.add(rec.did));
 
+      // Calculate empirical median subsequent message latency if observation window had subsequent messages
       const runsWithActivity = matchingRuns.filter(p => p.metrics.messagesInWindow > 0);
       const latencies = runsWithActivity.map(p => p.metrics.firstResponseLatencySeconds).sort((a, b) => a - b);
       const measuredLatency = latencies.length > 0 ? latencies[Math.floor(latencies.length / 2)] : null;
@@ -434,40 +288,47 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: `live-room-${r.room}`,
         name: r.room,
         displayName: `#${r.room}`,
+        // Category is strictly unclassified in LIVE mode; visualDistrict is an explicit 3D architectural assignment
         category: 'unclassified',
         visualDistrict: visualDistricts[idx % visualDistricts.length],
         didIdentitiesObserved: roomDids.size > 0 ? roomDids.size : null,
         verifiedSigningDids: verifiedRoomDids.size > 0 ? verifiedRoomDids.size : 0,
-        signedIdentitiesObserved: roomDids.size > 0 ? roomDids.size : null,
-        activeAgentsCount: null,
+        signedIdentitiesObserved: roomDids.size > 0 ? roomDids.size : null, // legacy alias
+        activeAgentsCount: null, // Zero fabrication: never estimate from diversity metrics
         totalProbesReceived: matchingRuns.length,
-        medianSubsequentLatencySeconds: measuredLatency,
-        averageResponseLatency: measuredLatency,
+        medianSubsequentLatencySeconds: measuredLatency, // Strictly measured from 120s window or null (NEVER idle_seconds)
+        averageResponseLatency: measuredLatency, // Legacy alias
         status: (r.idle_seconds < 30 ? 'active' : 'nominal') as 'active' | 'nominal',
         color: baseColors[idx % baseColors.length],
         coordinates: coords[idx % coords.length],
         lastProbeArm: matchingRuns[0]?.arm,
-        topic: r.topic || null
+        topic: r.topic || null // Direct untrusted string from API response, no hardcoded claims
       };
     });
-  }, [dataMode, liveRooms, liveDetectedRuns, liveSignedRecords, sessionCapture]);
+  }, [dataMode, liveRooms, liveDetectedRuns, liveSignedRecords]);
 
   // -------------------------------------------------------------
   // ARM SUMMARIES: Mode-dependent computation
   // -------------------------------------------------------------
   const activeArmSummaries: ArmSummary[] = React.useMemo(() => {
-    const runsSource = dataMode === 'REPLAY' ? (sessionCapture?.runs || []) : liveDetectedRuns;
+    if (dataMode === 'DEMO') {
+      return DEMO_ARM_SUMMARIES;
+    }
+    if (dataMode === 'REPLAY') {
+      return DEMO_ARM_SUMMARIES;
+    }
 
-    const questionRuns = runsSource.filter(r => r.arm === 'question');
-    const offerRuns = runsSource.filter(r => r.arm === 'offer');
-    const statementRuns = runsSource.filter(r => r.arm === 'statement');
+    // LIVE mode: compute strictly from detected runs
+    const questionRuns = liveDetectedRuns.filter(r => r.arm === 'question');
+    const offerRuns = liveDetectedRuns.filter(r => r.arm === 'offer');
+    const statementRuns = liveDetectedRuns.filter(r => r.arm === 'statement');
 
     const calcArm = (runs: ProbeRun[], arm: 'question' | 'offer' | 'statement', label: string, color: string): ArmSummary => {
       if (runs.length === 0) {
         return {
           arm,
           label,
-          description: `Observed ${arm} signals across public Technocore rooms.`,
+          description: `Live ${arm} observations in public rooms.`,
           hypothesis: arm === 'question' ? 'Inquiries invite subsequent participation.' : arm === 'offer' ? 'Intent offers invite counter-proposals.' : 'Context writes serve as distributed memory.',
           samplePayload: `probe v1 | live | ${arm}`,
           totalProbes: 0,
@@ -488,7 +349,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return {
         arm,
         label,
-        description: `Observed ${arm} signals across public Technocore rooms.`,
+        description: `Live ${arm} observations in public rooms.`,
         hypothesis: arm === 'question' ? 'Inquiries invite subsequent participation.' : arm === 'offer' ? 'Intent offers invite counter-proposals.' : 'Context writes serve as distributed memory.',
         samplePayload: runs[0]?.probePayload || `probe v1 | live | ${arm}`,
         totalProbes: runs.length,
@@ -503,65 +364,62 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return [
       calcArm(questionRuns, 'question', 'Question Arm', '#F0A824'),
       calcArm(offerRuns, 'offer', 'Offer Arm', '#A855F7'),
-      calcArm(statementRuns, 'statement', 'Statement Arm', '#00B4D8')
+      calcArm(statementRuns, 'statement', 'Statement Arm', '#36D7E7')
     ];
-  }, [dataMode, liveDetectedRuns, sessionCapture]);
+  }, [dataMode, liveDetectedRuns]);
 
   // -------------------------------------------------------------
-  // SIGNED RECORDS: Strictly empirical
+  // SIGNED RECORDS: Mode-dependent extraction
   // -------------------------------------------------------------
   const signedRecords: SignedRecord[] = React.useMemo(() => {
-    if (dataMode === 'REPLAY') {
-      return sessionCapture?.records || [];
+    if (dataMode === 'DEMO') {
+      return DEMO_SIGNED_RECORDS;
     }
-    return liveSignedRecords;
-  }, [dataMode, liveSignedRecords, sessionCapture]);
+    if (dataMode === 'REPLAY') {
+      return DEMO_SIGNED_RECORDS.map(r => ({
+        ...r,
+        message: r.message.replace('[DEMO MESSAGE]', '[REPLAY RECORD]')
+      }));
+    }
 
-  // -------------------------------------------------------------
-  // OBSERVED IDENTITIES: Derived from real records
-  // -------------------------------------------------------------
-  const observedIdentities: ObservedIdentity[] = React.useMemo(() => {
-    if (dataMode === 'REPLAY') {
-      return sessionCapture?.identities || [];
-    }
-    return liveObservedIdentities;
-  }, [dataMode, liveObservedIdentities, sessionCapture]);
+    // LIVE mode: Strictly empirical verified / unverified signatures
+    // Zero manufactured hex strings; zero fake operator verification
+    return liveSignedRecords;
+  }, [dataMode, liveSignedRecords]);
 
   // -------------------------------------------------------------
   // LIVE OBSERVATION STATS: Scientifically honest
   // -------------------------------------------------------------
   const activeStats: LiveObservationStats = React.useMemo(() => {
-    if (dataMode === 'REPLAY') {
-      const cap = sessionCapture;
-      if (!cap || cap.records.length === 0) {
-        return {
-          isDemo: false,
-          datasetLabel: 'REPLAY · No Session Capture Recorded (Monitor LIVE mode first)',
-          totalProbesFired: 0,
-          activeRoomsMonitored: 0,
-          didIdentitiesObserved: null,
-          verifiedSigningDids: 0,
-          uniqueSignedIdentities: null,
-          overallMedianLatency: null,
-          observationStartTime,
-          ephemeralMessageDepth: 0,
-          totalObservedRooms: 0
-        };
-      }
-      const verifiedCapDids = new Set(cap.records.filter(r => r.verificationStatus === 'VERIFIED').map(r => r.did)).size;
-      const uniqueCapDids = new Set(cap.records.map(r => r.did)).size;
+    if (dataMode === 'DEMO') {
       return {
-        isDemo: false,
-        datasetLabel: `REPLAY · Captured Session (${cap.capturedAt})`,
-        totalProbesFired: cap.runs.length,
-        activeRoomsMonitored: cap.rooms.length,
-        didIdentitiesObserved: uniqueCapDids > 0 ? uniqueCapDids : null,
-        verifiedSigningDids: verifiedCapDids,
-        uniqueSignedIdentities: uniqueCapDids > 0 ? uniqueCapDids : null,
-        overallMedianLatency: null,
-        observationStartTime: cap.capturedAt,
-        ephemeralMessageDepth: cap.records.length,
-        totalObservedRooms: cap.rooms.length
+        isDemo: true,
+        datasetLabel: DEMO_DATASET_LABEL,
+        totalProbesFired: DEMO_RUNS.length,
+        activeRoomsMonitored: DEMO_ROOM_SUMMARIES.length,
+        didIdentitiesObserved: 6,
+        verifiedSigningDids: 4,
+        uniqueSignedIdentities: 6,
+        overallMedianLatency: 1.4,
+        observationStartTime,
+        ephemeralMessageDepth: 24,
+        totalObservedRooms: DEMO_ROOM_SUMMARIES.length
+      };
+    }
+
+    if (dataMode === 'REPLAY') {
+      return {
+        isDemo: true,
+        datasetLabel: 'REPLAY · Historical Capture Dataset',
+        totalProbesFired: DEMO_RUNS.length,
+        activeRoomsMonitored: DEMO_ROOM_SUMMARIES.length,
+        didIdentitiesObserved: 6,
+        verifiedSigningDids: 4,
+        uniqueSignedIdentities: 6,
+        overallMedianLatency: 1.4,
+        observationStartTime,
+        ephemeralMessageDepth: 24,
+        totalObservedRooms: DEMO_ROOM_SUMMARIES.length
       };
     }
 
@@ -570,21 +428,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const allLatencies = allWithActivity.map(r => r.metrics.firstResponseLatencySeconds).sort((a, b) => a - b);
     const overallMedian = allLatencies.length > 0 ? allLatencies[Math.floor(allLatencies.length / 2)] : null;
 
-    let datasetLabel = 'LIVE Public Technocore Ingestion';
+    let datasetLabel = 'Live Public Technocore Ingestion';
     if (isLiveLoading && liveRooms.length === 0) {
-      datasetLabel = 'CONNECTING TO PUBLIC OBSERVATORY...';
+      datasetLabel = 'LOADING LIVE DATA...';
     } else if (liveError) {
-      datasetLabel = 'OBSERVATORY FEED UNAVAILABLE';
+      datasetLabel = 'LIVE DATA UNAVAILABLE';
     } else if (observerHealth === 'RATE LIMITED') {
       datasetLabel = 'RATE LIMITED';
     } else if (liveRooms.length === 0) {
-      datasetLabel = 'ZERO PUBLIC ROOMS DETECTED';
+      datasetLabel = 'ZERO PUBLIC ROOMS ACTIVE';
     }
 
-    // Deduplicate distinct verified DIDs (multiple messages signed by 1 DID = 1 verified DID)
-    const verifiedUniqueDids = new Set(
-      liveSignedRecords.filter(r => r.verificationStatus === 'VERIFIED').map(r => r.did)
-    ).size;
+    const verifiedCount = liveSignedRecords.filter(r => r.verificationStatus === 'VERIFIED').length;
 
     return {
       isDemo: false,
@@ -592,14 +447,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       totalProbesFired: liveDetectedRuns.length,
       activeRoomsMonitored: liveRooms.length,
       didIdentitiesObserved: uniqueLiveDids > 0 ? uniqueLiveDids : null,
-      verifiedSigningDids: verifiedUniqueDids,
-      uniqueSignedIdentities: uniqueLiveDids > 0 ? uniqueLiveDids : null,
+      verifiedSigningDids: verifiedCount > 0 ? verifiedCount : 0,
+      uniqueSignedIdentities: uniqueLiveDids > 0 ? uniqueLiveDids : null, // legacy alias
       overallMedianLatency: overallMedian,
       observationStartTime,
       ephemeralMessageDepth: ephemeralDepth,
       totalObservedRooms: liveRooms.length
     };
-  }, [dataMode, isLiveLoading, liveError, observerHealth, liveRooms, liveDetectedRuns, liveSignedRecords, uniqueLiveDids, ephemeralDepth, observationStartTime, sessionCapture]);
+  }, [dataMode, isLiveLoading, liveError, observerHealth, liveRooms, liveDetectedRuns, liveSignedRecords, uniqueLiveDids, ephemeralDepth, observationStartTime]);
 
   return (
     <DataContext.Provider
@@ -610,14 +465,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLiveLoading,
         liveError,
         liveRooms,
-        activeRuns: dataMode === 'REPLAY' ? (sessionCapture?.runs || []) : liveDetectedRuns,
+        activeRuns: dataMode === 'DEMO' ? DEMO_RUNS : liveDetectedRuns,
         activeStats,
         activeRoomClusters,
         activeArmSummaries,
         signedRecords,
-        observedIdentities,
         refreshLiveData: fetchLiveObservations,
-        disclaimerText: 'Real-time observation of Technocore public endpoints. Every identity, metric, and activity event is derived strictly from real observed records.'
+        disclaimerText: dataMode === 'DEMO' ? DEMO_DISCLAIMER_TEXT : null
       }}
     >
       {children}

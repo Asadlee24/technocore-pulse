@@ -168,71 +168,136 @@ export class CityTransportManager {
   }
 
   /**
-   * Spawns road couriers cruising along radial grand avenues and concentric circular boulevards
+   * Builds an authentic NYC Yellow Taxi Cab mesh (yellow chassis, cabin, TAXI roof sign, wheels, lights)
    */
-  private spawnHighwayCouriers() {
-    const bodyGeo = new THREE.BoxGeometry(0.7, 0.22, 0.36);
-    const bodyMat = new THREE.MeshStandardMaterial({
-      color: 0x0E1724,
-      roughness: 0.3,
-      metalness: 0.7
+  private createNYCTaxiMesh(): THREE.Group {
+    const taxi = new THREE.Group();
+
+    // 1. Authentic NYC Yellow Body Material
+    const yellowMat = new THREE.MeshStandardMaterial({
+      color: 0xF59E0B, // Vibrant NYC Yellow Cab
+      metalness: 0.5,
+      roughness: 0.3
     });
 
-    const headlightMat = new THREE.MeshBasicMaterial({ color: 0xFDE047 }); // Warm yellow headlights
-    const taillightMat = new THREE.MeshBasicMaterial({ color: 0xEF4444 }); // Red taillights
+    const blackMat = new THREE.MeshStandardMaterial({
+      color: 0x0F172A,
+      roughness: 0.8
+    });
 
-    // 8 couriers traversing radial avenues
+    const glassMat = new THREE.MeshStandardMaterial({
+      color: 0x1E293B,
+      metalness: 0.85,
+      roughness: 0.15
+    });
+
+    const taxiSignMat = new THREE.MeshBasicMaterial({
+      color: 0xFEF08A // Illuminated taxi roof sign
+    });
+
+    const headlightMat = new THREE.MeshBasicMaterial({ color: 0xFEF9C3 });
+    const taillightMat = new THREE.MeshBasicMaterial({ color: 0xEF4444 });
+
+    // Lower Chassis
+    const bodyGeo = new THREE.BoxGeometry(0.88, 0.16, 0.42);
+    const body = new THREE.Mesh(bodyGeo, yellowMat);
+    body.position.y = 0.11;
+    taxi.add(body);
+
+    // Upper Cabin Glass
+    const cabinGeo = new THREE.BoxGeometry(0.48, 0.15, 0.36);
+    const cabin = new THREE.Mesh(cabinGeo, glassMat);
+    cabin.position.set(-0.04, 0.24, 0);
+    taxi.add(cabin);
+
+    // Yellow Roof Cap
+    const roofGeo = new THREE.BoxGeometry(0.5, 0.03, 0.38);
+    const roof = new THREE.Mesh(roofGeo, yellowMat);
+    roof.position.set(-0.04, 0.32, 0);
+    taxi.add(roof);
+
+    // NYC TAXI Roof Light
+    const signGeo = new THREE.BoxGeometry(0.14, 0.06, 0.16);
+    const sign = new THREE.Mesh(signGeo, taxiSignMat);
+    sign.position.set(-0.04, 0.36, 0);
+    taxi.add(sign);
+
+    // Black Checkered Side Stripe
+    const stripeGeo = new THREE.BoxGeometry(0.86, 0.025, 0.43);
+    const stripe = new THREE.Mesh(stripeGeo, blackMat);
+    stripe.position.y = 0.13;
+    taxi.add(stripe);
+
+    // 4 Wheels
+    const wheelGeo = new THREE.CylinderGeometry(0.075, 0.075, 0.05, 8);
+    wheelGeo.rotateX(Math.PI / 2);
+    [[-0.26, 0.2], [0.26, 0.2], [-0.26, -0.2], [0.26, -0.2]].forEach(([wx, wz]) => {
+      const wheel = new THREE.Mesh(wheelGeo, blackMat);
+      wheel.position.set(wx, 0.075, wz);
+      taxi.add(wheel);
+    });
+
+    // Headlights
+    [-0.14, 0.14].forEach((hz) => {
+      const head = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.05, 0.07), headlightMat);
+      head.position.set(0.44, 0.12, hz);
+      taxi.add(head);
+    });
+
+    // Taillights
+    [-0.14, 0.14].forEach((tz) => {
+      const tail = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.05, 0.07), taillightMat);
+      tail.position.set(-0.44, 0.12, tz);
+      taxi.add(tail);
+    });
+
+    return taxi;
+  }
+
+  /**
+   * Spawns iconic NYC Yellow Taxis cruising along radial grand avenues and concentric circular boulevards
+   */
+  private spawnHighwayCouriers() {
+    // 1. 16 NYC Yellow Cabs traversing radial avenues (2 per avenue)
     for (let i = 0; i < 8; i++) {
-      const courierGroup = new THREE.Group();
       const angle = (i / 8) * Math.PI * 2;
-      
-      const body = new THREE.Mesh(bodyGeo, bodyMat);
-      courierGroup.add(body);
 
-      // Headlight
-      const head = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.24), headlightMat);
-      head.position.set(0.35, 0.02, 0);
-      courierGroup.add(head);
-
-      // Taillight
-      const tail = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.24), taillightMat);
-      tail.position.set(-0.35, 0.02, 0);
-      courierGroup.add(tail);
-
-      this.group.add(courierGroup);
+      // Taxi 1 (Outbound lane)
+      const taxi1 = this.createNYCTaxiMesh();
+      this.group.add(taxi1);
       this.highwayCouriers.push({
-        group: courierGroup,
+        group: taxi1,
         type: 'radial',
         avenueAngle: angle,
-        speed: 0.35 + (i % 3) * 0.1,
-        offset: i * 0.8
+        speed: 0.38 + (i % 3) * 0.08,
+        offset: i * 1.1
+      });
+
+      // Taxi 2 (Inbound lane)
+      const taxi2 = this.createNYCTaxiMesh();
+      this.group.add(taxi2);
+      this.highwayCouriers.push({
+        group: taxi2,
+        type: 'radial',
+        avenueAngle: angle,
+        speed: 0.34 + ((i + 1) % 3) * 0.08,
+        offset: i * 1.1 + Math.PI
       });
     }
 
-    // Concentric ring couriers circling inner (r=14), mid (r=28), and beltway (r=43)
+    // 2. 18 NYC Yellow Cabs circling concentric boulevard rings (inner r=14, mid r=28, beltway r=43)
     const ringConfigs = [
-      { radius: 14.0, speed: 0.35, count: 4 },
-      { radius: 28.0, speed: -0.25, count: 5 },
-      { radius: 43.0, speed: 0.18, count: 5 }
+      { radius: 14.0, speed: 0.35, count: 5 },
+      { radius: 28.0, speed: -0.28, count: 7 },
+      { radius: 43.0, speed: 0.22, count: 6 }
     ];
 
     ringConfigs.forEach((cfg) => {
       for (let j = 0; j < cfg.count; j++) {
-        const ringCourier = new THREE.Group();
-        const body = new THREE.Mesh(bodyGeo, bodyMat);
-        ringCourier.add(body);
-
-        const head = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.24), headlightMat);
-        head.position.set(0.35, 0.02, 0);
-        ringCourier.add(head);
-
-        const tail = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.24), taillightMat);
-        tail.position.set(-0.35, 0.02, 0);
-        ringCourier.add(tail);
-
-        this.group.add(ringCourier);
+        const ringTaxi = this.createNYCTaxiMesh();
+        this.group.add(ringTaxi);
         this.highwayCouriers.push({
-          group: ringCourier,
+          group: ringTaxi,
           type: 'ring',
           ringRadius: cfg.radius,
           speed: cfg.speed,

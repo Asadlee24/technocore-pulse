@@ -10,6 +10,8 @@ export class CityRoads {
 
     this.buildRoadSurfaces(waypoints, theme);
     this.buildGlowingLaneMarkings(waypoints, theme);
+    this.buildNYCCrosswalks(waypoints);
+    this.buildSubwayEntrances(waypoints);
     this.buildElevatedDataFlyovers(theme);
   }
 
@@ -169,6 +171,137 @@ export class CityRoads {
         );
         this.group.add(curbMesh);
       });
+    });
+  }
+
+  /**
+   * Iconic NYC White Zebra Crosswalks at street intersections
+   */
+  private buildNYCCrosswalks(waypoints: RoadWaypoints) {
+    const zebraMat = new THREE.MeshBasicMaterial({
+      color: 0xF8FAFC,
+      transparent: true,
+      opacity: 0.92
+    });
+
+    const stopLineMat = new THREE.MeshBasicMaterial({
+      color: 0xF8FAFC,
+      transparent: true,
+      opacity: 0.85
+    });
+
+    const crosswalkRadii = [
+      waypoints.innerRingRadius + 2.2,
+      waypoints.outerRingRadius - 2.2,
+      waypoints.outerRingRadius + 2.2,
+      waypoints.beltwayRadius - 2.4
+    ];
+
+    waypoints.radialAvenues.forEach((ave) => {
+      const normalAngle = ave.angle + Math.PI / 2;
+
+      crosswalkRadii.forEach((radius) => {
+        // Center position of crosswalk on the avenue
+        const cx = Math.cos(ave.angle) * radius;
+        const cz = Math.sin(ave.angle) * radius;
+
+        // 6 distinct zebra bars across avenue width (2.4m wide road)
+        const barWidth = 0.22;
+        const barLength = 1.6;
+        const stripeCount = 6;
+        const totalSpan = 2.0;
+
+        for (let i = 0; i < stripeCount; i++) {
+          const t = (i / (stripeCount - 1)) - 0.5; // -0.5 to 0.5
+          const offset = t * totalSpan;
+
+          const barGeo = new THREE.PlaneGeometry(barWidth, barLength);
+          const bar = new THREE.Mesh(barGeo, zebraMat);
+          bar.rotation.x = -Math.PI / 2;
+          bar.rotation.z = -ave.angle;
+
+          bar.position.set(
+            cx + Math.cos(normalAngle) * offset,
+            0.052,
+            cz + Math.sin(normalAngle) * offset
+          );
+          this.group.add(bar);
+        }
+
+        // Thick White Stop Line before crosswalk
+        const stopLineGeo = new THREE.PlaneGeometry(0.24, 2.2);
+        const stopLine = new THREE.Mesh(stopLineGeo, stopLineMat);
+        stopLine.rotation.x = -Math.PI / 2;
+        stopLine.rotation.z = -ave.angle - Math.PI / 2;
+        const stopOffsetR = 1.35;
+        stopLine.position.set(
+          Math.cos(ave.angle) * (radius - stopOffsetR),
+          0.051,
+          Math.sin(ave.angle) * (radius - stopOffsetR)
+        );
+        this.group.add(stopLine);
+      });
+    });
+  }
+
+  /**
+   * Iconic NYC Green Subway Station Entrance Kiosks with Green Globe Lamps
+   */
+  private buildSubwayEntrances(waypoints: RoadWaypoints) {
+    const metalMat = new THREE.MeshStandardMaterial({
+      color: 0x064E3B, // Forest green NYC subway ironwork
+      roughness: 0.35,
+      metalness: 0.8
+    });
+
+    const lampMat = new THREE.MeshBasicMaterial({
+      color: 0x22C55E // Glowing green subway orb
+    });
+
+    const stairMat = new THREE.MeshStandardMaterial({
+      color: 0x0F172A,
+      roughness: 0.9
+    });
+
+    // Place at 4 prominent street corners
+    [0, 2, 4, 6].forEach((idx) => {
+      const ave = waypoints.radialAvenues[idx];
+      if (!ave) return;
+      const r = waypoints.outerRingRadius + 4.2;
+      const normal = ave.angle + Math.PI / 2;
+      const x = Math.cos(ave.angle) * r + Math.cos(normal) * 2.8;
+      const z = Math.sin(ave.angle) * r + Math.sin(normal) * 2.8;
+
+      const kiosk = new THREE.Group();
+
+      // Stairwell Pit
+      const pit = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 2.0), stairMat);
+      pit.position.y = 0.2;
+      kiosk.add(pit);
+
+      // Iron Handrails
+      const railL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.6, 2.0), metalMat);
+      railL.position.set(-0.6, 0.5, 0);
+      kiosk.add(railL);
+
+      const railR = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.6, 2.0), metalMat);
+      railR.position.set(0.6, 0.5, 0);
+      kiosk.add(railR);
+
+      // Dual Green Subway Globe Lamps
+      [-0.6, 0.6].forEach((lx) => {
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.3, 6), metalMat);
+        pole.position.set(lx, 0.85, 0.95);
+        kiosk.add(pole);
+
+        const globe = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 10), lampMat);
+        globe.position.set(lx, 1.55, 0.95);
+        kiosk.add(globe);
+      });
+
+      kiosk.position.set(x, 0, z);
+      kiosk.rotation.y = -ave.angle;
+      this.group.add(kiosk);
     });
   }
 
