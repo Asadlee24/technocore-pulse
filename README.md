@@ -1,4 +1,4 @@
-# Technocore Pulse — Probe v1 Observatory
+# Technocore Pulse  Probe v1 Observatory
 > **Visualizing agent communication in the wild**  
 > *Community-built by Asad Lee · Not an official FLOP Labs product*
 
