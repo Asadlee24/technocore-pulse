@@ -25,12 +25,17 @@ export class CityBuilding {
     this.group.position.set(...layout.position);
     this.group.userData.sourceRoom = layout.room.name;
     const concrete = new THREE.MeshStandardMaterial({
-      color: 0xb9c6d1,
+      color:
+        layout.height < 12
+          ? layout.position[0] > 0
+            ? 0x9e9a8b
+            : 0x7b8e9c
+          : 0x7a8fa3,
       roughness: 0.74,
       metalness: 0.12,
     });
     const glass = new THREE.MeshStandardMaterial({
-      color: 0x253e59,
+      color: 0x26465c,
       roughness: 0.24,
       metalness: 0.65,
     });
@@ -136,7 +141,7 @@ export class CityBuilding {
       const x = top ? w * 0.1 : 0;
       add(
         this.shell,
-        new THREE.BoxGeometry(rw + 0.16, 0.11, rd + 0.16),
+        new THREE.BoxGeometry(rw + 0.035, 0.045, rd + 0.035),
         concrete,
         x,
         y,
@@ -222,11 +227,35 @@ export class CityBuilding {
       2.3,
       d * 0.53 + 0.3,
     );
+    if (h < 13) {
+      const fabric = new THREE.MeshStandardMaterial({
+        color: layout.position[0] > 0 ? 0x426b79 : 0x497062,
+        roughness: 0.85,
+      });
+      const awning = add(
+        this.shell,
+        new THREE.BoxGeometry(w * 0.82, 0.11, 0.95),
+        fabric,
+        0,
+        2.22,
+        d * 0.53 + 0.4,
+      );
+      awning.rotation.x = 0.12;
+      for (const side of [-1, 1])
+        add(
+          this.shell,
+          new THREE.BoxGeometry(0.055, 2, 0.055),
+          trim,
+          side * w * 0.4,
+          1.12,
+          d * 0.53 + 0.7,
+        );
+    }
     this.group.add(this.shell);
 
-    const rows = Math.max(2, Math.floor((h - 3) / 1.2));
+    const rows = Math.max(1, Math.floor((h - 3.1) / 2.4));
     this.windows = new THREE.InstancedMesh(
-      new THREE.PlaneGeometry(w * 0.19, 0.56),
+      new THREE.PlaneGeometry(w * 0.235, 1.1),
       new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }),
       rows * 12,
     );
@@ -234,7 +263,7 @@ export class CityBuilding {
     const dummy = new THREE.Object3D();
     let index = 0;
     for (let row = 0; row < rows; row++) {
-      const y = 3.4 + row * 1.2,
+      const y = 3.7 + row * 2.4,
         top = tier && y > split,
         rw = top ? w * 0.76 : w,
         rd = top ? d * 0.76 : d,
@@ -307,13 +336,13 @@ export class CityBuilding {
     const isActive =
       this.layout.room.status === "active" ||
       this.layout.room.status === "surge";
-    const lit = new THREE.Color(0xd6eaf5);
+    const lit = new THREE.Color(0xb3aa8c);
     for (let i = 0; i < this.windows.count; i++) {
       // Deterministic architectural lighting. A lit building indicates recent room activity only.
       const pattern = Math.abs(Math.sin(i * 13.7 + this.layout.position[0]));
       this.windows.setColorAt(
         i,
-        isActive && pattern > 0.48 ? lit : this.darkGlass,
+        isActive && pattern > 0.82 ? lit : this.darkGlass,
       );
     }
     if (this.windows.instanceColor)

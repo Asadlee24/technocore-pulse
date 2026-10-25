@@ -206,144 +206,47 @@ export function generateCityLayout(rooms: RoomCluster[]): {
   const totalSectors = districtKeys.length; // 8
   const sectorAngleStep = (Math.PI * 2) / totalSectors;
 
-  // Track rooms assigned to each district
-  const districtRoomAssignments: Record<CityDistrictType, RoomCluster[]> = {
-    coordination: [],
-    work: [],
-    research: [],
-    compute: [],
-    settlement: [],
-    social: [],
-    broadcast: [],
-    infrastructure: [],
-  };
-
-  rooms.forEach((room, idx) => {
-    // Sectors are a balanced visual arrangement, not inferred room functions.
-    const dType = districtKeys[idx % districtKeys.length];
-    districtRoomAssignments[dType].push(room);
-  });
-
-  // Master Planned Lots for each of the 8 districts:
-  // 6 perfectly spaced building parcels per district across 3 concentric rings:
-  // Ring 1 (Downtown Hub): radius 21.5, angular offsets [-0.20, +0.20]
-  // Ring 2 (Flagship Commercial Center): radius 35.0, angular offsets [-0.24, 0.0 (flagship), +0.24]
-  // Ring 3 (Outer Metropolitan Boulevard): radius 50.0, angular offsets [-0.20, +0.20]
-  // Between rings are 13-15 unit wide boulevards with zero building overlap!
-  districtKeys.forEach((distType) => {
-    const cfg = DISTRICT_CONFIGS[distType];
-    const baseAngle = cfg.sectorIndex * sectorAngleStep;
-    const assignedRooms = districtRoomAssignments[distType];
-
-    // 6 discrete lot definitions per sector
-    const sectorLots = [
-      // Ring 1: Inner Downtown (medium-rise)
-      {
-        ring: 1,
-        radius: 21.5,
-        angleOffset: -0.21,
-        width: 4.4,
-        depth: 4.4,
-        heightBase: 10,
-        heightVar: 4,
-      },
-      {
-        ring: 1,
-        radius: 21.5,
-        angleOffset: 0.21,
-        width: 4.4,
-        depth: 4.4,
-        heightBase: 12,
-        heightVar: 4,
-      },
-      // Ring 2: Flagship Center (the district centerpiece skyscraper)
-      {
-        ring: 2,
-        radius: 35.0,
-        angleOffset: 0.0,
-        width: 5.2,
-        depth: 5.2,
-        heightBase: 24,
-        heightVar: 8,
-        isFlagship: true,
-      },
-      // Ring 2: Commercial flanks
-      {
-        ring: 2,
-        radius: 35.0,
-        angleOffset: -0.25,
-        width: 4.8,
-        depth: 4.8,
-        heightBase: 16,
-        heightVar: 6,
-      },
-      {
-        ring: 2,
-        radius: 35.0,
-        angleOffset: 0.25,
-        width: 4.8,
-        depth: 4.8,
-        heightBase: 17,
-        heightVar: 6,
-      },
-      // Ring 3: Outer High-Rise
-      {
-        ring: 3,
-        radius: 50.0,
-        angleOffset: -0.22,
-        width: 5.4,
-        depth: 5.4,
-        heightBase: 20,
-        heightVar: 9,
-      },
-      {
-        ring: 3,
-        radius: 50.0,
-        angleOffset: 0.22,
-        width: 5.4,
-        depth: 5.4,
-        heightBase: 22,
-        heightVar: 9,
-      },
-    ];
-
-    assignedRooms.forEach((roomForLot, lotIdx) => {
-      const lot = sectorLots[lotIdx % sectorLots.length];
-      const angle = baseAngle + lot.angleOffset;
-      const radius = lot.radius + Math.floor(lotIdx / sectorLots.length) * 12;
-      const x = Math.cos(angle) * radius;
-      const z = Math.sin(angle) * radius;
-      const isPrimary = true;
-      // Building massing is architectural. Only observed identities affect extra height.
-      const calculatedHeight =
-        lot.heightBase +
-        Math.abs(Math.sin(lotIdx * 7.7 + cfg.sectorIndex * 19)) *
-          lot.heightVar +
-        Math.min(
-          4,
-          calculateBuildingHeight(roomForLot.signedIdentitiesObserved) - 7,
-        );
-
-      const height = Math.round(calculatedHeight);
-
-      const bLayout: BuildingLayout = {
-        room: roomForLot,
-        position: [x, 0, z],
-        width: lot.width,
-        depth: lot.depth,
-        height: Math.max(8, height),
-        district: distType,
-        archetype: cfg.archetype,
-        color: cfg.color,
-        beaconColor: getBeaconColor(roomForLot.lastProbeArm),
-        windowDensity: 16 + lot.ring * 4,
-        rotationY: angle + Math.PI / 2,
-        isPrimaryRoom: isPrimary,
-      };
-
-      buildings.push(bLayout);
-      districtsMap[distType].push(bLayout);
-    });
+  // A walkable seven-by-seven street grid. The central block is the community plaza.
+  const slots: [number, number][] = [];
+  for (let z = -3; z <= 3; z++)
+    for (let x = -3; x <= 3; x++)
+      if (x !== 0 || z !== 0) slots.push([x * 14, z * 14]);
+  rooms.slice(0, 48).forEach((room, index) => {
+    const [x, z] = slots[index];
+    const seed = Math.abs(Math.sin(index * 12.9898 + 7.31));
+    const district = districtKeys[index % districtKeys.length];
+    // Mostly human-scale blocks; taller buildings form occasional skyline anchors.
+    const high = index % 9 === 0;
+    const medium = index % 4 === 0;
+    const height = high
+      ? 23 + seed * 10
+      : medium
+        ? 13 + seed * 6
+        : 5.8 + seed * 5.5;
+    const b: BuildingLayout = {
+      room,
+      position: [x, 0, z],
+      width: 5.6 + (index % 3) * 0.5,
+      depth: 5.8 + (index % 2) * 0.6,
+      height: Math.round(height * 10) / 10,
+      district,
+      archetype: high
+        ? "skyscraper"
+        : medium
+          ? "office-tower"
+          : index % 3 === 0
+            ? "social-block"
+            : index % 3 === 1
+              ? "research-lab"
+              : "broadcast-hall",
+      color: "#00B4D8",
+      beaconColor: getBeaconColor(room.lastProbeArm),
+      windowDensity: 8,
+      rotationY: 0,
+      isPrimaryRoom: true,
+    };
+    buildings.push(b);
+    districtsMap[district].push(b);
   });
 
   // 3. Construct District Metadata

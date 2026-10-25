@@ -7,6 +7,7 @@ export class MetroLandmark {
   private logoTexture: THREE.Texture;
   constructor(_materials: unknown) {
     this.group.name = "flop-community-pavilion";
+    this.group.scale.setScalar(.52);
     this.group.userData.isScenery = true;
     const stone = new THREE.MeshStandardMaterial({
       color: 0xc5d1dc,

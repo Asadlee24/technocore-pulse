@@ -35,9 +35,9 @@ export class CityEnvironment {
       this.group.add(obj);
       return obj;
     };
-    add(new THREE.CylinderGeometry(67, 68, 2, 96), ground, 0, -1, 0);
-    add(new THREE.CylinderGeometry(68.2, 68.2, 0.3, 96), navy, 0, -1.9, 0);
-    for (const radius of [64.6, 66.6]) {
+    add(new THREE.CylinderGeometry(75, 76, 2, 96), ground, 0, -1, 0);
+    add(new THREE.CylinderGeometry(76.2, 76.2, 0.3, 96), navy, 0, -1.9, 0);
+    for (const radius of [72.6, 74.6]) {
       const rail = add(
         new THREE.TorusGeometry(radius, 0.085, 6, 128),
         stone,
@@ -48,7 +48,7 @@ export class CityEnvironment {
       rail.rotation.x = Math.PI / 2;
     }
     this.water = add(
-      new THREE.RingGeometry(68.3, 220, 128),
+      new THREE.RingGeometry(76.3, 220, 128),
       new THREE.MeshStandardMaterial({
         color: light ? 0x5b90b3 : 0x102a49,
         roughness: 0.28,
@@ -60,7 +60,7 @@ export class CityEnvironment {
     );
     this.water.rotation.x = -Math.PI / 2;
     const promenade = add(
-      new THREE.RingGeometry(62.7, 66.5, 96),
+      new THREE.RingGeometry(70.7, 74.5, 96),
       stone,
       0,
       0.015,
@@ -73,18 +73,18 @@ export class CityEnvironment {
       const pier = add(
         new THREE.BoxGeometry(4, 0.45, 14),
         stone,
-        Math.cos(angle) * 71,
+        Math.cos(angle) * 79,
         -0.5,
-        Math.sin(angle) * 71,
+        Math.sin(angle) * 79,
       );
       pier.rotation.y = Math.PI / 2 - angle;
       for (const offset of [-1.7, 1.7]) {
         const edge = add(
           new THREE.BoxGeometry(0.07, 0.7, 13),
           navy,
-          Math.cos(angle) * 71 + Math.cos(angle + Math.PI / 2) * offset,
+          Math.cos(angle) * 79 + Math.cos(angle + Math.PI / 2) * offset,
           0.05,
-          Math.sin(angle) * 71 + Math.sin(angle + Math.PI / 2) * offset,
+          Math.sin(angle) * 79 + Math.sin(angle + Math.PI / 2) * offset,
         );
         edge.rotation.y = Math.PI / 2 - angle;
       }
@@ -104,7 +104,7 @@ export class CityEnvironment {
     const dummy = new THREE.Object3D();
     for (let i = 0; i < 64; i++) {
       const angle = (i / 64) * Math.PI * 2,
-        radius = i < 48 ? 63.5 : 11.5;
+        radius = i < 48 ? 71.5 : 5.5;
       const x = Math.cos(angle) * radius,
         z = Math.sin(angle) * radius;
       dummy.position.set(x, 0.65, z);
@@ -128,10 +128,8 @@ export class CityEnvironment {
       toneMapped: false,
     });
     for (let i = 0; i < 48; i++) {
-      const angle = (i / 48) * Math.PI * 2,
-        r = i % 2 ? 27 : 42;
-      const x = Math.cos(angle) * r,
-        z = Math.sin(angle) * r;
+      const x = ((i % 8) - 3.5) * 14 + 2.3;
+      const z = (Math.floor(i / 8) - 2.5) * 14 + 2.3;
       add(poleGeo, navy, x, 1.2, z);
       add(bulbGeo, glow, x, 2.4, z);
     }

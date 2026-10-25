@@ -1101,3 +1101,9 @@
 .city-stage:has(.capture-ribbon) .webgl-notice {
   bottom: 215px;
 }
+
+@media(max-width:760px){.stage-heading h1{font-size:24px;letter-spacing:-1px}.stage-heading p{font-size:10px;max-width:230px}.stage-heading{top:20px}}
+
+.scene-light .stage-heading{color:#0A1128}.scene-light .stage-heading .eyebrow,.scene-light .stage-heading p{color:#5C6670}.scene-light .stage-heading h1 em{color:#0466C8}.scene-light .scene-label{color:#0A1128}.scene-light .scene-label small,.scene-light .scene-footnote{color:#5C6670}
+
+.scene-light .city-plan{background:#d9e3ec}.scene-light .city-plan .plan-building span,.scene-light .webgl-notice{color:#0A1128}.scene-light .webgl-notice strong{color:#0466C8}.scene-light .webgl-notice p{color:#5C6670}

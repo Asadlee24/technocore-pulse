@@ -62,7 +62,7 @@ function Metropolis() {
     "orbit" | "drone" | "plaza" | "walk" | "building"
   >("orbit");
   const [query, setQuery] = useState("");
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
+  const [theme, setTheme] = useState<"light" | "dark">("light");
   const [showInfo, setShowInfo] = useState(false);
   const [showDirectory, setShowDirectory] = useState(false);
   const dialogRef = useRef<HTMLElement>(null);
@@ -152,21 +152,19 @@ function Metropolis() {
         </nav>
       </header>
 
-      <main id="city" className="city-stage">
+      <main id="city" className={`city-stage scene-${theme}`}>
         <div className="stage-heading">
           <div>
             <span className="eyebrow">
               FLOP ECOSYSTEM / PUBLIC COORDINATION
             </span>
             <h1>
-              The network,
-              <br />
-              <em>inhabited.</em>
+              Explore <em>the city.</em>
             </h1>
             <p>
-              Explore rooms as buildings.
+              Real rooms. A living streetscape.
               <br />
-              Follow the public signals inside.
+              Open a building. Meet its illustrative crew.
             </p>
           </div>
           <span className="vertical-caption">

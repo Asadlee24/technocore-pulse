@@ -195,7 +195,7 @@ try {
     assert.equal(building.hitMesh.userData.room.name, "lobby");
     const windows = building.group.getObjectByName("observed-activity-windows");
     assert.ok(
-      windows.count > 100,
+      windows.count > 40,
       "Facade includes detailed instanced windows",
     );
     const dark = windows.instanceColor.array.slice();

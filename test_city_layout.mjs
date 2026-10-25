@@ -14,3 +14,7 @@ console.log('City integrity: 8 runtime assertions passed.');
 
 for (let i=0;i<city.buildings.length;i++) for (let j=i+1;j<city.buildings.length;j++) {const a=city.buildings[i],b=city.buildings[j];assert.ok(Math.hypot(a.position[0]-b.position[0],a.position[2]-b.position[2]) > Math.max(a.width,a.depth,b.width,b.depth)*1.35, "Building parcels need clear spacing");}
 console.log("All 1,128 building-pair spacing checks passed.");
+
+assert.ok(city.buildings.filter(b=>b.height<12).length>24,'Most city blocks should remain low-rise');
+assert.ok(city.buildings.filter(b=>b.height>23).length<10,'Tall towers should be occasional skyline anchors');
+assert.ok(city.buildings.every(b=>b.position[0]!==0||b.position[2]!==0),'Central community square remains clear');

@@ -248,7 +248,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // Close all cutaways
     buildingsMapRef.current.forEach((b) => b.setCutaway(false));
 
-    cameraTargetPos.current.set(82, 58, 88);
+    cameraTargetPos.current.copy(INTRO_END_POS.current);
     cameraTargetLookAt.current.set(0, 6, 0);
     setPulseLog("Camera returned to Agent City metropolitan overview.");
   }, []);
@@ -437,7 +437,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     } else if (cameraPerspective === "orbit") {
       if (viewLevelRef.current === "city") {
         isTransitioningRef.current = true;
-        cameraTargetPos.current.set(82, 58, 88);
+        cameraTargetPos.current.copy(INTRO_END_POS.current);
         cameraTargetLookAt.current.set(0, 6, 0);
       }
       setPulseLog("Camera switched to Free Orbit mode.");
@@ -528,6 +528,9 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // 2. Camera Setup
     const width = container.clientWidth;
     const height = container.clientHeight || 540;
+    const overviewScale = width/height < .85 ? 1.5 : 1;
+    INTRO_END_POS.current.set(82*overviewScale,58*overviewScale,88*overviewScale);
+    INTRO_START_POS.current.set(106*overviewScale,78*overviewScale,112*overviewScale);
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.5, 300);
     camera.position.copy(INTRO_START_POS.current);
     cameraRef.current = camera;
@@ -650,7 +653,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     controls.screenSpacePanning = true;
     controls.maxPolarAngle = Math.PI / 2 - 0.04; // Keep camera above ground
     controls.minDistance = 4;
-    controls.maxDistance = 145;
+    controls.maxDistance = 240;
     controls.rotateSpeed = 0.85;
     controls.zoomSpeed = 1.15;
     controls.panSpeed = 0.8;
