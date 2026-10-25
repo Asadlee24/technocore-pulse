@@ -196,7 +196,8 @@ export function generateCityLayout(rooms: RoomCluster[]): {
   };
 
   rooms.forEach((room, idx) => {
-    const dType = mapRoomToDistrict(room, idx);
+    // Sectors are a balanced visual arrangement, not inferred room functions.
+    const dType = districtKeys[idx % districtKeys.length];
     districtRoomAssignments[dType].push(room);
   });
 

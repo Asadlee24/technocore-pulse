@@ -11,3 +11,6 @@ assert.equal(calculateBuildingHeight(null),calculateBuildingHeight(0),'Unknown d
 assert.ok(calculateBuildingHeight(20)>calculateBuildingHeight(0),'Observed activity affects massing monotonically');
 assert.ok(city.buildings.every(b=>Number.isFinite(b.height)&&b.height>0));
 console.log('City integrity: 8 runtime assertions passed.');
+
+for (let i=0;i<city.buildings.length;i++) for (let j=i+1;j<city.buildings.length;j++) {const a=city.buildings[i],b=city.buildings[j];assert.ok(Math.hypot(a.position[0]-b.position[0],a.position[2]-b.position[2]) > Math.max(a.width,a.depth,b.width,b.depth)*1.35, "Building parcels need clear spacing");}
+console.log("All 1,128 building-pair spacing checks passed.");
