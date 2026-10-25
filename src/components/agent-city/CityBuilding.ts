@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { RoomCluster } from "../../types/probe";
 import type { BuildingLayout } from "./cityLayout";
 import type { CityMaterials } from "./cityMaterials";
@@ -17,7 +18,7 @@ export class CityBuilding {
   private pulseUntil = 0;
   private labelTexture: THREE.CanvasTexture;
   private labelCanvas: HTMLCanvasElement;
-  private darkGlass = new THREE.Color(0x21344e);
+  private darkGlass = new THREE.Color(0x426477);
 
   constructor(layout: BuildingLayout, _materials: CityMaterials) {
     this.layout = layout;
@@ -26,17 +27,13 @@ export class CityBuilding {
     this.group.userData.sourceRoom = layout.room.name;
     const concrete = new THREE.MeshStandardMaterial({
       color:
-        layout.height < 12
-          ? layout.position[0] > 0
-            ? 0x9e9a8b
-            : 0x7b8e9c
-          : 0x7a8fa3,
+        [0xd4c9b5, 0xcbd5d8, 0x9caeb8, 0xb6b7a5, 0xd4d7cf][Math.abs(Math.round(layout.position[0] / 14 + layout.position[2] / 7)) % 5],
       roughness: 0.74,
       metalness: 0.12,
     });
     const glass = new THREE.MeshStandardMaterial({
-      color: 0x26465c,
-      roughness: 0.24,
+      color: 0x42677a,
+      roughness: 0.18,
       metalness: 0.65,
     });
     const trim = new THREE.MeshStandardMaterial({
@@ -210,6 +207,36 @@ export class CityBuilding {
           0,
         );
     }
+    // Real roof edges, service cores and ventilation, with a generous terrace.
+    for (const side of [-1, 1]) {
+      add(this.shell, new THREE.BoxGeometry(roofW + .25, .38, .12), concrete,
+        roofX, h + .34, side * roofD / 2);
+      add(this.shell, new THREE.BoxGeometry(.12, .38, roofD), concrete,
+        roofX + side * roofW / 2, h + .34, 0);
+    }
+    const service = add(this.shell, new THREE.BoxGeometry(roofW * .24, 1.05, roofD * .28),
+      concrete, roofX - roofW * .28, h + .7, -roofD * .25);
+    service.name = "rooftop-service-core";
+    for (const side of [-1, 1]) {
+      add(this.shell, new THREE.BoxGeometry(.65, .46, .8), trim,
+        roofX + side * roofW * .23, h + .42, roofD * .24);
+      add(this.shell, new THREE.CylinderGeometry(.2, .2, .04, 10), ground,
+        roofX + side * roofW * .23, h + .67, roofD * .24);
+    }
+    // Residential / public blocks have deep balconies rather than identical glass boxes.
+    if (layout.archetype === "social-block" || layout.archetype === "broadcast-hall") {
+      for (let y = 3; y < Math.min(h, split); y += 2.4) {
+        add(this.shell, new THREE.BoxGeometry(w * 1.08, .16, .85), concrete, 0, y, d / 2 + .25);
+        add(this.shell, new THREE.BoxGeometry(w * 1.06, .055, .055), trim, 0, y + .7, d / 2 + .64);
+        for (const x of [-.46, -.15, .15, .46])
+          add(this.shell, new THREE.BoxGeometry(.045, .7, .045), trim, x * w, y + .35, d / 2 + .64);
+      }
+    }
+    // Slender vertical fins distinguish the taller offices.
+    if (tier) for (const side of [-1, 1])
+      for (const col of [-.46, .46])
+        add(this.shell, new THREE.BoxGeometry(.16, split - 2.7, .22), concrete,
+          col * w, (split + 2.7) / 2, side * (d / 2 + .1));
     // The only strong exterior cyan is a small entrance signal, not a neon outline.
     add(
       this.shell,
@@ -309,6 +336,26 @@ export class CityBuilding {
       d * 0.526 + 0.02,
     );
     sign.name = "public-room-nameplate";
+    // Two real roof-mounted signs plus a camera-facing identifier for aerial navigation.
+    // All text is the source room name; these are not invented protocol facilities.
+    for (const side of [-1, 1]) {
+      for (const x of [-.32, .32])
+        add(this.shell, new THREE.BoxGeometry(.07, 1.5, .07), trim,
+          roofX + x * roofW, h + .9, side * roofD * .42);
+      const rooftop = add(this.shell,
+        new THREE.PlaneGeometry(Math.max(6.8, roofW), Math.max(6.8, roofW) / 4),
+        new THREE.MeshBasicMaterial({map: this.labelTexture, toneMapped: false, side: THREE.DoubleSide}),
+        roofX, h + 1.6, side * roofD * .42);
+      rooftop.rotation.y = side === 1 ? 0 : Math.PI;
+      rooftop.name = "rooftop-room-name";
+    }
+    const aerial = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: this.labelTexture, toneMapped: false, depthTest: true,
+    }));
+    aerial.name = "aerial-room-identifier";
+    aerial.scale.set(9, 2.25, 1);
+    aerial.position.set(roofX, h + 3.6, 0);
+    this.shell.add(aerial);
     this.paintLabel();
     this.selection = new THREE.LineSegments(
       new THREE.EdgesGeometry(new THREE.BoxGeometry(w * 1.32, 0.22, d * 1.32)),
@@ -331,6 +378,33 @@ export class CityBuilding {
     this.interior = new OfficeInterior(layout);
     this.interior.group.position.y = 0.2;
     this.group.add(this.interior.group);
+    // Batch opaque static architecture by material so the added detail does not
+    // become a separate GPU draw call for every mullion, rail and floor plate.
+    const batches = new Map<THREE.Material, THREE.Mesh[]>();
+    for (const child of this.shell.children) {
+      if (!(child instanceof THREE.Mesh) || child instanceof THREE.InstancedMesh || child.name || Array.isArray(child.material)) continue;
+      const list = batches.get(child.material) ?? [];
+      list.push(child);
+      batches.set(child.material, list);
+    }
+    for (const [material, meshes] of batches) {
+      if (meshes.length < 2) continue;
+      const parts = meshes.map(mesh => {
+        mesh.updateMatrix();
+        return mesh.geometry.clone().applyMatrix4(mesh.matrix);
+      });
+      const merged = mergeGeometries(parts, false);
+      parts.forEach(part => part.dispose());
+      if (!merged) continue;
+      const facade = new THREE.Mesh(merged, material);
+      facade.name = "batched-architectural-detail";
+      facade.castShadow = facade.receiveShadow = true;
+      for (const mesh of meshes) {
+        this.shell.remove(mesh);
+        mesh.geometry.dispose();
+      }
+      this.shell.add(facade);
+    }
   }
   private paintWindows() {
     const isActive =
@@ -353,12 +427,16 @@ export class CityBuilding {
     if (!c) return;
     c.fillStyle = "#0A1128";
     c.fillRect(0, 0, 512, 128);
+    c.fillStyle = "#00B4D8";
+    c.fillRect(0, 0, 7, 128);
     c.fillStyle = "#F5F7FA";
-    c.font = "bold 35px monospace";
-    c.fillText(`#${this.layout.room.name.slice(0, 21)}`, 20, 55);
+    const name = `#${this.layout.room.name}`;
+    const fontSize = Math.max(12, Math.min(38, Math.floor(760 / name.length)));
+    c.font = `bold ${fontSize}px monospace`;
+    c.fillText(name, 22, 57, 470);
     c.font = "19px monospace";
     c.fillStyle = "#A1A7AE";
-    c.fillText("PUBLIC ROOM / TECHNOCORE", 20, 94);
+    c.fillText("TECHNOCORE / FLOP ECOSYSTEM", 22, 100);
     this.labelTexture.needsUpdate = true;
   }
   setCutaway(value: boolean) {
@@ -386,6 +464,7 @@ export class CityBuilding {
     const geometries = new Set<THREE.BufferGeometry>(),
       materials = new Set<THREE.Material>();
     this.group.traverse((o) => {
+      if (o instanceof THREE.Sprite) materials.add(o.material);
       if (o instanceof THREE.Mesh || o instanceof THREE.LineSegments) {
         geometries.add(o.geometry);
         (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) =>

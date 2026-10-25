@@ -129,7 +129,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   const INTRO_START_POS = useRef<THREE.Vector3>(
     new THREE.Vector3(106, 78, 112),
   );
-  const INTRO_END_POS = useRef<THREE.Vector3>(new THREE.Vector3(82, 58, 88));
+  const INTRO_END_POS = useRef<THREE.Vector3>(new THREE.Vector3(82, 47, 88));
   const INTRO_START_LOOK = useRef<THREE.Vector3>(new THREE.Vector3(0, 10, 0));
   const INTRO_END_LOOK = useRef<THREE.Vector3>(new THREE.Vector3(0, 6, 0));
 
@@ -144,7 +144,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   // Animation & Camera targets
   const controlsRef = useRef<OrbitControls | null>(null);
   const isTransitioningRef = useRef<boolean>(false);
-  const cameraTargetPos = useRef<THREE.Vector3>(new THREE.Vector3(82, 58, 88));
+  const cameraTargetPos = useRef<THREE.Vector3>(new THREE.Vector3(82, 47, 88));
   const cameraTargetLookAt = useRef<THREE.Vector3>(new THREE.Vector3(0, 6, 0));
 
   // Refs for animation loop (prevents scene destruction on state changes)
@@ -529,7 +529,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     const width = container.clientWidth;
     const height = container.clientHeight || 540;
     const overviewScale = width/height < .85 ? 1.5 : 1;
-    INTRO_END_POS.current.set(82*overviewScale,58*overviewScale,88*overviewScale);
+    INTRO_END_POS.current.set(82*overviewScale,47*overviewScale,88*overviewScale);
     INTRO_START_POS.current.set(106*overviewScale,78*overviewScale,112*overviewScale);
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.5, 300);
     camera.position.copy(INTRO_START_POS.current);
@@ -602,7 +602,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // 10. Balanced Night Lighting (Readable graphite facades without daytime wash)
     const ambientLight = new THREE.AmbientLight(
       isLight ? 0xffffff : 0xe0e8f2,
-      isLight ? 2.2 : 1.1,
+      isLight ? 1.3 : 1.1,
     );
     scene.add(ambientLight);
 
@@ -624,7 +624,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 
     // Cool Moonlight Directional Key Light (gives crisp architectural edge definition)
     const moonLight = new THREE.DirectionalLight(
-      isLight ? 0x38bdf8 : 0xe3efff,
+      isLight ? 0xffedce : 0xe3efff,
       isLight ? 2.2 : 2.2,
     );
     moonLight.position.set(40, 70, -35);
@@ -638,8 +638,8 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     scene.add(moonLight);
 
     const fillLight = new THREE.DirectionalLight(
-      isLight ? 0x60a5fa : 0x475569,
-      isLight ? 1.6 : 1.5,
+      isLight ? 0xc9e3f5 : 0x475569,
+      isLight ? 1.0 : 1.5,
     );
     fillLight.position.set(-50, 60, -45);
     scene.add(fillLight);
@@ -827,7 +827,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
           }
         } else if (t < 18) {
           // 4. Hero skyline pull-back
-          camera.position.lerp(new THREE.Vector3(82, 58, 88), 0.05);
+          camera.position.lerp(new THREE.Vector3(82, 47, 88), 0.05);
           controlsRef.current?.target.lerp(new THREE.Vector3(0, 6, 0), 0.05);
         } else {
           // End showcase

@@ -6,12 +6,16 @@ export class CityBoundary extends Component<
     children: ReactNode;
     rooms: RoomCluster[];
     onSelect: (room: RoomCluster) => void;
+    onUnavailable?: () => void;
   },
   { failed: boolean }
 > {
   state = { failed: false };
   static getDerivedStateFromError() {
     return { failed: true };
+  }
+  componentDidCatch() {
+    this.props.onUnavailable?.();
   }
   render() {
     if (!this.state.failed) return this.props.children;
@@ -22,16 +26,15 @@ export class CityBoundary extends Component<
             <button
               key={room.id}
               className="plan-building"
-              style={{ height: `${35 + (i % 5) * 12}px` }}
               title={`Open #${room.name}`}
               onClick={() => this.props.onSelect(room)}
             >
-              <span>{room.name}</span>
+              <small>{String(i + 1).padStart(2, "0")}</small><span>#{room.name}</span>
             </button>
           ))}
         </div>
         <div className="webgl-notice">
-          <strong>Room map · 3D unavailable</strong>
+          <strong>Room directory · 3D unavailable in this browser</strong>
           <p>
             This browser could not start WebGL. The room directory and public
             records remain available. Use a browser with hardware acceleration

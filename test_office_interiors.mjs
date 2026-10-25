@@ -191,6 +191,11 @@ try {
       isPrimaryRoom: true,
     };
     const building = new CityBuilding(layout, {});
+    const roofSigns = [];
+    building.group.traverse(o => { if (o.name === "rooftop-room-name") roofSigns.push(o); });
+    assert.equal(roofSigns.length, 2, "Every archetype has two rooftop room signs");
+    assert.ok(roofSigns.every(sign => sign.position.y > layout.height), "Room names sit above the roof");
+    assert.ok(building.group.getObjectByName("aerial-room-identifier").isSprite, "Aerial identifier faces the viewing camera");
     assert.equal(building.group.userData.sourceRoom, "lobby");
     assert.equal(building.hitMesh.userData.room.name, "lobby");
     const windows = building.group.getObjectByName("observed-activity-windows");

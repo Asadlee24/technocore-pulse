@@ -7,7 +7,7 @@ export class MetroLandmark {
   private logoTexture: THREE.Texture;
   constructor(_materials: unknown) {
     this.group.name = "flop-community-pavilion";
-    this.group.scale.setScalar(.52);
+    this.group.scale.setScalar(.65);
     this.group.userData.isScenery = true;
     const stone = new THREE.MeshStandardMaterial({
       color: 0xc5d1dc,
@@ -50,6 +50,10 @@ export class MetroLandmark {
         0.125 + i * 0.25,
         0,
       );
+    mesh(new THREE.BoxGeometry(10.5, 2.2, 8), navy, 0, 1.85, 0);
+    mesh(new THREE.BoxGeometry(7.7, 18, 5.9), glass, 0, 11.8, 0);
+    for (let floor = 4; floor < 22; floor += 2)
+      mesh(new THREE.BoxGeometry(8, .12, 6.1), stone, 0, floor, 0);
     // Two precise blades and an open sky gallery, rather than a fictional operational HQ.
     for (const side of [-1, 1]) {
       mesh(new THREE.BoxGeometry(2.1, 22, 7), stone, side * 5.2, 11.8, 0);
@@ -120,7 +124,7 @@ export class MetroLandmark {
       ctx.fillStyle = "#F5F7FA";
       ctx.font = "32px monospace";
       ctx.textAlign = "center";
-      ctx.fillText("TECHNOCORE / COMMUNITY CITY", 512, 55);
+      ctx.fillText("FLOP LABS / TECHNOCORE", 512, 55);
       ctx.fillStyle = "#A1A7AE";
       ctx.font = "20px monospace";
       ctx.fillText("INDEPENDENT VISUALIZATION · BUILT BY ASAD LEE", 512, 93);

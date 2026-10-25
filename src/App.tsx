@@ -54,7 +54,15 @@ function Metropolis() {
     liveRooms,
   } = useData();
   const [snapshotMode, setSnapshotMode] = useState(false);
-  const rooms = snapshotMode ? capturedRooms : liveClusters;
+  const sourceRooms = snapshotMode ? capturedRooms : liveClusters;
+  const rooms = useMemo(() => {
+    const landmarks = ["technocore", "lobby", "kibble", "tclk-offers", "announcements", "flop-network", "flop_governance", "meta", "pin", "general"];
+    const rank = (name: string) => {
+      const i = landmarks.indexOf(name);
+      return i < 0 ? landmarks.length : i;
+    };
+    return [...sourceRooms].sort((a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name));
+  }, [sourceRooms]);
   const signedRecords = snapshotMode ? [] : liveSignedRecords;
   const [selectedId, setSelectedId] = useState("");
   const [view, setView] = useState<CameraViewLevel>("city");
@@ -65,6 +73,7 @@ function Metropolis() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [showInfo, setShowInfo] = useState(false);
   const [showDirectory, setShowDirectory] = useState(false);
+  const [cityUnavailable, setCityUnavailable] = useState(false);
   const dialogRef = useRef<HTMLElement>(null);
   const guideTrigger = useRef<HTMLElement | null>(null);
   useEffect(() => {
@@ -172,7 +181,7 @@ function Metropolis() {
           </span>
         </div>
         <div className="scene-area">
-          <CityBoundary rooms={rooms} onSelect={selectRoom}>
+          <CityBoundary rooms={rooms} onSelect={selectRoom} onUnavailable={() => setCityUnavailable(true)}>
             <Suspense
               fallback={<div className="city-loading">Preparing the city…</div>}
             >
@@ -193,7 +202,7 @@ function Metropolis() {
           </CityBoundary>
         </div>
         <div className="scene-vignette" />
-        {view === "interior" && (
+        {view === "interior" && !cityUnavailable && (
           <div className="office-caption">
             <span>INSIDE THE WORKSPACE</span>
             <strong>#{selected?.name}</strong>
@@ -333,13 +342,14 @@ function Metropolis() {
               </dl>
               <button
                 className="interior-link"
+                disabled={cityUnavailable}
                 onClick={() => {
                   setView("interior");
                   setPerspective("orbit");
                   setShowDirectory(false);
                 }}
               >
-                Look inside the office <ArrowUpRight size={16} />
+                {cityUnavailable ? "3D requires WebGL" : "Look inside the office"} <ArrowUpRight size={16} />
               </button>
               <a
                 className="source-link"
@@ -364,7 +374,7 @@ function Metropolis() {
             ).map(({ key, label, icon: Icon }) => (
               <button
                 key={key}
-                disabled={key !== "city" && !selected}
+                disabled={key !== "city" && (!selected || cityUnavailable)}
                 aria-pressed={view === key}
                 className={view === key ? "current" : ""}
                 onClick={() => {

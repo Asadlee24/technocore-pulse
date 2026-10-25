@@ -226,8 +226,8 @@ export function generateCityLayout(rooms: RoomCluster[]): {
     const b: BuildingLayout = {
       room,
       position: [x, 0, z],
-      width: 5.6 + (index % 3) * 0.5,
-      depth: 5.8 + (index % 2) * 0.6,
+      width: 7.4 + (index % 3) * 0.55,
+      depth: 7.2 + (index % 2) * 0.7,
       height: Math.round(height * 10) / 10,
       district,
       archetype: high
