@@ -53,7 +53,7 @@ export class AgentOfficeFloor {
     // Floor Slab
     const slabGeo = new THREE.BoxGeometry(width - 0.2, 0.15, depth - 0.2);
     const floorMat = new THREE.MeshStandardMaterial({
-      color: 0x9dab96,
+      color: 0x71869d,
       roughness: 0.85,
       metalness: 0.05,
     });
@@ -62,7 +62,7 @@ export class AgentOfficeFloor {
     floorMesh.receiveShadow = true;
     this.group.add(floorMesh);
     const wallMat = new THREE.MeshStandardMaterial({
-      color: 0xc5cdbc,
+      color: 0xb9c8d6,
       roughness: 0.85,
     });
     const backWall = new THREE.Mesh(
@@ -74,7 +74,7 @@ export class AgentOfficeFloor {
     this.group.add(backWall);
     // A ribbed wall and recessed cabinetry frame the desks without covering the cutaway.
     const cabinetMat = new THREE.MeshStandardMaterial({
-      color: 0x596f61,
+      color: 0x253e59,
       roughness: 0.75,
     });
     for (const side of [-1, 1]) {
@@ -176,7 +176,7 @@ export class AgentOfficeFloor {
         z: 0.46,
         rotationY: 0, // Faces forward (-Z) towards laptop
         isSeated: true,
-        visorColor: room.color,
+        visorColor: "#00B4D8",
         animationPhase:
           cfg.x * 1.7 + cfg.z * 3.1 + this.config.floorIndex * 0.8,
         activityState: room.status === "surge" ? "surge" : "active",
@@ -228,7 +228,7 @@ export class AgentOfficeFloor {
     ctx.fillRect(0, 0, 512, 256);
 
     // Glowing border
-    ctx.strokeStyle = room.color || "#36D7E7";
+    ctx.strokeStyle = "#00B4D8";
     ctx.lineWidth = 4;
     ctx.strokeRect(6, 6, 500, 244);
 
@@ -236,7 +236,7 @@ export class AgentOfficeFloor {
     ctx.fillStyle = "#0B1320";
     ctx.fillRect(10, 10, 492, 44);
 
-    ctx.fillStyle = room.color || "#36D7E7";
+    ctx.fillStyle = "#00B4D8";
     ctx.font = "bold 22px monospace";
     ctx.fillText(`ROOM: ${room.displayName || room.name}`, 24, 40);
 

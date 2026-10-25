@@ -54,10 +54,10 @@ export class AgentWorker {
     this.group.userData.isIllustrative = true;
     this.group.position.set(config.x, config.y, config.z);
     this.group.rotation.y = config.rotationY ?? 0;
-    const shell = AgentWorker.material(0xd9dfd2);
-    const dark = AgentWorker.material(0x273c3b, 0.35);
-    const joint = AgentWorker.material(0x6e827a, 0.5);
-    const bronze = AgentWorker.material(0xb3986e, 0.6);
+    const shell = AgentWorker.material(0xe1e8ef);
+    const dark = AgentWorker.material(0x0a1128, 0.35);
+    const joint = AgentWorker.material(0x5c6670, 0.5);
+    const bronze = AgentWorker.material(0x7690a7, 0.6);
     const accent = new THREE.MeshStandardMaterial({
       color: config.visorColor ?? 0x86c5b5,
       roughness: 0.4,
@@ -110,7 +110,7 @@ export class AgentWorker {
       0,
       -0.127,
     );
-    const eyes = new THREE.MeshBasicMaterial({ color: 0xb4ead7 });
+    const eyes = new THREE.MeshBasicMaterial({ color: 0x00b4d8 });
     this.ownMaterials.push(eyes);
     [-0.065, 0.065].forEach((x) =>
       add(

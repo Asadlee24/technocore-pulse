@@ -37,6 +37,7 @@ try {
     "AgentDesk",
     "AgentOfficeFloor",
     "OfficeInterior",
+    "CityBuilding",
   ]) {
     let compiled = ts.transpileModule(
       readFileSync(`${source}${name}.ts`, "utf8"),
@@ -48,7 +49,7 @@ try {
       },
     ).outputText;
     compiled = compiled.replace(
-      /from ['"]\.\/(AgentWorker|AgentDesk|AgentOfficeFloor)['"]/g,
+      /from ['"]\.\/(AgentWorker|AgentDesk|AgentOfficeFloor|OfficeInterior)['"]/g,
       'from "./$1.mjs"',
     );
     writeFileSync(`${tmp}/${name}.mjs`, compiled);
@@ -162,6 +163,65 @@ try {
     "Reopening restores the crew",
   );
   office.setCutawayVisible(false);
+  const { CityBuilding } = await import(
+    pathToFileURL(`${tmp}/CityBuilding.mjs`)
+  );
+  for (const archetype of [
+    "skyscraper",
+    "office-tower",
+    "research-lab",
+    "data-center",
+    "settlement-vault",
+    "social-block",
+    "broadcast-hall",
+    "utility-structure",
+  ]) {
+    const layout = {
+      room: { ...room },
+      width: 4.4,
+      depth: 4.4,
+      height: 22,
+      position: [0, 0, 0],
+      district: "coordination",
+      archetype,
+      color: "#00B4D8",
+      beaconColor: "#00B4D8",
+      windowDensity: 16,
+      rotationY: 0,
+      isPrimaryRoom: true,
+    };
+    const building = new CityBuilding(layout, {});
+    assert.equal(building.group.userData.sourceRoom, "lobby");
+    assert.equal(building.hitMesh.userData.room.name, "lobby");
+    const windows = building.group.getObjectByName("observed-activity-windows");
+    assert.ok(
+      windows.count > 100,
+      "Facade includes detailed instanced windows",
+    );
+    const dark = windows.instanceColor.array.slice();
+    building.updateRoomData({ ...room, status: "active" });
+    assert.notDeepEqual(
+      windows.instanceColor.array,
+      dark,
+      "Window lighting reflects the room activity state",
+    );
+    building.setCutaway(true);
+    building.interior.setFocusedFloor(0);
+    let workers = 0;
+    building.group.traverseVisible((o) => {
+      if (o.name === "illustrative-office-worker") workers++;
+    });
+    assert.equal(
+      workers,
+      6,
+      "Every new building archetype opens onto a visible crew",
+    );
+    building.setCutaway(false);
+    building.dispose();
+  }
+  console.log(
+    "All 8 rebuilt architectural archetypes preserve source mapping, activity windows and office cutaways.",
+  );
   office.dispose();
   AgentDeskFactory.dispose();
   AgentWorker.dispose();

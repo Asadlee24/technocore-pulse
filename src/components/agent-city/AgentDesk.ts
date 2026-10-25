@@ -62,14 +62,14 @@ export class AgentDeskFactory {
     if (!entry) return;
     const c = entry.canvas.getContext("2d");
     if (!c) return;
-    c.fillStyle = "#172b2c";
+    c.fillStyle = "#0A1128";
     c.fillRect(0, 0, 384, 240);
-    c.fillStyle = "#36504c";
+    c.fillStyle = "#232A3E";
     c.fillRect(0, 0, 384, 32);
-    c.fillStyle = "#d9e2ce";
+    c.fillStyle = "#F5F7FA";
     c.font = "14px monospace";
     c.fillText("TECHNOCORE / WORKSPACE", 14, 21);
-    c.fillStyle = "#a3c9b5";
+    c.fillStyle = "#A1A7AE";
     c.font = "12px monospace";
     c.fillText("ILLUSTRATIVE TERMINAL", 14, 56);
     const lines =
@@ -97,11 +97,11 @@ export class AgentDeskFactory {
               "> local visualization",
             ];
     lines.forEach((line, i) => {
-      c.fillStyle = i % 2 ? "#d0dbca" : "#8ab9a5";
+      c.fillStyle = i % 2 ? "#F5F7FA" : "#00B4D8";
       c.fillText(line, 14, 85 + i * 24);
     });
     if (Math.floor(time * 2) % 2 === 0) {
-      c.fillStyle = "#edbf7c";
+      c.fillStyle = "#00B4D8";
       c.fillRect(16, 214, 8, 13);
     }
     entry.texture.needsUpdate = true;
@@ -117,9 +117,9 @@ export class AgentDeskFactory {
     group.name = "agent-workstation";
     group.position.set(config.x, config.y, config.z);
     group.rotation.y = config.rotationY ?? 0;
-    const wood = this.material(0xa58d6a),
-      metal = this.material(0x4d6058),
-      chair = this.material(0x36504a),
+    const wood = this.material(0xbdc8d6),
+      metal = this.material(0x5c6670),
+      chair = this.material(0x253e59),
       hardware = this.material(0x273936);
     const add = (
       geo: THREE.BufferGeometry,
@@ -178,8 +178,8 @@ export class AgentDeskFactory {
     add(this.box(0.045, 0.025, 0.07), hardware, 0.35, 0.755, 0.16);
     // Task light and notebook give the desks a human-designed material scale.
     add(this.box(0.045, 0.26, 0.045), metal, -0.47, 0.87, -0.19);
-    add(this.box(0.16, 0.035, 0.1), this.material(0xd7c5a1), -0.43, 1.0, -0.17);
-    add(this.box(0.15, 0.018, 0.2), this.material(0xd8dbc4), 0.46, 0.74, -0.04);
+    add(this.box(0.16, 0.035, 0.1), this.material(0xf5f7fa), -0.43, 1.0, -0.17);
+    add(this.box(0.15, 0.018, 0.2), this.material(0xd9dde1), 0.46, 0.74, -0.04);
     return group;
   }
   static dispose() {

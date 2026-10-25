@@ -24,7 +24,7 @@ export class ProbePulseSystem {
   public triggerPulse(position: [number, number, number]) {
     const ringGeo = new THREE.RingGeometry(0.5, 1.2, 48);
     const ringMat = new THREE.MeshBasicMaterial({
-      color: 0x36D7E7,
+      color: 0x00B4D8,
       transparent: true,
       opacity: 0.85,
       side: THREE.DoubleSide

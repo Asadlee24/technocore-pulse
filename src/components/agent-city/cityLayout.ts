@@ -1,24 +1,24 @@
-import type { RoomCluster } from '../../types/probe';
+import type { RoomCluster } from "../../types/probe";
 
 export type CityDistrictType =
-  | 'coordination'
-  | 'work'
-  | 'research'
-  | 'compute'
-  | 'settlement'
-  | 'social'
-  | 'broadcast'
-  | 'infrastructure';
+  | "coordination"
+  | "work"
+  | "research"
+  | "compute"
+  | "settlement"
+  | "social"
+  | "broadcast"
+  | "infrastructure";
 
 export type BuildingArchetype =
-  | 'skyscraper'
-  | 'office-tower'
-  | 'research-lab'
-  | 'data-center'
-  | 'settlement-vault'
-  | 'social-block'
-  | 'broadcast-hall'
-  | 'utility-structure';
+  | "skyscraper"
+  | "office-tower"
+  | "research-lab"
+  | "data-center"
+  | "settlement-vault"
+  | "social-block"
+  | "broadcast-hall"
+  | "utility-structure";
 
 export interface BuildingLayout {
   room: RoomCluster;
@@ -52,79 +52,87 @@ export interface RoadWaypoints {
   radialAvenues: { angle: number; startRadius: number; endRadius: number }[];
 }
 
-export const DISTRICT_CONFIGS: Record<CityDistrictType, {
-  name: string;
-  sectorIndex: number;
-  color: string;
-  archetype: BuildingArchetype;
-  description: string;
-}> = {
-  'coordination': {
-    name: 'Coordination District',
-    sectorIndex: 0,
-    color: '#36D7E7',
-    archetype: 'skyscraper',
-    description: 'Autonomous protocol alignment and consensus towers'
-  },
-  'work': {
-    name: 'Agent Work District',
-    sectorIndex: 1,
-    color: '#4DA3FF',
-    archetype: 'office-tower',
-    description: 'High-density autonomous agent office towers and desk complexes'
-  },
-  'research': {
-    name: 'Research District',
-    sectorIndex: 2,
-    color: '#38BDF8',
-    archetype: 'research-lab',
-    description: 'Algorithmic innovation, probe analysis laboratories'
-  },
-  'compute': {
-    name: 'Compute District',
-    sectorIndex: 3,
-    color: '#A855F7',
-    archetype: 'data-center',
-    description: 'High-density inference clusters and relay matrix'
-  },
-  'settlement': {
-    name: 'Settlement District',
-    sectorIndex: 4,
-    color: '#2FD27F',
-    archetype: 'settlement-vault',
-    description: 'Atomic escrow and cryptographic settlement vaults'
-  },
-  'social': {
-    name: 'Social District',
-    sectorIndex: 5,
-    color: '#F472B6',
-    archetype: 'social-block',
-    description: 'Public agent courtyards, modular residential clusters'
-  },
-  'broadcast': {
-    name: 'Public Communication District',
-    sectorIndex: 6,
-    color: '#F0A824',
-    archetype: 'broadcast-hall',
-    description: 'Global signal transmission masts and open forums'
-  },
-  'infrastructure': {
-    name: 'Infrastructure District',
-    sectorIndex: 7,
-    color: '#94A3B8',
-    archetype: 'utility-structure',
-    description: 'Network routing terminals, power nodes, transit hubs'
+export const DISTRICT_CONFIGS: Record<
+  CityDistrictType,
+  {
+    name: string;
+    sectorIndex: number;
+    color: string;
+    archetype: BuildingArchetype;
+    description: string;
   }
+> = {
+  coordination: {
+    name: "Coordination District",
+    sectorIndex: 0,
+    color: "#00B4D8",
+    archetype: "skyscraper",
+    description: "Autonomous protocol alignment and consensus towers",
+  },
+  work: {
+    name: "Agent Work District",
+    sectorIndex: 1,
+    color: "#00B4D8",
+    archetype: "office-tower",
+    description:
+      "High-density autonomous agent office towers and desk complexes",
+  },
+  research: {
+    name: "Research District",
+    sectorIndex: 2,
+    color: "#00B4D8",
+    archetype: "research-lab",
+    description: "Algorithmic innovation, probe analysis laboratories",
+  },
+  compute: {
+    name: "Compute District",
+    sectorIndex: 3,
+    color: "#00B4D8",
+    archetype: "data-center",
+    description: "High-density inference clusters and relay matrix",
+  },
+  settlement: {
+    name: "Settlement District",
+    sectorIndex: 4,
+    color: "#0466C8",
+    archetype: "settlement-vault",
+    description: "Atomic escrow and cryptographic settlement vaults",
+  },
+  social: {
+    name: "Social District",
+    sectorIndex: 5,
+    color: "#00B4D8",
+    archetype: "social-block",
+    description: "Public agent courtyards, modular residential clusters",
+  },
+  broadcast: {
+    name: "Public Communication District",
+    sectorIndex: 6,
+    color: "#00B4D8",
+    archetype: "broadcast-hall",
+    description: "Global signal transmission masts and open forums",
+  },
+  infrastructure: {
+    name: "Infrastructure District",
+    sectorIndex: 7,
+    color: "#94A3B8",
+    archetype: "utility-structure",
+    description: "Network routing terminals, power nodes, transit hubs",
+  },
 };
 
 /**
  * Calculates building height based on observed metric:
  * height = clamp(6 + log2(activityMetric + 1) * 4.5, 7, 34)
  */
-export function calculateBuildingHeight(activityMetric?: number | null, _fallbackIndex: number = 0): number {
-  const metric = (typeof activityMetric === 'number' && activityMetric > 0)
-    ? activityMetric
-    : 0;
+export function calculateBuildingHeight(
+  activityMetric?: number | null,
+  _fallbackIndex: number = 0,
+): number {
+  const metric =
+    typeof activityMetric === "number" && activityMetric > 0
+      ? activityMetric
+      : 0;
   const calculated = 6 + Math.log2(metric + 1) * 4.5;
   return Math.min(34, Math.max(7, Math.round(calculated * 10) / 10));
 }
@@ -134,27 +142,42 @@ export function calculateBuildingHeight(activityMetric?: number | null, _fallbac
  */
 export function getBeaconColor(lastProbeArm?: string): string {
   switch (lastProbeArm) {
-    case 'question': return '#F0A824';
-    case 'offer': return '#A855F7';
-    case 'statement': return '#36D7E7';
-    default: return '#4DA3FF';
+    case "question":
+      return "#00B4D8";
+    case "offer":
+      return "#00B4D8";
+    case "statement":
+      return "#00B4D8";
+    default:
+      return "#00B4D8";
   }
 }
 
 /**
  * Maps a RoomCluster to one of the 8 canonical visual districts
  */
-export function mapRoomToDistrict(room: RoomCluster, index: number): CityDistrictType {
+export function mapRoomToDistrict(
+  room: RoomCluster,
+  index: number,
+): CityDistrictType {
   if (room.visualDistrict) {
-    if (room.visualDistrict === 'coordination') return index % 2 === 0 ? 'coordination' : 'work';
-    if (room.visualDistrict === 'compute-relay') return 'compute';
-    if (room.visualDistrict === 'settlement-prep') return 'settlement';
-    if (room.visualDistrict === 'agent-social') return index % 2 === 0 ? 'social' : 'broadcast';
+    if (room.visualDistrict === "coordination")
+      return index % 2 === 0 ? "coordination" : "work";
+    if (room.visualDistrict === "compute-relay") return "compute";
+    if (room.visualDistrict === "settlement-prep") return "settlement";
+    if (room.visualDistrict === "agent-social")
+      return index % 2 === 0 ? "social" : "broadcast";
   }
-  
+
   const allDistricts: CityDistrictType[] = [
-    'coordination', 'work', 'research', 'compute',
-    'settlement', 'social', 'broadcast', 'infrastructure'
+    "coordination",
+    "work",
+    "research",
+    "compute",
+    "settlement",
+    "social",
+    "broadcast",
+    "infrastructure",
   ];
   return allDistricts[index % allDistricts.length];
 }
@@ -169,14 +192,14 @@ export function generateCityLayout(rooms: RoomCluster[]): {
 } {
   const buildings: BuildingLayout[] = [];
   const districtsMap: Record<CityDistrictType, BuildingLayout[]> = {
-    'coordination': [],
-    'work': [],
-    'research': [],
-    'compute': [],
-    'settlement': [],
-    'social': [],
-    'broadcast': [],
-    'infrastructure': []
+    coordination: [],
+    work: [],
+    research: [],
+    compute: [],
+    settlement: [],
+    social: [],
+    broadcast: [],
+    infrastructure: [],
   };
 
   const districtKeys = Object.keys(DISTRICT_CONFIGS) as CityDistrictType[];
@@ -185,14 +208,14 @@ export function generateCityLayout(rooms: RoomCluster[]): {
 
   // Track rooms assigned to each district
   const districtRoomAssignments: Record<CityDistrictType, RoomCluster[]> = {
-    'coordination': [],
-    'work': [],
-    'research': [],
-    'compute': [],
-    'settlement': [],
-    'social': [],
-    'broadcast': [],
-    'infrastructure': []
+    coordination: [],
+    work: [],
+    research: [],
+    compute: [],
+    settlement: [],
+    social: [],
+    broadcast: [],
+    infrastructure: [],
   };
 
   rooms.forEach((room, idx) => {
@@ -215,16 +238,73 @@ export function generateCityLayout(rooms: RoomCluster[]): {
     // 6 discrete lot definitions per sector
     const sectorLots = [
       // Ring 1: Inner Downtown (medium-rise)
-      { ring: 1, radius: 21.5, angleOffset: -0.21, width: 4.4, depth: 4.4, heightBase: 10, heightVar: 4 },
-      { ring: 1, radius: 21.5, angleOffset: 0.21, width: 4.4, depth: 4.4, heightBase: 12, heightVar: 4 },
+      {
+        ring: 1,
+        radius: 21.5,
+        angleOffset: -0.21,
+        width: 4.4,
+        depth: 4.4,
+        heightBase: 10,
+        heightVar: 4,
+      },
+      {
+        ring: 1,
+        radius: 21.5,
+        angleOffset: 0.21,
+        width: 4.4,
+        depth: 4.4,
+        heightBase: 12,
+        heightVar: 4,
+      },
       // Ring 2: Flagship Center (the district centerpiece skyscraper)
-      { ring: 2, radius: 35.0, angleOffset: 0.00, width: 5.2, depth: 5.2, heightBase: 24, heightVar: 8, isFlagship: true },
+      {
+        ring: 2,
+        radius: 35.0,
+        angleOffset: 0.0,
+        width: 5.2,
+        depth: 5.2,
+        heightBase: 24,
+        heightVar: 8,
+        isFlagship: true,
+      },
       // Ring 2: Commercial flanks
-      { ring: 2, radius: 35.0, angleOffset: -0.25, width: 4.8, depth: 4.8, heightBase: 16, heightVar: 6 },
-      { ring: 2, radius: 35.0, angleOffset: 0.25, width: 4.8, depth: 4.8, heightBase: 17, heightVar: 6 },
+      {
+        ring: 2,
+        radius: 35.0,
+        angleOffset: -0.25,
+        width: 4.8,
+        depth: 4.8,
+        heightBase: 16,
+        heightVar: 6,
+      },
+      {
+        ring: 2,
+        radius: 35.0,
+        angleOffset: 0.25,
+        width: 4.8,
+        depth: 4.8,
+        heightBase: 17,
+        heightVar: 6,
+      },
       // Ring 3: Outer High-Rise
-      { ring: 3, radius: 50.0, angleOffset: -0.22, width: 5.4, depth: 5.4, heightBase: 20, heightVar: 9 },
-      { ring: 3, radius: 50.0, angleOffset: 0.22, width: 5.4, depth: 5.4, heightBase: 22, heightVar: 9 }
+      {
+        ring: 3,
+        radius: 50.0,
+        angleOffset: -0.22,
+        width: 5.4,
+        depth: 5.4,
+        heightBase: 20,
+        heightVar: 9,
+      },
+      {
+        ring: 3,
+        radius: 50.0,
+        angleOffset: 0.22,
+        width: 5.4,
+        depth: 5.4,
+        heightBase: 22,
+        heightVar: 9,
+      },
     ];
 
     assignedRooms.forEach((roomForLot, lotIdx) => {
@@ -235,8 +315,14 @@ export function generateCityLayout(rooms: RoomCluster[]): {
       const z = Math.sin(angle) * radius;
       const isPrimary = true;
       // Building massing is architectural. Only observed identities affect extra height.
-      const calculatedHeight = calculateBuildingHeight(roomForLot.signedIdentitiesObserved)
-        + lot.heightBase * 0.3;
+      const calculatedHeight =
+        lot.heightBase +
+        Math.abs(Math.sin(lotIdx * 7.7 + cfg.sectorIndex * 19)) *
+          lot.heightVar +
+        Math.min(
+          4,
+          calculateBuildingHeight(roomForLot.signedIdentitiesObserved) - 7,
+        );
 
       const height = Math.round(calculatedHeight);
 
@@ -248,11 +334,11 @@ export function generateCityLayout(rooms: RoomCluster[]): {
         height: Math.max(8, height),
         district: distType,
         archetype: cfg.archetype,
-        color: roomForLot.color || cfg.color,
+        color: cfg.color,
         beaconColor: getBeaconColor(roomForLot.lastProbeArm),
         windowDensity: 16 + lot.ring * 4,
         rotationY: angle + Math.PI / 2,
-        isPrimaryRoom: isPrimary
+        isPrimaryRoom: isPrimary,
       };
 
       buildings.push(bLayout);
@@ -264,8 +350,14 @@ export function generateCityLayout(rooms: RoomCluster[]): {
   const districts: CityDistrictLayout[] = districtKeys.map((distType) => {
     const cfg = DISTRICT_CONFIGS[distType];
     const bList = districtsMap[distType];
-    const avgX = bList.length > 0 ? bList.reduce((sum, b) => sum + b.position[0], 0) / bList.length : Math.cos(cfg.sectorIndex * sectorAngleStep) * 35;
-    const avgZ = bList.length > 0 ? bList.reduce((sum, b) => sum + b.position[2], 0) / bList.length : Math.sin(cfg.sectorIndex * sectorAngleStep) * 35;
+    const avgX =
+      bList.length > 0
+        ? bList.reduce((sum, b) => sum + b.position[0], 0) / bList.length
+        : Math.cos(cfg.sectorIndex * sectorAngleStep) * 35;
+    const avgZ =
+      bList.length > 0
+        ? bList.reduce((sum, b) => sum + b.position[2], 0) / bList.length
+        : Math.sin(cfg.sectorIndex * sectorAngleStep) * 35;
 
     return {
       type: distType,
@@ -274,7 +366,7 @@ export function generateCityLayout(rooms: RoomCluster[]): {
       angle: cfg.sectorIndex * sectorAngleStep,
       center: [avgX, 0, avgZ],
       color: cfg.color,
-      buildings: bList
+      buildings: bList,
     };
   });
 
@@ -292,10 +384,9 @@ export function generateCityLayout(rooms: RoomCluster[]): {
       // Avenues are placed precisely halfway between districts (inter-district avenues)
       angle: (i + 0.5) * sectorAngleStep,
       startRadius: 8,
-      endRadius: 65
-    }))
+      endRadius: 65,
+    })),
   };
 
   return { buildings, districts, roadWaypoints };
 }
-

@@ -24,11 +24,28 @@ const AgentCity3D = lazy(() =>
 import type { CameraViewLevel } from "./components/agent-city/CityLODManager";
 import type { RoomCluster } from "./types/probe";
 import "./App.css";
+import { PUBLIC_CITY_SNAPSHOT } from "./data/publicCitySnapshot";
+const capturedRooms: RoomCluster[] = PUBLIC_CITY_SNAPSHOT.rooms.map(
+  (room, index) => ({
+    id: `captured-room-${room.room}`,
+    name: room.room,
+    displayName: `#${room.room}`,
+    category: "unclassified",
+    signedIdentitiesObserved: null,
+    activeAgentsCount: null,
+    totalProbesReceived: 0,
+    medianSubsequentLatencySeconds: null,
+    status: room.idle_seconds < 30 ? "active" : "nominal",
+    color: "#00B4D8",
+    coordinates: [index, 0, 0],
+    topic: room.topic,
+  }),
+);
 
 function Metropolis() {
   const {
-    activeRoomClusters: rooms,
-    signedRecords,
+    activeRoomClusters: liveClusters,
+    signedRecords: liveSignedRecords,
     observerHealth,
     isLiveLoading,
     liveError,
@@ -36,6 +53,9 @@ function Metropolis() {
     activeStats,
     liveRooms,
   } = useData();
+  const [snapshotMode, setSnapshotMode] = useState(false);
+  const rooms = snapshotMode ? capturedRooms : liveClusters;
+  const signedRecords = snapshotMode ? [] : liveSignedRecords;
   const [selectedId, setSelectedId] = useState("");
   const [view, setView] = useState<CameraViewLevel>("city");
   const [perspective, setPerspective] = useState<
@@ -89,7 +109,7 @@ function Metropolis() {
     setShowDirectory(false);
   };
   const records = signedRecords.filter((r) => r.room === selected?.name);
-  const healthy = observerHealth === "LIVE" && !isLiveLoading;
+  const healthy = !snapshotMode && observerHealth === "LIVE" && !isLiveLoading;
   const verified = new Set(
     signedRecords
       .filter((r) => r.verificationStatus === "VERIFIED")
@@ -100,22 +120,24 @@ function Metropolis() {
     <div className="metropolis">
       <header className="masthead">
         <a
-          className="wordmark"
-          href="https://technocore.chat"
+          className="flop-brand"
+          href="https://flop.finance"
           target="_blank"
           rel="noreferrer"
-          aria-label="Technocore public network"
+          aria-label="FLOP Network official website"
         >
-          <span className="brand-symbol">
-            <i />
-            <i />
-            <i />
-          </span>
-          TECHNOCORE
-          <span className="wordmark-divider" />
-          PULSE
+          <img
+            src="/brand/flop-lockup-on-dark.png"
+            alt="FLOP"
+            width="270"
+            height="135"
+          />
         </a>
-        <span className="edition">A FIELD GUIDE TO THE AGENT CITY</span>
+        <a className="project-identity" href="#city">
+          <strong>TECHNOCORE CITY</strong>
+          <span>COMMUNITY OBSERVATORY</span>
+        </a>
+        <span className="edition">INDEPENDENT COMMUNITY BUILD · ASAD LEE</span>
         <nav>
           <button onClick={() => setShowInfo(true)}>
             About the city <ArrowUpRight size={14} />
@@ -130,18 +152,21 @@ function Metropolis() {
         </nav>
       </header>
 
-      <main className="city-stage">
+      <main id="city" className="city-stage">
         <div className="stage-heading">
           <div>
-            <span className="eyebrow">PUBLIC NETWORK OBSERVATORY / 01</span>
+            <span className="eyebrow">
+              FLOP ECOSYSTEM / PUBLIC COORDINATION
+            </span>
             <h1>
-              A city of
+              The network,
               <br />
-              <em>coordination.</em>
+              <em>inhabited.</em>
             </h1>
             <p>
-              Real rooms. Observed messages.
-              <br />A different way to see Technocore.
+              Explore rooms as buildings.
+              <br />
+              Follow the public signals inside.
             </p>
           </div>
           <span className="vertical-caption">
@@ -186,7 +211,7 @@ function Metropolis() {
           <span>
             TECHNOCORE
             <br />
-            <small>Community city atlas</small>
+            <small>Independent community atlas</small>
           </span>
         </div>
         <div className="scene-tools">
@@ -301,7 +326,11 @@ function Metropolis() {
                 </div>
                 <div>
                   <dt>Probe v1 posts</dt>
-                  <dd>{selected.totalProbesReceived}</dd>
+                  <dd>
+                    {snapshotMode
+                      ? "Not sampled"
+                      : selected.totalProbesReceived}
+                  </dd>
                 </div>
               </dl>
               <button
@@ -374,10 +403,37 @@ function Metropolis() {
                 : "Live rooms could not be loaded. The city stays empty until the source returns."}
             </p>
             {!isLiveLoading && (
-              <button onClick={() => void refreshLiveData()}>
-                Retry public source <RefreshCw size={14} />
-              </button>
+              <>
+                <button onClick={() => void refreshLiveData()}>
+                  Retry public source <RefreshCw size={14} />
+                </button>
+                <button
+                  className="snapshot-entry"
+                  onClick={() => setSnapshotMode(true)}
+                >
+                  Explore captured public city <ArrowUpRight size={14} />
+                </button>
+              </>
             )}
+          </div>
+        )}
+        {snapshotMode && (
+          <div className="capture-ribbon">
+            <strong>CAPTURED PUBLIC INDEX · NOT LIVE</strong>
+            <span>
+              {new Date(PUBLIC_CITY_SNAPSHOT.capturedAt).toLocaleString()} ·{" "}
+              {rooms.length} real rooms. Identities and messages were not
+              sampled.
+            </span>
+            <br />
+            <button
+              onClick={() => {
+                setSnapshotMode(false);
+                void refreshLiveData();
+              }}
+            >
+              Return to live observer →
+            </button>
           </div>
         )}
         <div className="scene-footnote">
@@ -389,8 +445,18 @@ function Metropolis() {
       <div className="observation-bar">
         <div className="observer-state">
           <span className={`status-dot ${healthy ? "connected" : ""}`} />
-          <strong>{isLiveLoading ? "SYNCING" : observerHealth}</strong>
-          <span>Public read-only observer</span>
+          <strong>
+            {snapshotMode
+              ? "CAPTURED INDEX"
+              : isLiveLoading
+                ? "SYNCING"
+                : observerHealth}
+          </strong>
+          <span>
+            {snapshotMode
+              ? "Timestamped public source"
+              : "Public read-only observer"}
+          </span>
           <button
             aria-label="Refresh public observations"
             disabled={isLiveLoading}
@@ -404,20 +470,22 @@ function Metropolis() {
         </div>
         <div className="observation-stats">
           <span>
-            <b>{liveRooms.length}</b> indexed rooms
+            <b>{snapshotMode ? rooms.length : liveRooms.length}</b>{" "}
+            {snapshotMode ? "captured rooms" : "indexed rooms"}
           </span>
           <span>
-            <b>{activeStats.ephemeralMessageDepth}</b> sampled messages
+            <b>{snapshotMode ? "—" : activeStats.ephemeralMessageDepth}</b>{" "}
+            sampled messages
           </span>
           <span>
-            <b>{verified}</b> verified DIDs
+            <b>{snapshotMode ? "—" : verified}</b> verified DIDs
           </span>
         </div>
         <button className="method-link" onClick={() => setShowInfo(true)}>
           How to read this <ArrowDown size={14} />
         </button>
       </div>
-      {liveError && (
+      {liveError && !snapshotMode && (
         <div className="source-error">
           Source unavailable: {liveError.slice(0, 180)}. Previous observations
           may be stale.
@@ -428,8 +496,10 @@ function Metropolis() {
           <span className="eyebrow">FROM THE PUBLIC RECORD</span>
           <h2>Signals, with their sources.</h2>
           <p>
-            The city shows the public coordination layer. It does not infer
-            private agent work, compute jobs or on-chain settlement.
+            The city maps public Technocore rooms. FLOP branding follows the
+            official published assets; this remains an independent community
+            contribution. It does not infer private agent work, compute jobs or
+            on-chain settlement.
           </p>
         </div>
         <div className="event-records">
@@ -468,7 +538,8 @@ function Metropolis() {
       </section>
       <footer className="metro-footer">
         <span>
-          Independent community work for the FLOP / Technocore ecosystem.
+          FLOP ecosystem · Independent community contribution, not an official
+          FLOP Labs product.
         </span>
         <a href="https://asadl.bond" target="_blank" rel="noreferrer">
           Built by Asad Lee <ArrowUpRight size={14} />

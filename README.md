@@ -123,3 +123,9 @@ The browser used during development has WebGL disabled, so hardware-accelerated 
 Opening a building now creates a representative three-floor office with six designed robot workers per floor, full desktop monitors, keyboards, mice, task lights and chairs. This fixed crew is labelled illustrative and remains visible when identity counts are unknown. The interior camera approaches the open facade and hides upper floors to keep the ground-floor workstations visible. Office resources are allocated on selection and released on exit. Terminal textures are explicitly illustrative; the room command display retains observed values and shows UNKNOWN for missing identity counts.
 
 Run `node test_office_interiors.mjs` for scene-graph, animation, camera-facing workstation and resource-lifecycle checks.
+
+## FLOP computational city
+
+Official logo exports from flop.finance/brand/ are preserved byte-for-byte in `public/brand/`. The interface follows the published Base, Ice White, Cyan and Space Mono direction. The old ornamental towers, water tanks, animated Times Square billboards and elevated pseudo-data rails have been replaced by stepped glass-and-concrete room buildings, roof terraces, a branded community pavilion, waterfront promenades, crosswalks and instanced street vehicles. Transport and architecture remain explicitly scenery.
+
+When live requests are unavailable, visitors can explicitly choose the timestamped **captured public index**. `src/data/publicCitySnapshot.ts` records the public source URL, retrieval time and 48 original room-index entries. Captured mode has no sampled messages or identities, triggers no fabricated record pulses, and is labelled separately from live observation. It never seeds the LIVE provider.

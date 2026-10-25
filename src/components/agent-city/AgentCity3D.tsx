@@ -13,13 +13,8 @@ import { AgentDeskFactory } from "./AgentDesk";
 import { AgentWorker } from "./AgentWorker";
 import { MetroLandmark as CityDistrictManager } from "./MetroLandmark";
 import { CityRoads } from "./CityRoads";
-import { CitySkyline } from "./CitySkyline";
 import { CityEnvironment } from "./CityEnvironment";
-import { CityRoutes } from "./CityRoutes";
-import { AgentParticles } from "./AgentParticles";
 import { ProbePulseSystem } from "./ProbePulseSystem";
-import { CityTransportManager } from "./CityTransport";
-import { CityPedestrians } from "./CityPedestrians";
 import { CityLODManager, type CameraViewLevel } from "./CityLODManager";
 import {
   Radio,
@@ -123,10 +118,6 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   const materialsRef = useRef<CityMaterials | null>(null);
   const pulseSystemRef = useRef<ProbePulseSystem | null>(null);
   const districtMgrRef = useRef<CityDistrictManager | null>(null);
-  const transportMgrRef = useRef<CityTransportManager | null>(null);
-  const routesRef = useRef<CityRoutes | null>(null);
-  const agentParticlesRef = useRef<AgentParticles | null>(null);
-  const pedestriansRef = useRef<CityPedestrians | null>(null);
   const buildingsMapRef = useRef<Map<string, CityBuilding>>(new Map());
   const cityGroupRef = useRef<THREE.Group | null>(null);
   const interactiveMeshesRef = useRef<THREE.Mesh[]>([]);
@@ -135,8 +126,10 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   // Cinematic Intro & Perspective references
   const isIntroRef = useRef<boolean>(true);
   const introProgressRef = useRef<number>(0);
-  const INTRO_START_POS = useRef<THREE.Vector3>(new THREE.Vector3(78, 52, 84));
-  const INTRO_END_POS = useRef<THREE.Vector3>(new THREE.Vector3(56, 36, 62));
+  const INTRO_START_POS = useRef<THREE.Vector3>(
+    new THREE.Vector3(106, 78, 112),
+  );
+  const INTRO_END_POS = useRef<THREE.Vector3>(new THREE.Vector3(82, 58, 88));
   const INTRO_START_LOOK = useRef<THREE.Vector3>(new THREE.Vector3(0, 10, 0));
   const INTRO_END_LOOK = useRef<THREE.Vector3>(new THREE.Vector3(0, 6, 0));
 
@@ -151,7 +144,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   // Animation & Camera targets
   const controlsRef = useRef<OrbitControls | null>(null);
   const isTransitioningRef = useRef<boolean>(false);
-  const cameraTargetPos = useRef<THREE.Vector3>(new THREE.Vector3(56, 36, 62));
+  const cameraTargetPos = useRef<THREE.Vector3>(new THREE.Vector3(82, 58, 88));
   const cameraTargetLookAt = useRef<THREE.Vector3>(new THREE.Vector3(0, 6, 0));
 
   // Refs for animation loop (prevents scene destruction on state changes)
@@ -255,7 +248,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // Close all cutaways
     buildingsMapRef.current.forEach((b) => b.setCutaway(false));
 
-    cameraTargetPos.current.set(56, 36, 62);
+    cameraTargetPos.current.set(82, 58, 88);
     cameraTargetLookAt.current.set(0, 6, 0);
     setPulseLog("Camera returned to Agent City metropolitan overview.");
   }, []);
@@ -444,7 +437,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     } else if (cameraPerspective === "orbit") {
       if (viewLevelRef.current === "city") {
         isTransitioningRef.current = true;
-        cameraTargetPos.current.set(56, 36, 62);
+        cameraTargetPos.current.set(82, 58, 88);
         cameraTargetLookAt.current.set(0, 6, 0);
       }
       setPulseLog("Camera switched to Free Orbit mode.");
@@ -530,7 +523,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // 1. Scene & Atmospheric Fog (Target: 10-15% sky readability, softened fog so buildings don't vanish)
     const scene = new THREE.Scene();
     sceneRef.current = scene;
-    scene.fog = new THREE.FogExp2(isLight ? 0xe8eef5 : 0x202c32, 0.0038);
+    scene.fog = new THREE.FogExp2(isLight ? 0xf5f7fa : 0x0a1128, 0.0023);
 
     // 2. Camera Setup
     const width = container.clientWidth;
@@ -552,9 +545,9 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     renderer.setPixelRatio(
       Math.min(window.devicePixelRatio, isMobileDevice ? 1.35 : 1.75),
     );
-    renderer.setClearColor(isLight ? 0xe8eef5 : 0x202c32, 1);
+    renderer.setClearColor(isLight ? 0xf5f7fa : 0x0a1128, 1);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.15;
+    renderer.toneMappingExposure = 1.35;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     rendererRef.current = renderer;
@@ -585,14 +578,6 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     const roads = new CityRoads(roadWaypoints, theme);
     scene.add(roads.group);
 
-    const skyline = new CitySkyline(theme);
-    // Skyline mesh is omitted: every visible building maps to an indexed room.
-
-    // 8. Elevated Autonomous Sky Transport, Rails & Aerial Drones
-    const transportMgr = new CityTransportManager();
-    transportMgrRef.current = transportMgr;
-    scene.add(transportMgr.group);
-
     // 9. Procedural District Buildings & Cutaway Interiors
     buildingsMapRef.current.clear();
     interactiveMeshesRef.current = [];
@@ -611,31 +596,16 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     });
     scene.add(cityGroup);
 
-    // 8. Elevated Network Routes & Moving Data Packets
-    const routes = new CityRoutes(buildings, materials);
-    routesRef.current = routes;
-    // No invented agent-to-agent links in the public observer.
-
-    // 9. Autonomous Drone Particles
-    const agentParticles = new AgentParticles(buildings);
-    agentParticlesRef.current = agentParticles;
-    // Public messages do not prove packet trajectories.
-
-    // 10. Ground Street Pedestrians & Sidewalk Life
-    const pedestrians = new CityPedestrians(buildings, roadWaypoints);
-    pedestriansRef.current = pedestrians;
-    // Street population is not exposed by the source API.
-
     // 10. Balanced Night Lighting (Readable graphite facades without daytime wash)
     const ambientLight = new THREE.AmbientLight(
-      isLight ? 0xffffff : 0xd9d3c2,
+      isLight ? 0xffffff : 0xe0e8f2,
       isLight ? 2.2 : 1.1,
     );
     scene.add(ambientLight);
 
     const hemiLight = new THREE.HemisphereLight(
-      isLight ? 0xf0f9ff : 0xb8cfd4,
-      isLight ? 0xe2e8f0 : 0x57534c,
+      isLight ? 0xf0f9ff : 0xb9d5ef,
+      isLight ? 0xe2e8f0 : 0x26334f,
       2.0,
     );
     scene.add(hemiLight);
@@ -651,7 +621,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 
     // Cool Moonlight Directional Key Light (gives crisp architectural edge definition)
     const moonLight = new THREE.DirectionalLight(
-      isLight ? 0x38bdf8 : 0xffe0b0,
+      isLight ? 0x38bdf8 : 0xe3efff,
       isLight ? 2.2 : 2.2,
     );
     moonLight.position.set(40, 70, -35);
@@ -854,7 +824,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
           }
         } else if (t < 18) {
           // 4. Hero skyline pull-back
-          camera.position.lerp(new THREE.Vector3(56, 36, 62), 0.05);
+          camera.position.lerp(new THREE.Vector3(82, 58, 88), 0.05);
           controlsRef.current?.target.lerp(new THREE.Vector3(0, 6, 0), 0.05);
         } else {
           // End showcase
@@ -982,12 +952,11 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       districtMgr.update(
         lodManagerRef.current.config.prefersReducedMotion ? 0 : time,
       );
-      transportMgr.update(delta, time);
-      pedestrians.update(time);
-      routes.update(time);
-      agentParticles.update(time);
       pulseSystem.update(delta);
       environment.update(time);
+      roads.update(
+        lodManagerRef.current.config.prefersReducedMotion ? 0 : time,
+      );
 
       // Update individual buildings & interiors
       const currentActiveId = activeRoomRef.current.id;
@@ -1029,10 +998,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 
       pulseSystem.dispose();
       districtMgr.dispose();
-      transportMgr.dispose();
-      pedestrians.dispose();
       roads.dispose();
-      skyline.dispose();
       environment.dispose();
       disposeCityMaterials(materials);
 
