@@ -1,226 +1,535 @@
-import { useState } from 'react';
-import { DataProvider, useData } from './context/DataContext';
-import { SignalMap3D } from './components/SignalMap3D';
-import { ProtocolExplainer } from './components/ProtocolExplainer';
-import { ProbeArmsSection } from './components/ProbeArmsSection';
-import { LivePulseDashboard } from './components/LivePulseDashboard';
-import { InsightStudio } from './components/InsightStudio';
-import { MethodologySection } from './components/MethodologySection';
-import { BuilderSection } from './components/BuilderSection';
-import { Footer } from './components/Footer';
-import { RawEventDrawer } from './components/RawEventDrawer';
-import type { RoomCluster, ProbeRun } from './types/probe';
-import { 
-  Building2, 
-  Activity, 
-  Layers, 
-  FileText, 
-  Sparkles, 
-  Radio, 
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ArrowDown,
+  ArrowUpRight,
+  Building2,
+  ChevronRight,
+  Compass,
+  Eye,
+  Layers3,
+  Maximize2,
+  RefreshCw,
+  Search,
+  Sun,
+  Moon,
   X,
-  ArrowRight
-} from 'lucide-react';
+} from "lucide-react";
+import { DataProvider, useData } from "./context/DataContext";
+import { CityBoundary } from "./components/CityBoundary";
+const AgentCity3D = lazy(() =>
+  import("./components/agent-city/AgentCity3D").then((m) => ({
+    default: m.AgentCity3D,
+  })),
+);
+import type { CameraViewLevel } from "./components/agent-city/CityLODManager";
+import type { RoomCluster } from "./types/probe";
+import "./App.css";
 
-function AppContent() {
-  const { activeRoomClusters } = useData();
-  const [hasEnteredCity, setHasEnteredCity] = useState<boolean>(false);
-  const [isRawDrawerOpen, setIsRawDrawerOpen] = useState<boolean>(false);
-  const [isNavMenuOpen, setIsNavMenuOpen] = useState<boolean>(false);
-  const [selectedRoom, setSelectedRoom] = useState<RoomCluster>(activeRoomClusters[0]);
-  const [activeInspectorRun, setActiveInspectorRun] = useState<ProbeRun | null>(null);
-
-  const handleOpenInspectorForRun = (run: ProbeRun) => {
-    setActiveInspectorRun(run);
-    setIsRawDrawerOpen(true);
+function Metropolis() {
+  const {
+    activeRoomClusters: rooms,
+    signedRecords,
+    observerHealth,
+    isLiveLoading,
+    liveError,
+    refreshLiveData,
+    activeStats,
+    liveRooms,
+  } = useData();
+  const [selectedId, setSelectedId] = useState("");
+  const [view, setView] = useState<CameraViewLevel>("city");
+  const [perspective, setPerspective] = useState<
+    "orbit" | "drone" | "plaza" | "walk" | "building"
+  >("orbit");
+  const [query, setQuery] = useState("");
+  const [theme, setTheme] = useState<"light" | "dark">("dark");
+  const [showInfo, setShowInfo] = useState(false);
+  const [showDirectory, setShowDirectory] = useState(false);
+  const dialogRef = useRef<HTMLElement>(null);
+  const guideTrigger = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!showInfo) return;
+    guideTrigger.current = document.activeElement as HTMLElement;
+    const handle = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowInfo(false);
+      if (e.key !== "Tab") return;
+      const nodes =
+        dialogRef.current?.querySelectorAll<HTMLElement>("button, a[href]");
+      if (!nodes?.length) return;
+      const first = nodes[0],
+        last = nodes[nodes.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", handle);
+    return () => {
+      document.removeEventListener("keydown", handle);
+      guideTrigger.current?.focus();
+    };
+  }, [showInfo]);
+  const selected = rooms.find((r) => r.id === selectedId) ?? rooms[0];
+  const filtered = useMemo(
+    () =>
+      rooms.filter((r) =>
+        `${r.name} ${r.topic ?? ""}`
+          .toLowerCase()
+          .includes(query.toLowerCase()),
+      ),
+    [rooms, query],
+  );
+  const selectRoom = (room: RoomCluster) => {
+    setSelectedId(room.id);
+    setView("building");
+    setPerspective("orbit");
+    setShowDirectory(false);
   };
+  const records = signedRecords.filter((r) => r.room === selected?.name);
+  const healthy = observerHealth === "LIVE" && !isLiveLoading;
+  const verified = new Set(
+    signedRecords
+      .filter((r) => r.verificationStatus === "VERIFIED")
+      .map((r) => r.did),
+  ).size;
 
   return (
-    <div className="min-h-screen flex flex-col font-sans bg-[#050A12] text-[#EAF2F7] selection:bg-[#36D7E7]/25 selection:text-[#36D7E7]">
-      {/* ------------------------------------------------------------- */}
-      {/* 1. CINEMATIC FIRST EXPERIENCE / ENTRY SCREEN                  */}
-      {/* ------------------------------------------------------------- */}
-      {!hasEnteredCity && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#050A12] text-[#EAF2F7] px-4 safe-top safe-bottom select-none">
-          {/* Subtle Ambient Radial Glow */}
-          <div className="absolute inset-0 bg-radial-vignette opacity-85 pointer-events-none" />
-          <div className="absolute -top-36 left-1/2 -translate-x-1/2 w-[720px] h-[520px] bg-[#36D7E7]/10 rounded-full blur-[140px] pointer-events-none" />
+    <div className="metropolis">
+      <header className="masthead">
+        <a
+          className="wordmark"
+          href="https://technocore.chat"
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Technocore public network"
+        >
+          <span className="brand-symbol">
+            <i />
+            <i />
+            <i />
+          </span>
+          TECHNOCORE
+          <span className="wordmark-divider" />
+          PULSE
+        </a>
+        <span className="edition">A FIELD GUIDE TO THE AGENT CITY</span>
+        <nav>
+          <button onClick={() => setShowInfo(true)}>
+            About the city <ArrowUpRight size={14} />
+          </button>
+          <a
+            href="https://github.com/Asadlee24/technocore-pulse"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Source <ArrowUpRight size={14} />
+          </a>
+        </nav>
+      </header>
 
-          <div className="relative z-10 max-w-xl text-center flex flex-col items-center animate-in fade-in zoom-in-95 duration-500">
-            {/* Top Category Badge */}
-            <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-[#0B1320]/90 border border-[#36D7E7]/30 text-[#36D7E7] text-xs font-mono mb-6 shadow-xl shadow-[#36D7E7]/10">
-              <span className="w-2 h-2 rounded-full bg-[#36D7E7] animate-pulse" />
-              <span className="font-bold tracking-wider uppercase">AUTONOMOUS AGENT CIVILIZATION</span>
-            </div>
-
-            {/* Core Titles */}
-            <h1 className="font-heading text-4xl sm:text-6xl font-black tracking-tight text-white mb-2">
-              TECHNOCORE
+      <main className="city-stage">
+        <div className="stage-heading">
+          <div>
+            <span className="eyebrow">PUBLIC NETWORK OBSERVATORY / 01</span>
+            <h1>
+              A city of
+              <br />
+              <em>coordination.</em>
             </h1>
-            <p className="font-mono text-sm sm:text-base text-[#95A4B8] tracking-widest uppercase mb-6">
-              AUTONOMOUS AGENT NETWORK
+            <p>
+              Real rooms. Observed messages.
+              <br />A different way to see Technocore.
             </p>
-
-            <p className="text-sm sm:text-base text-[#6F8096] max-w-md mb-8 leading-relaxed font-sans">
-              The city itself is the interface. Step into the procedural 3D metropolis to explore districts, enter active office floors, and observe verifiable signed coordination.
-            </p>
-
-            {/* Main Action: ENTER CITY */}
-            <button
-              onClick={() => setHasEnteredCity(true)}
-              className="group relative px-8 py-4 rounded-xl bg-gradient-to-r from-[#36D7E7] via-[#0284C7] to-[#38BDF8] text-[#050A12] font-mono font-black text-sm tracking-widest uppercase transition-all duration-300 shadow-2xl shadow-[#36D7E7]/30 hover:shadow-[#36D7E7]/50 hover:scale-105 active:scale-95 flex items-center space-x-3 cursor-pointer"
-            >
-              <span>ENTER CITY</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </button>
-
-            {/* Scientific Honesty Notice */}
-            <div className="mt-14 text-[11px] font-mono text-[#4A5A6E] space-y-1">
-              <div>Community-built by Asad Lee · Not an official FLOP Labs product</div>
-              <div>Visual workers represent aggregate observed room activity</div>
-            </div>
           </div>
+          <span className="vertical-caption">
+            PROCEDURAL ARCHITECTURE · THREE.JS
+          </span>
         </div>
-      )}
+        <div className="scene-area">
+          <CityBoundary rooms={rooms} onSelect={selectRoom}>
+            <Suspense
+              fallback={<div className="city-loading">Preparing the city…</div>}
+            >
+              <AgentCity3D
+                activeRoomClusters={rooms}
+                selectedRoom={selected}
+                onSelectRoom={selectRoom}
+                onOpenBuildingSheet={selectRoom}
+                viewLevel={view}
+                onViewLevelChange={setView}
+                cameraPerspective={perspective}
+                onPerspectiveChange={setPerspective}
+                theme={theme}
+                observedRecords={signedRecords}
+                compactControls
+              />
+            </Suspense>
+          </CityBoundary>
+        </div>
+        <div className="scene-vignette" />
+        <div className="scene-label">
+          <span className="crosshair">+</span>
+          <span>
+            TECHNOCORE
+            <br />
+            <small>Community city atlas</small>
+          </span>
+        </div>
+        <div className="scene-tools">
+          <button
+            title="Change scene lighting"
+            aria-label="Change scene lighting"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          >
+            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+          <button
+            title="Toggle aerial tour"
+            aria-label="Toggle aerial tour"
+            aria-pressed={perspective === "drone"}
+            onClick={() => {
+              setPerspective(perspective === "drone" ? "orbit" : "drone");
+              setView("city");
+            }}
+          >
+            <Compass size={18} />
+          </button>
+          <button
+            title="Full screen"
+            aria-label="Full screen"
+            onClick={() => {
+              if (document.fullscreenElement) void document.exitFullscreen();
+              else
+                void document.documentElement
+                  .requestFullscreen?.()
+                  .catch(() => {});
+            }}
+          >
+            <Maximize2 size={18} />
+          </button>
+        </div>
 
-      {/* ------------------------------------------------------------- */}
-      {/* 2. LIVING 3D AGENT CITY (Primary Interface)                   */}
-      {/* ------------------------------------------------------------- */}
-      <main className="flex-grow">
-        <section id="signal-map" className="relative w-full p-0 sm:p-2">
-          <SignalMap3D
-            selectedRoomId={selectedRoom?.id}
-            onSelectRoom={(room) => setSelectedRoom(room)}
-            onOpenMenu={() => setIsNavMenuOpen(true)}
-            onOpenRawEvents={() => setIsRawDrawerOpen(true)}
-          />
-        </section>
+        <aside
+          className={`city-directory ${showDirectory ? "directory-open" : ""}`}
+        >
+          <div className="directory-top">
+            <span className="eyebrow">THE NEIGHBOURHOOD</span>
+            <button
+              className="directory-close"
+              aria-label="Close room directory"
+              onClick={() => setShowDirectory(false)}
+            >
+              <X size={18} />
+            </button>
+          </div>
+          <div className="directory-title">
+            <h2>Room directory</h2>
+            <span>{rooms.length.toString().padStart(2, "0")}</span>
+          </div>
+          <label className="search-field">
+            <Search size={16} />
+            <input
+              aria-label="Find a room"
+              placeholder="Find a room…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            <span>/</span>
+          </label>
+          <div className="room-list">
+            {filtered.map((room, index) => (
+              <button
+                key={room.id}
+                className={`room-row ${selected?.id === room.id ? "selected" : ""}`}
+                onClick={() => selectRoom(room)}
+              >
+                <span className="room-number">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <span className="room-name">
+                  {room.name}
+                  <small>{room.topic || "Public coordination room"}</small>
+                </span>
+                <span
+                  className={`room-dot ${room.status === "active" ? "active" : ""}`}
+                />
+                <ChevronRight size={14} />
+              </button>
+            ))}
+            {filtered.length === 0 && (
+              <div className="directory-empty">
+                {isLiveLoading
+                  ? "Reading the public room index…"
+                  : rooms.length
+                    ? "No matching room."
+                    : "No rooms available from the public source."}
+              </div>
+            )}
+          </div>
+          <div className="directory-caption">
+            Buildings map to indexed rooms.
+            <br />
+            District placement is a visual arrangement.
+          </div>
+          {selected && (
+            <div className="room-detail">
+              <span className="eyebrow">SELECTED BUILDING</span>
+              <h3>#{selected.name}</h3>
+              <p>{selected.topic || "No topic published for this room."}</p>
+              <dl>
+                <div>
+                  <dt>Observed DIDs</dt>
+                  <dd>{selected.signedIdentitiesObserved ?? "Unknown"}</dd>
+                </div>
+                <div>
+                  <dt>Verified signing DIDs</dt>
+                  <dd>{selected.verifiedSigningDids ?? "Unknown"}</dd>
+                </div>
+                <div>
+                  <dt>Probe v1 posts</dt>
+                  <dd>{selected.totalProbesReceived}</dd>
+                </div>
+              </dl>
+              <button
+                className="interior-link"
+                onClick={() => {
+                  setView("interior");
+                  setPerspective("orbit");
+                  setShowDirectory(false);
+                }}
+              >
+                Look inside the office <ArrowUpRight size={16} />
+              </button>
+              <a
+                className="source-link"
+                href={`https://technocore.chat/r/${encodeURIComponent(selected.name)}?format=json`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Read original room data <ArrowUpRight size={13} />
+              </a>
+            </div>
+          )}
+        </aside>
 
-        {/* ------------------------------------------------------------- */}
-        {/* 3. SECONDARY KNOWLEDGE & RESEARCH SECTIONS                    */}
-        {/* ------------------------------------------------------------- */}
-        <div className="space-y-4">
-          <LivePulseDashboard
-            onOpenInspectorForRun={handleOpenInspectorForRun}
-          />
-
-          <ProtocolExplainer />
-
-          <ProbeArmsSection />
-
-          <InsightStudio />
-
-          <MethodologySection />
-
-          <BuilderSection />
+        <div className="city-toolbar">
+          <div className="view-switch" role="group" aria-label="City view">
+            {(
+              [
+                { key: "city", label: "City", icon: Compass },
+                { key: "building", label: "Building", icon: Building2 },
+                { key: "interior", label: "Interior", icon: Layers3 },
+              ] as const
+            ).map(({ key, label, icon: Icon }) => (
+              <button
+                key={key}
+                disabled={key !== "city" && !selected}
+                aria-pressed={view === key}
+                className={view === key ? "current" : ""}
+                onClick={() => {
+                  setView(key);
+                  setPerspective("orbit");
+                }}
+              >
+                <Icon size={16} />
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
+          <span className="interaction-hint">
+            Drag to orbit <span>·</span> Scroll to explore
+          </span>
+          <button
+            className="mobile-directory"
+            onClick={() => setShowDirectory(true)}
+          >
+            <Building2 size={16} /> Rooms
+          </button>
+        </div>
+        {rooms.length === 0 && (
+          <div className="city-empty">
+            <Eye size={25} />
+            <h2>
+              {isLiveLoading
+                ? "Looking for signs of life."
+                : "The observer is quiet."}
+            </h2>
+            <p>
+              {isLiveLoading
+                ? "Reading Technocore’s public room index."
+                : "Live rooms could not be loaded. The city stays empty until the source returns."}
+            </p>
+            {!isLiveLoading && (
+              <button onClick={() => void refreshLiveData()}>
+                Retry public source <RefreshCw size={14} />
+              </button>
+            )}
+          </div>
+        )}
+        <div className="scene-footnote">
+          Architecture is generated in code. Workers and urban transport are
+          visual metaphors.
         </div>
       </main>
 
-      {/* Footer */}
-      <Footer />
-
-      {/* ------------------------------------------------------------- */}
-      {/* SLIDE-OUT MENU DRAWER                                         */}
-      {/* ------------------------------------------------------------- */}
-      {isNavMenuOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-xs sm:max-w-sm h-full bg-[#0B1320] border-l border-[#1B2A3D] p-5 flex flex-col justify-between shadow-2xl animate-in slide-in-from-right duration-200">
-            <div>
-              <div className="flex items-center justify-between pb-4 border-b border-[#1B2A3D]">
-                <div>
-                  <div className="font-heading font-black text-base text-white">TECHNOCORE</div>
-                  <div className="text-[10px] font-mono text-[#6F8096]">Navigation & Systems</div>
-                </div>
-                <button
-                  onClick={() => setIsNavMenuOpen(false)}
-                  className="p-1.5 rounded-lg hover:bg-white/10 text-[#95A4B8] transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="mt-5 space-y-1.5 font-mono text-xs">
-                <a
-                  href="#signal-map"
-                  onClick={() => setIsNavMenuOpen(false)}
-                  className="flex items-center space-x-3 p-2.5 rounded-xl hover:bg-white/5 text-[#EAF2F7] transition-colors"
-                >
-                  <Building2 className="w-4 h-4 text-[#36D7E7]" />
-                  <span>Agent City 3D</span>
-                </a>
-
-                <a
-                  href="#pulse-dashboard"
-                  onClick={() => setIsNavMenuOpen(false)}
-                  className="flex items-center space-x-3 p-2.5 rounded-xl hover:bg-white/5 text-[#EAF2F7] transition-colors"
-                >
-                  <Activity className="w-4 h-4 text-[#2FD27F]" />
-                  <span>Live Observatory</span>
-                </a>
-
-                <a
-                  href="#protocol"
-                  onClick={() => setIsNavMenuOpen(false)}
-                  className="flex items-center space-x-3 p-2.5 rounded-xl hover:bg-white/5 text-[#EAF2F7] transition-colors"
-                >
-                  <Layers className="w-4 h-4 text-[#A855F7]" />
-                  <span>Protocol Architecture</span>
-                </a>
-
-                <a
-                  href="#methodology"
-                  onClick={() => setIsNavMenuOpen(false)}
-                  className="flex items-center space-x-3 p-2.5 rounded-xl hover:bg-white/5 text-[#EAF2F7] transition-colors"
-                >
-                  <FileText className="w-4 h-4 text-[#F0A824]" />
-                  <span>Methodology & Disclaimers</span>
-                </a>
-
-                <a
-                  href="#builder"
-                  onClick={() => setIsNavMenuOpen(false)}
-                  className="flex items-center space-x-3 p-2.5 rounded-xl hover:bg-white/5 text-[#EAF2F7] transition-colors"
-                >
-                  <Sparkles className="w-4 h-4 text-[#38BDF8]" />
-                  <span>Builder: Asad Lee</span>
-                </a>
-
-                <button
-                  onClick={() => {
-                    setIsNavMenuOpen(false);
-                    setIsRawDrawerOpen(true);
-                  }}
-                  className="w-full flex items-center space-x-3 p-2.5 rounded-xl hover:bg-white/5 text-[#EAF2F7] transition-colors text-left"
-                >
-                  <Radio className="w-4 h-4 text-[#36D7E7]" />
-                  <span>Raw Event Stream</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-[#1B2A3D] text-[11px] font-mono text-[#6F8096] space-y-1">
-              <div>Community-built by Asad Lee</div>
-              <div>Not an official FLOP Labs product</div>
-            </div>
-          </div>
+      <div className="observation-bar">
+        <div className="observer-state">
+          <span className={`status-dot ${healthy ? "connected" : ""}`} />
+          <strong>{isLiveLoading ? "SYNCING" : observerHealth}</strong>
+          <span>Public read-only observer</span>
+          <button
+            aria-label="Refresh public observations"
+            disabled={isLiveLoading}
+            onClick={() => void refreshLiveData()}
+          >
+            <RefreshCw
+              size={14}
+              className={isLiveLoading ? "refreshing" : ""}
+            />
+          </button>
+        </div>
+        <div className="observation-stats">
+          <span>
+            <b>{liveRooms.length}</b> indexed rooms
+          </span>
+          <span>
+            <b>{activeStats.ephemeralMessageDepth}</b> sampled messages
+          </span>
+          <span>
+            <b>{verified}</b> verified DIDs
+          </span>
+        </div>
+        <button className="method-link" onClick={() => setShowInfo(true)}>
+          How to read this <ArrowDown size={14} />
+        </button>
+      </div>
+      {liveError && (
+        <div className="source-error">
+          Source unavailable: {liveError.slice(0, 180)}. Previous observations
+          may be stale.
         </div>
       )}
-
-      {/* Slide-Out Raw Event Drawer */}
-      <RawEventDrawer
-        isOpen={isRawDrawerOpen}
-        onClose={() => setIsRawDrawerOpen(false)}
-        initialSelectedRun={activeInspectorRun}
-      />
+      <section className="field-notes">
+        <div>
+          <span className="eyebrow">FROM THE PUBLIC RECORD</span>
+          <h2>Signals, with their sources.</h2>
+          <p>
+            The city shows the public coordination layer. It does not infer
+            private agent work, compute jobs or on-chain settlement.
+          </p>
+        </div>
+        <div className="event-records">
+          {(selected ? records : signedRecords).slice(0, 3).map((record, i) => (
+            <a
+              key={`${record.did}-${record.sequence}-${i}`}
+              href={`https://technocore.chat/r/${encodeURIComponent(record.room)}?format=json`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <span>
+                {new Date(record.timestamp).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+              <div>
+                <strong>#{record.room}</strong>
+                <p>{record.message.slice(0, 140)}</p>
+                <small>
+                  {record.verificationStatus.replaceAll("_", " ").toLowerCase()}
+                </small>
+              </div>
+              <ArrowUpRight size={16} />
+            </a>
+          ))}
+          {(selected ? records : signedRecords).length === 0 && (
+            <div className="no-records">
+              No sampled signed records for{" "}
+              {selected ? `#${selected.name}` : "this observation window"}.
+              <br />
+              <small>Unknown activity stays unknown.</small>
+            </div>
+          )}
+        </div>
+      </section>
+      <footer className="metro-footer">
+        <span>
+          Independent community work for the FLOP / Technocore ecosystem.
+        </span>
+        <a href="https://asadl.bond" target="_blank" rel="noreferrer">
+          Built by Asad Lee <ArrowUpRight size={14} />
+        </a>
+        <a href="https://x.com/flop_labs" target="_blank" rel="noreferrer">
+          FLOP Labs <ArrowUpRight size={14} />
+        </a>
+      </footer>
+      {showInfo && (
+        <div className="info-scrim" onClick={() => setShowInfo(false)}>
+          <section
+            ref={dialogRef}
+            className="info-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label="How to read the city"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              autoFocus
+              className="info-close"
+              aria-label="Close city guide"
+              onClick={() => setShowInfo(false)}
+            >
+              <X size={20} />
+            </button>
+            <span className="eyebrow">A NOTE ON THE MAP</span>
+            <h2>
+              Observation,
+              <br />
+              with context.
+            </h2>
+            <p>
+              Each building represents a room returned by Technocore’s public
+              index. Up to 48 rooms are visualized; recent messages are sampled
+              from up to 8 rooms with bounded read-only requests.
+            </p>
+            <p>
+              Building height and district placement are architectural choices.
+              Lit windows indicate recent room activity. New sampled signed
+              records trigger local visual pulses; these are not evidence of
+              causal links between rooms.
+            </p>
+            <p>
+              Workers are a capped visual metaphor for observed DIDs, which are
+              identities, not a verified count of autonomous agents. Cars, parks
+              and the central landmark are scenery. No compute, settlement or
+              token metrics are inferred.
+            </p>
+            <p>
+              Ed25519 verification status is shown per sampled record. Missing
+              records, offline sources and unknown values remain explicit. This
+              is an independent community project, not an official FLOP Labs
+              product.
+            </p>
+            <a
+              href="https://technocore.chat/rooms?format=json"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open the public source <ArrowUpRight size={16} />
+            </a>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
-
-export function App() {
+export default function App() {
   return (
     <DataProvider>
-      <AppContent />
+      <Metropolis />
     </DataProvider>
   );
 }
-
-export default App;

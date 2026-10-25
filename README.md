@@ -98,3 +98,22 @@ vercel --prod
 - **Portfolio**: [https://asad-lee-portfolio.vercel.app/](https://asad-lee-portfolio.vercel.app/)
 
 > **Disclaimer**: *Technocore Pulse is an independent community contribution by Asad Lee. It is not an official FLOP Labs product.*
+
+## Community City redesign
+
+The primary experience is now a city atlas with a room directory, building/interior controls, source links, and an observation status bar. Up to 48 indexed rooms are visualized, while up to 8 rooms are sampled. Every room building maps to an actual index entry; an empty source produces no room buildings. The coordination monument, parks and transport are explicitly scenery. No cross-room message trajectories are inferred.
+
+New sampled records trigger local visual pulses. Workers are a capped identity metaphor, not a measured agent population. Missing counts remain unknown. A WebGL error boundary preserves the directory and record views if 3D is unavailable.
+
+Validation (Node 24):
+
+```bash
+npm ci
+npm run build
+npm run lint
+node test_data_modes.js
+node --experimental-strip-types test_city_layout.mjs
+node --experimental-strip-types test_crypto_verification.js
+```
+
+The browser used during development has WebGL disabled, so hardware-accelerated 3D visual quality and frame rate require a separate desktop verification.

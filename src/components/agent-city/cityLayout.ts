@@ -121,10 +121,10 @@ export const DISTRICT_CONFIGS: Record<CityDistrictType, {
  * Calculates building height based on observed metric:
  * height = clamp(6 + log2(activityMetric + 1) * 4.5, 7, 34)
  */
-export function calculateBuildingHeight(activityMetric?: number | null, fallbackIndex: number = 0): number {
+export function calculateBuildingHeight(activityMetric?: number | null, _fallbackIndex: number = 0): number {
   const metric = (typeof activityMetric === 'number' && activityMetric > 0)
     ? activityMetric
-    : 8 + (fallbackIndex % 5) * 4;
+    : 0;
   const calculated = 6 + Math.log2(metric + 1) * 4.5;
   return Math.min(34, Math.max(7, Math.round(calculated * 10) / 10));
 }
@@ -226,48 +226,16 @@ export function generateCityLayout(rooms: RoomCluster[]): {
       { ring: 3, radius: 50.0, angleOffset: 0.22, width: 5.4, depth: 5.4, heightBase: 22, heightVar: 9 }
     ];
 
-    sectorLots.forEach((lot, lotIdx) => {
+    assignedRooms.forEach((roomForLot, lotIdx) => {
+      const lot = sectorLots[lotIdx % sectorLots.length];
       const angle = baseAngle + lot.angleOffset;
-      const x = Math.cos(angle) * lot.radius;
-      const z = Math.sin(angle) * lot.radius;
-
-      // Assign real room if available for this lot (flagship gets first assigned room)
-      let roomForLot: RoomCluster;
-      let isPrimary = false;
-      const seed = Math.sin(cfg.sectorIndex * 19 + lotIdx * 7.7);
-      let calculatedHeight = lot.heightBase + Math.abs(seed) * lot.heightVar;
-
-      if (lot.isFlagship && assignedRooms.length > 0) {
-        roomForLot = assignedRooms[0];
-        isPrimary = true;
-        calculatedHeight = calculateBuildingHeight(roomForLot.signedIdentitiesObserved, 0);
-      } else if (lotIdx === 0 && assignedRooms.length > 1) {
-        roomForLot = assignedRooms[1];
-        isPrimary = true;
-        calculatedHeight = calculateBuildingHeight(roomForLot.signedIdentitiesObserved, 1);
-      } else if (lotIdx === 1 && assignedRooms.length > 2) {
-        roomForLot = assignedRooms[2];
-        isPrimary = true;
-        calculatedHeight = calculateBuildingHeight(roomForLot.signedIdentitiesObserved, 2);
-      } else {
-        // Procedural infill building - clearly marked as visual backdrop without fabricated metrics
-        roomForLot = {
-          id: `${distType}-lot-${lotIdx + 1}`,
-          name: `${cfg.name.split(' ')[0]} ${lot.isFlagship ? 'Tower' : 'Block ' + (lotIdx + 1)}`,
-          displayName: `${cfg.name.split(' ')[0]} ${lot.isFlagship ? 'Tower' : 'Block ' + (lotIdx + 1)}`,
-          signedIdentitiesObserved: null,
-          activeAgentsCount: null,
-          totalProbesReceived: 0,
-          medianSubsequentLatencySeconds: null,
-          averageResponseLatency: null,
-          category: 'unclassified',
-          visualDistrict: distType === 'compute' ? 'compute-relay' : distType === 'settlement' ? 'settlement-prep' : distType === 'social' ? 'agent-social' : 'coordination',
-          status: 'nominal',
-          color: cfg.color,
-          coordinates: [x, 0, z],
-          isDataUnavailable: true
-        };
-      }
+      const radius = lot.radius + Math.floor(lotIdx / sectorLots.length) * 12;
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius;
+      const isPrimary = true;
+      // Building massing is architectural. Only observed identities affect extra height.
+      const calculatedHeight = calculateBuildingHeight(roomForLot.signedIdentitiesObserved)
+        + lot.heightBase * 0.3;
 
       const height = Math.round(calculatedHeight);
 
@@ -329,3 +297,4 @@ export function generateCityLayout(rooms: RoomCluster[]): {
 
   return { buildings, districts, roadWaypoints };
 }
+

@@ -1,7 +1,7 @@
 /**
  * Automated Verification Suite for Cryptographic Truthfulness & Signature States
  */
-import { verifyTechnocoreSignature, cleanText, extractEd25519PublicKey } from './src/data/technocoreCrypto.js';
+import { verifyTechnocoreSignature, cleanText, extractEd25519PublicKey } from './src/data/technocoreCrypto.ts';
 import assert from 'assert';
 
 console.log('=== TEST 1: Live Valid Signature Fixture ===');

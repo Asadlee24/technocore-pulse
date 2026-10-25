@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import type { RoomCluster } from '../../types/probe';
+import type { SignedRecord, RoomCluster } from '../../types/probe';
 import { generateCityLayout, type BuildingLayout } from './cityLayout';
 import { createCityMaterials, disposeCityMaterials, type CityMaterials } from './cityMaterials';
 import { CityBuilding } from './CityBuilding';
-import { CityDistrictManager } from './CityDistrict';
+import { MetroLandmark as CityDistrictManager } from './MetroLandmark';
 import { CityRoads } from './CityRoads';
 import { CitySkyline } from './CitySkyline';
 import { CityEnvironment } from './CityEnvironment';
@@ -30,6 +30,8 @@ import {
 
 interface AgentCity3DProps {
   activeRoomClusters: RoomCluster[];
+  observedRecords?: SignedRecord[];
+  compactControls?: boolean;
   selectedRoom: RoomCluster;
   onSelectRoom: (room: RoomCluster) => void;
   onOpenBuildingSheet?: (room: RoomCluster) => void;
@@ -62,6 +64,8 @@ const DEFAULT_FALLBACK_ROOM: RoomCluster = {
 
 export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   activeRoomClusters,
+  observedRecords = [],
+  compactControls = false,
   selectedRoom,
   onSelectRoom,
   onOpenBuildingSheet,
@@ -86,9 +90,9 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     if (onViewLevelChange) onViewLevelChange(level);
   }, [onViewLevelChange]);
 
-  const [isAutoRotate, setIsAutoRotate] = useState<boolean>(true);
+  const [isAutoRotate, setIsAutoRotate] = useState<boolean>(() => !window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const [hoveredRoom, setHoveredRoom] = useState<{ room: RoomCluster; x: number; y: number } | null>(null);
-  const [pulseLog, setPulseLog] = useState<string>('Technocore Metropolis online. Autonomous agent districts active.');
+  const [pulseLog, setPulseLog] = useState<string>('Public room observer · waiting for observations');
   const [showIntroBadge, setShowIntroBadge] = useState<boolean>(true);
 
   // Persistent Three.js References
@@ -134,7 +138,9 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   const viewLevelRef = useRef<CameraViewLevel>(viewLevel);
   viewLevelRef.current = viewLevel;
 
-  const safeClusters = activeRoomClusters.length > 0 ? activeRoomClusters : [DEFAULT_FALLBACK_ROOM];
+  const safeClusters = activeRoomClusters;
+  const topologyKey = safeClusters.map(r => r.id).join('|');
+  const seenRecordsRef = useRef(new Set<string>());
   const activeRoom = selectedRoom || safeClusters[0] || DEFAULT_FALLBACK_ROOM;
   const activeRoomRef = useRef<RoomCluster>(activeRoom);
   activeRoomRef.current = activeRoom;
@@ -269,7 +275,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       bZ + Math.sin(angle) * 5.2
     );
     cameraTargetLookAt.current.set(bX, bY + 0.45, bZ);
-    setPulseLog(`Entering #${building.room.name} office interior. Autonomous agent workers online.`);
+    setPulseLog(`Office model for #${building.room.name}. Workers are an activity metaphor.`);
   }, []);
 
   const rotateAroundBuilding = useCallback((angleDelta: number) => {
@@ -421,6 +427,20 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     });
   }, [safeClusters]);
 
+  useEffect(() => {
+    for (const record of observedRecords) {
+      const key = `${record.room}:${record.sequence ?? record.timestamp}:${record.did}`;
+      if (seenRecordsRef.current.has(key)) continue;
+      seenRecordsRef.current.add(key);
+      const building = Array.from(buildingsMapRef.current.values()).find(b => b.layout.room.name === record.room);
+      if (building && pulseSystemRef.current) {
+        pulseSystemRef.current.triggerPulse(building.layout.position);
+        setPulseLog(`Observed message in #${record.room} · ${record.verificationStatus.toLowerCase().replaceAll('_', ' ')}`);
+      }
+    }
+    if (seenRecordsRef.current.size > 1000) seenRecordsRef.current = new Set(Array.from(seenRecordsRef.current).slice(-500));
+  }, [observedRecords, topologyKey]);
+
   // -------------------------------------------------------------
   // PRIMARY SCENE INITIALIZATION (Runs ONCE on mount)
   // -------------------------------------------------------------
@@ -433,7 +453,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // 1. Scene & Atmospheric Fog (Target: 10-15% sky readability, softened fog so buildings don't vanish)
     const scene = new THREE.Scene();
     sceneRef.current = scene;
-    scene.fog = new THREE.FogExp2(isLight ? 0xE8EEF5 : 0x0A1320, 0.0072);
+    scene.fog = new THREE.FogExp2(isLight ? 0xE8EEF5 : 0x202C32, 0.0038);
 
     // 2. Camera Setup
     const width = container.clientWidth;
@@ -452,7 +472,9 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobileDevice ? 1.35 : 1.75));
-    renderer.setClearColor(isLight ? 0xE8EEF5 : 0x0A1320, 1);
+    renderer.setClearColor(isLight ? 0xE8EEF5 : 0x202C32, 1);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     rendererRef.current = renderer;
@@ -484,7 +506,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     scene.add(roads.group);
 
     const skyline = new CitySkyline(theme);
-    scene.add(skyline.group);
+    // Skyline mesh is omitted: every visible building maps to an indexed room.
 
     // 8. Elevated Autonomous Sky Transport, Rails & Aerial Drones
     const transportMgr = new CityTransportManager();
@@ -512,28 +534,28 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // 8. Elevated Network Routes & Moving Data Packets
     const routes = new CityRoutes(buildings, materials);
     routesRef.current = routes;
-    scene.add(routes.group);
+    // No invented agent-to-agent links in the public observer.
 
     // 9. Autonomous Drone Particles
     const agentParticles = new AgentParticles(buildings);
     agentParticlesRef.current = agentParticles;
-    scene.add(agentParticles.group);
+    // Public messages do not prove packet trajectories.
 
     // 10. Ground Street Pedestrians & Sidewalk Life
     const pedestrians = new CityPedestrians(buildings, roadWaypoints);
     pedestriansRef.current = pedestrians;
-    scene.add(pedestrians.group);
+    // Street population is not exposed by the source API.
 
     // 10. Balanced Night Lighting (Readable graphite facades without daytime wash)
     const ambientLight = new THREE.AmbientLight(
-      isLight ? 0xFFFFFF : 0x2A3E5B,
-      isLight ? 2.2 : 2.5
+      isLight ? 0xFFFFFF : 0xD9D3C2,
+      isLight ? 2.2 : 1.1
     );
     scene.add(ambientLight);
 
     const hemiLight = new THREE.HemisphereLight(
-      isLight ? 0xF0F9FF : 0x60A5FA,
-      isLight ? 0xE2E8F0 : 0x0F1A2B,
+      isLight ? 0xF0F9FF : 0xB8CFD4,
+      isLight ? 0xE2E8F0 : 0x57534C,
       2.0
     );
     scene.add(hemiLight);
@@ -549,10 +571,17 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 
     // Cool Moonlight Directional Key Light (gives crisp architectural edge definition)
     const moonLight = new THREE.DirectionalLight(
-      isLight ? 0x38BDF8 : 0x93C5FD,
+      isLight ? 0x38BDF8 : 0xFFE0B0,
       isLight ? 2.2 : 2.2
     );
-    moonLight.position.set(50, 75, 45);
+    moonLight.position.set(40, 70, -35);
+    moonLight.castShadow = true;
+    moonLight.shadow.mapSize.set(2048, 2048);
+    moonLight.shadow.camera.left = -75;
+    moonLight.shadow.camera.right = 75;
+    moonLight.shadow.camera.top = 75;
+    moonLight.shadow.camera.bottom = -75;
+    moonLight.shadow.normalBias = 0.08;
     scene.add(moonLight);
 
     const fillLight = new THREE.DirectionalLight(
@@ -816,7 +845,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       }
 
       // Update Sub-systems
-      districtMgr.update(time);
+      districtMgr.update(lodManagerRef.current.config.prefersReducedMotion ? 0 : time);
       transportMgr.update(delta, time);
       pedestrians.update(time);
       routes.update(time);
@@ -876,12 +905,12 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       }
       renderer.dispose();
     };
-  }, [switchCameraToBuilding, theme]);
+  }, [switchCameraToBuilding, theme, topologyKey]);
 
   const isLight = theme === 'light';
 
   return (
-    <div className="relative w-full h-full">
+    <div className={`relative w-full h-full ${compactControls ? 'metro-canvas' : ''}`}>
       <div ref={mountRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
 
       {/* Floating Cinematic Intro Skip Badge */}
@@ -1044,7 +1073,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       {/* WASD Desktop Exploration Control Prompt */}
       <div className="absolute bottom-4 left-4 z-10 hidden md:flex items-center space-x-2 text-[10px] font-mono backdrop-blur-md px-2.5 py-1.5 rounded-lg border bg-[#0B1320]/80 border-[#1B2A3D] text-[#6F8096]">
         <span className="px-1.5 py-0.5 rounded bg-[#101A2A] border border-[#1B2A3D] text-[#36D7E7] font-bold">W A S D</span>
-        <span>Walk NYC Streets · Hold [Shift] to Run</span>
+        <span>Drag to orbit · Scroll to zoom</span>
       </div>
 
       {/* Floating Status Ticker */}
@@ -1073,3 +1102,4 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     </div>
   );
 };
+

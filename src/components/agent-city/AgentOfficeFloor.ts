@@ -102,11 +102,12 @@ export class AgentOfficeFloor {
     ];
 
     // Guarantee EVERY workstation has a seated agent operating their laptop ("all ko sae kro")
-    deskLayouts.forEach((cfg) => {
+    deskLayouts.forEach((cfg, deskIndex) => {
       // 1. Create Workstation (Desk + Ergonomic Chair + Glowing Cyber Laptop)
       const deskGroup = AgentDeskFactory.createWorkstation(cfg);
       this.group.add(deskGroup);
 
+      if (deskIndex >= Math.min(6, room.signedIdentitiesObserved ?? 0)) return;
       // 2. Mount Seated Agent directly inside deskGroup
       // Because worker is a child of deskGroup, local (0, 0.25, 0.46) places them squarely on the chair,
       // facing the laptop (-Z) with hands on the keyboard regardless of desk rotation!
@@ -263,3 +264,4 @@ export class AgentOfficeFloor {
     this.workers = [];
   }
 }
+

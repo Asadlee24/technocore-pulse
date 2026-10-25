@@ -21,6 +21,7 @@ export class CityBuilding {
   public billboardTexture: THREE.CanvasTexture | null = null;
   private lastBillboardUpdate: number = 0;
 
+  private facadeDetails = new THREE.Group();
   private buildingMesh: THREE.Mesh;
   private setbackMesh: THREE.Mesh | null = null;
   private podiumMesh: THREE.Mesh | null = null;
@@ -50,7 +51,7 @@ export class CityBuilding {
     // 0. Ground Plaza / Sidewalk Parcel Base (Grounds building realistically into the city)
     const plazaGeo = new THREE.BoxGeometry(layout.width * 1.35, 0.28, layout.depth * 1.35);
     const plazaMat = new THREE.MeshStandardMaterial({
-      color: 0x09101C,
+      color: 0x7A8077,
       roughness: 0.85,
       metalness: 0.15
     });
@@ -72,7 +73,7 @@ export class CityBuilding {
     const podiumGeo = new THREE.BoxGeometry(layout.width * 1.16, podiumH, layout.depth * 1.16);
     const districtCol = new THREE.Color(layout.color);
     const podiumMat = new THREE.MeshStandardMaterial({
-      color: districtCol.clone().lerp(new THREE.Color(0x132238), 0.6),
+      color: districtCol.clone().lerp(new THREE.Color(0x4C595A), 0.6),
       emissive: districtCol.clone().multiplyScalar(0.2),
       roughness: 0.3,
       metalness: 0.7
@@ -87,7 +88,7 @@ export class CityBuilding {
     // Warm Illuminated Lobby Glass Front
     const lobbyGeo = new THREE.BoxGeometry(layout.width * 0.55, 1.4, 0.08);
     const lobbyMat = new THREE.MeshBasicMaterial({
-      color: 0xFDE047,
+      color: 0xF3D5A0,
       transparent: true,
       opacity: 0.95
     });
@@ -103,7 +104,7 @@ export class CityBuilding {
 
     // 2. Refined Architectural Readable Graphite & Deep Navy Facade (18-25% brightness target)
     const isSurge = layout.room.status === 'surge';
-    const facadeBaseCol = new THREE.Color(0x152233).lerp(districtCol, 0.14);
+    const facadeBaseCol = new THREE.Color(0x78817D).lerp(districtCol, 0.025);
     const emissiveCol = isSurge
       ? districtCol.clone().multiplyScalar(0.25)
       : new THREE.Color(0x0A1422);
@@ -111,12 +112,12 @@ export class CityBuilding {
     this.baseFacadeMat = new THREE.MeshStandardMaterial({
       color: facadeBaseCol,
       emissive: emissiveCol,
-      roughness: 0.58,
-      metalness: 0.5
+      roughness: 0.72,
+      metalness: 0.25
     });
 
     const lineMat = new THREE.LineBasicMaterial({
-      color: isSurge ? districtCol : new THREE.Color(0x324A6A),
+      color: isSurge ? districtCol : new THREE.Color(0xA7ACA0),
       transparent: true,
       opacity: 0.6
     });
@@ -178,11 +179,22 @@ export class CityBuilding {
     // 5. Archetype-Specific Architectural Roof Crown
     this.createArchitecturalCrown(layout);
 
+    // Fine bronze mullions make the elevation read as architecture at street scale.
+    const finMat = new THREE.MeshStandardMaterial({color:0x9b997f,roughness:.6,metalness:.35});
+    const finGeo = new THREE.BoxGeometry(.085,Math.max(3,layout.height-3),.13);
+    for (let col=-2;col<=2;col++) {
+      for (const face of [-1,1]) {
+        const fin=new THREE.Mesh(finGeo,finMat);
+        fin.position.set(col*layout.width/5,layout.height/2+1,face*(layout.depth/2+.08));
+        fin.castShadow=true;this.facadeDetails.add(fin);
+      }
+    }
+    this.group.add(this.facadeDetails);
     // 6. Rooftop Beacon & Antenna
     this.createRooftopBeacon(layout);
 
     // 7. Rooftop & Setback Observation Deck Agents
-    this.createRooftopAgents(layout, hasSetback, towerBaseY, lowerH);
+    if ((layout.room.signedIdentitiesObserved ?? 0) > 0) this.createRooftopAgents(layout, hasSetback, towerBaseY, lowerH);
 
     // 8. NYC Rooftop Water Tower
     this.createRooftopWaterTower(layout);
@@ -516,7 +528,7 @@ export class CityBuilding {
     const halfW = layout.width / 2 + 0.02;
     const halfD = layout.depth / 2 + 0.02;
 
-    const warmGold = new THREE.Color(0xFDE047);
+    const warmGold = new THREE.Color(0xF3D5A0);
     const brightWhite = new THREE.Color(0xFFFFFF);
     const districtColor = new THREE.Color(layout.color);
     const warmOrange = new THREE.Color(0xFB923C);
@@ -539,10 +551,10 @@ export class CityBuilding {
         const hash = Math.sin(layout.position[0] * 7.9 + layout.position[2] * 4.3 + instanceIdx * 1.7);
         const norm = Math.abs(hash);
         let winCol = darkGlass;
-        if (norm > 0.80) winCol = brightWhite;
-        else if (norm > 0.48) winCol = warmGold;
-        else if (norm > 0.28) winCol = districtColor;
-        else if (norm > 0.14) winCol = warmOrange;
+        if (layout.room.status === 'active' && norm > 0.80) winCol = brightWhite;
+        else if (layout.room.status === 'active' && norm > 0.48) winCol = warmGold;
+        else if (layout.room.status === 'active' && norm > 0.28) winCol = districtColor;
+        else if (layout.room.status === 'active' && norm > 0.14) winCol = warmOrange;
 
         dummy.position.set(xOffset, y, curHalfD);
         dummy.rotation.set(0, 0, 0);
@@ -727,6 +739,7 @@ export class CityBuilding {
 
   public setCutaway(cutaway: boolean) {
     this.isCutaway = cutaway;
+    this.facadeDetails.visible = !cutaway;
     this.interior.setCutawayVisible(cutaway);
 
     if (cutaway) {
@@ -780,7 +793,7 @@ export class CityBuilding {
         const tickerX = 256 - ((time * 48) % 480);
         ctx.fillStyle = this.layout.color;
         ctx.font = 'bold 18px monospace';
-        ctx.fillText('⚡ NYC TECHNOCORE AGENT PULSE', tickerX, 32);
+        ctx.fillText('TECHNOCORE · PUBLIC ROOM ATLAS', tickerX, 32);
 
         ctx.fillStyle = '#FFFFFF';
         ctx.font = 'bold 14px monospace';
@@ -788,12 +801,12 @@ export class CityBuilding {
 
         ctx.fillStyle = '#38BDF8';
         ctx.font = '11px monospace';
-        ctx.fillText(`OBSERVED AGENTS: ${this.layout.room.activeAgentsCount || 14} | 120s WINDOW`, 14, 92);
+        ctx.fillText(`OBSERVED DIDs: ${this.layout.room.signedIdentitiesObserved ?? 'UNKNOWN'} | 120s WINDOW`, 14, 92);
 
         // Blinking live indicator
         const blink = Math.sin(time * 6) > 0;
         ctx.fillStyle = blink ? '#2FD27F' : '#10B981';
-        ctx.fillText('● LIVE VERIFIED MANHATTAN AGENT GRID', 14, 114);
+        ctx.fillText('PUBLIC OBSERVATIONS · ROOM MODEL', 14, 114);
 
         this.billboardTexture.needsUpdate = true;
       }
@@ -829,3 +842,4 @@ export class CityBuilding {
     }
   }
 }
+

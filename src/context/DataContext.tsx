@@ -262,7 +262,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     ];
     const visualDistricts = ['coordination', 'settlement-prep', 'compute-relay', 'agent-social'] as const;
 
-    return liveRooms.slice(0, 8).map((r, idx) => {
+    return liveRooms.slice(0, 48).map((r, idx) => {
       const matchingRuns = liveDetectedRuns.filter(p => p.roomId === `room-${r.room}` || p.roomName.replace('#', '') === r.room);
       
       // Calculate real unique DIDs and verified signing DIDs observed in this specific room
@@ -295,7 +295,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         verifiedSigningDids: verifiedRoomDids.size > 0 ? verifiedRoomDids.size : 0,
         signedIdentitiesObserved: roomDids.size > 0 ? roomDids.size : null, // legacy alias
         activeAgentsCount: null, // Zero fabrication: never estimate from diversity metrics
-        totalProbesReceived: matchingRuns.length,
+        totalProbesReceived: matchingRuns.filter(run => run.probePayload.startsWith('probe v1 |')).length,
         medianSubsequentLatencySeconds: measuredLatency, // Strictly measured from 120s window or null (NEVER idle_seconds)
         averageResponseLatency: measuredLatency, // Legacy alias
         status: (r.idle_seconds < 30 ? 'active' : 'nominal') as 'active' | 'nominal',
@@ -486,3 +486,4 @@ export const useData = () => {
   }
   return context;
 };
+

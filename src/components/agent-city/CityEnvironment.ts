@@ -36,7 +36,7 @@ export class CityEnvironment {
     // 1. Primary ground base
     const platformGeo = new THREE.CylinderGeometry(95, 98, 3.5, 64);
     const platformMat = new THREE.MeshStandardMaterial({
-      color: isLight ? 0xE8EEF5 : 0x050A14,
+      color: isLight ? 0xE8EEF5 : 0x666F65,
       roughness: isLight ? 0.5 : 0.85,
       metalness: isLight ? 0.2 : 0.25
     });
@@ -90,7 +90,7 @@ export class CityEnvironment {
     const isLight = theme === 'light';
     const waterGeo = new THREE.RingGeometry(94, 150, 64);
     const waterMat = new THREE.MeshStandardMaterial({
-      color: isLight ? 0x38BDF8 : 0x031226,
+      color: isLight ? 0x38BDF8 : 0x253F42,
       roughness: 0.15,
       metalness: 0.85,
       transparent: true,
@@ -154,13 +154,13 @@ export class CityEnvironment {
     });
 
     const foliageMatA = new THREE.MeshStandardMaterial({
-      color: isLight ? 0x16A34A : 0x15803D,
+      color: isLight ? 0x16A34A : 0x657956,
       roughness: 0.7,
       metalness: 0.1
     });
 
     const foliageMatB = new THREE.MeshStandardMaterial({
-      color: isLight ? 0x22C55E : 0x166534,
+      color: isLight ? 0x22C55E : 0x465F44,
       roughness: 0.7,
       metalness: 0.1
     });
@@ -184,7 +184,7 @@ export class CityEnvironment {
       // Grass patch under park cluster
       const grassGeo = new THREE.CylinderGeometry(zone.radius * 1.1, zone.radius * 1.1, 0.08, 16);
       const grassMat = new THREE.MeshStandardMaterial({
-        color: isLight ? 0x86EFAC : 0x064E3B,
+        color: isLight ? 0x86EFAC : 0x566A48,
         roughness: 0.95
       });
       const grass = new THREE.Mesh(grassGeo, grassMat);
