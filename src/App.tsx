@@ -562,7 +562,7 @@ function Metropolis() {
           FLOP ecosystem · Independent community contribution, not an official
           FLOP Labs product.
         </span>
-        <a href="https://asadl.bond" target="_blank" rel="noreferrer">
+        <a href="https://asadlee.bond" target="_blank" rel="noreferrer">
           Built by Asad Lee <ArrowUpRight size={14} />
         </a>
         <a href="https://x.com/flop_labs" target="_blank" rel="noreferrer">
