@@ -27,5 +27,11 @@
         }
       ]
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/technocore/:path*",
+      "destination": "/api/technocore?path=:path*"
+    }
   ]
 }

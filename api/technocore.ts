@@ -76,7 +76,8 @@ export default async function handler(req: any, res: any) {
       headers: {
         'Accept': 'application/json',
         'User-Agent': 'TechnocorePulse-Observatory/2.0 (+https://github.com/Asadlee24/technocore-pulse)'
-      }
+      },
+      signal: AbortSignal.timeout(8000)
     });
 
     const data = await upstreamRes.json();
