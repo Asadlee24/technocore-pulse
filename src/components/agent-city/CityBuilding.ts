@@ -321,17 +321,18 @@ export class CityBuilding {
     this.paintWindows();
     this.labelCanvas = document.createElement("canvas");
     this.labelCanvas.width = 1024;
-    this.labelCanvas.height = 128;
+    this.labelCanvas.height = 224;
     this.labelTexture = new THREE.CanvasTexture(this.labelCanvas);
     this.labelTexture.colorSpace = THREE.SRGBColorSpace;
+    this.labelTexture.anisotropy = 4;
     // Exactly one rooftop identifier per building, readable from any orbit angle.
     const rooftop = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: this.labelTexture, toneMapped: false, depthTest: true,
+      map: this.labelTexture, toneMapped: false, depthTest: true, depthWrite: false,
     }));
     rooftop.name = "rooftop-room-name";
-    const signWidth = Math.min(8, Math.max(6, roofW));
-    rooftop.scale.set(signWidth, signWidth / 8, 1);
-    rooftop.position.set(roofX, h + .95, 0);
+    const signWidth = Math.min(8.4, Math.max(7.2, roofW));
+    rooftop.scale.set(signWidth, signWidth * 224 / 1024, 1);
+    rooftop.position.set(roofX, h + 1.15, 0);
     this.shell.add(rooftop);
     this.paintLabel();
     this.selection = new THREE.LineSegments(
@@ -402,15 +403,40 @@ export class CityBuilding {
   private paintLabel() {
     const c = this.labelCanvas.getContext("2d");
     if (!c) return;
-    c.fillStyle = "#080D16";
-    c.fillRect(0, 0, 1024, 128);
+    c.clearRect(0, 0, 1024, 224);
+    c.beginPath();
+    c.roundRect(4, 4, 1016, 216, 26);
+    c.fillStyle = "#0A1128";
+    c.fill();
+    c.strokeStyle = "#53627D";
+    c.lineWidth = 3;
+    c.stroke();
+    // A restrained illuminated cap makes the plate read as rooftop signage.
     c.fillStyle = "#00B4D8";
-    c.fillRect(0, 0, 10, 128);
+    c.beginPath();
+    c.roundRect(34, 26, 8, 172, 4);
+    c.fill();
+    c.textAlign = "left";
+    c.textBaseline = "alphabetic";
+    c.fillStyle = "#93A9C1";
+    c.font = "500 25px monospace";
+    c.fillText("TECHNOCORE", 68, 60);
+    c.textAlign = "right";
+    c.fillStyle = "#4DCDE5";
+    c.font = "500 23px monospace";
+    c.fillText("PUBLIC ROOM", 960, 60);
+    c.strokeStyle = "#293750";
+    c.lineWidth = 2;
+    c.beginPath();
+    c.moveTo(68, 82);
+    c.lineTo(960, 82);
+    c.stroke();
     c.fillStyle = "#F5F7FA";
     const name = `#${this.layout.room.name}`;
-    c.font = `bold ${Math.max(21, Math.min(56, Math.floor(1450 / name.length)))}px monospace`;
-    c.textAlign = "center";
-    c.fillText(name, 512, 83, 960);
+    c.font = `600 ${Math.max(27, Math.min(75, Math.floor(1420 / name.length)))}px monospace`;
+    c.textAlign = "left";
+    c.textBaseline = "middle";
+    c.fillText(name, 68, 145, 892);
     this.labelTexture.needsUpdate = true;
   }
   setCutaway(value: boolean) {
