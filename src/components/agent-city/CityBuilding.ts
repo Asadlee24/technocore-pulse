@@ -331,8 +331,24 @@ export class CityBuilding {
     }));
     rooftop.name = "rooftop-room-name";
     const signWidth = Math.min(8.4, Math.max(7.2, roofW));
-    rooftop.scale.set(signWidth, signWidth * 224 / 1024, 1);
-    rooftop.position.set(roofX, h + 1.15, 0);
+    const signHeight = signWidth * 224 / 1024;
+    // Keep the whole camera-facing plate above the service core and parapet.
+    // A roof-level sprite is occluded by the terrace when the camera tilts down.
+    const signBottom = h + 2.65;
+    rooftop.scale.set(signWidth, signHeight, 1);
+    rooftop.position.set(roofX, signBottom + signHeight / 2, 0);
+    const postHeight = 2.55;
+    for (const side of [-1, 1]) {
+      const support = add(
+        this.shell,
+        new THREE.BoxGeometry(.14, postHeight, .14),
+        trim,
+        roofX + side * Math.min(roofW * .32, signWidth * .3),
+        h + .18 + postHeight / 2,
+        0,
+      );
+      support.name = "rooftop-sign-support";
+    }
     this.shell.add(rooftop);
     this.paintLabel();
     this.selection = new THREE.LineSegments(
