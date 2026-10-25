@@ -127,9 +127,9 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   const isIntroRef = useRef<boolean>(true);
   const introProgressRef = useRef<number>(0);
   const INTRO_START_POS = useRef<THREE.Vector3>(
-    new THREE.Vector3(106, 78, 112),
+    new THREE.Vector3(132, 100, 140),
   );
-  const INTRO_END_POS = useRef<THREE.Vector3>(new THREE.Vector3(82, 47, 88));
+  const INTRO_END_POS = useRef<THREE.Vector3>(new THREE.Vector3(105, 72, 112));
   const INTRO_START_LOOK = useRef<THREE.Vector3>(new THREE.Vector3(0, 10, 0));
   const INTRO_END_LOOK = useRef<THREE.Vector3>(new THREE.Vector3(0, 6, 0));
 
@@ -144,7 +144,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   // Animation & Camera targets
   const controlsRef = useRef<OrbitControls | null>(null);
   const isTransitioningRef = useRef<boolean>(false);
-  const cameraTargetPos = useRef<THREE.Vector3>(new THREE.Vector3(82, 47, 88));
+  const cameraTargetPos = useRef<THREE.Vector3>(new THREE.Vector3(105, 72, 112));
   const cameraTargetLookAt = useRef<THREE.Vector3>(new THREE.Vector3(0, 6, 0));
 
   // Refs for animation loop (prevents scene destruction on state changes)
@@ -403,26 +403,18 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   // Sync camera perspective (orbit | drone | plaza | walk | building)
   useEffect(() => {
     if (cameraPerspective === "walk") {
+      isIntroRef.current = false;
       isTransitioningRef.current = true;
       setIsAutoRotate(false);
-      const curX = cameraRef.current ? cameraRef.current.position.x : 14;
-      const curZ = cameraRef.current ? cameraRef.current.position.z : 14;
-      const angle = Math.atan2(curZ, curX);
-      const walkRadius = Math.min(32, Math.max(12, Math.hypot(curX, curZ)));
-      const startWalkX = Math.cos(angle) * walkRadius;
-      const startWalkZ = Math.sin(angle) * walkRadius;
-      cameraTargetPos.current.set(startWalkX, 1.75, startWalkZ);
-      cameraTargetLookAt.current.set(
-        startWalkX + Math.cos(angle + 0.5) * 8,
-        2.1,
-        startWalkZ + Math.sin(angle + 0.5) * 8,
-      );
+      // Begin on an actual sidewalk beside the central square, never inside a parcel.
+      cameraTargetPos.current.set(6.1, 1.75, 13);
+      cameraTargetLookAt.current.set(6.1, 2.1, 30);
       if (controlsRef.current) {
         controlsRef.current.minDistance = 0.1;
         controlsRef.current.maxDistance = 60;
       }
       setPulseLog(
-        "Street Walk Mode active. Use W A S D to walk through NYC streets.",
+        "Street view · use W A S D or the direction buttons to explore.",
       );
     } else if (cameraPerspective === "building") {
       const bObj =
@@ -435,6 +427,10 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       cameraTargetLookAt.current.set(0, 14, 0);
       setPulseLog("Camera switched to Plaza ground view.");
     } else if (cameraPerspective === "orbit") {
+      if (controlsRef.current) {
+        controlsRef.current.minDistance = 4;
+        controlsRef.current.maxDistance = 340;
+      }
       if (viewLevelRef.current === "city") {
         isTransitioningRef.current = true;
         cameraTargetPos.current.copy(INTRO_END_POS.current);
@@ -523,15 +519,15 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // 1. Scene & Atmospheric Fog (Target: 10-15% sky readability, softened fog so buildings don't vanish)
     const scene = new THREE.Scene();
     sceneRef.current = scene;
-    scene.fog = new THREE.FogExp2(isLight ? 0xf5f7fa : 0x0a1128, 0.0023);
+    scene.fog = new THREE.FogExp2(isLight ? 0xf5f7fa : 0x05080d, 0.0018);
 
     // 2. Camera Setup
     const width = container.clientWidth;
     const height = container.clientHeight || 540;
     const overviewScale = width/height < .85 ? 1.5 : 1;
-    INTRO_END_POS.current.set(82*overviewScale,47*overviewScale,88*overviewScale);
-    INTRO_START_POS.current.set(106*overviewScale,78*overviewScale,112*overviewScale);
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.5, 300);
+    INTRO_END_POS.current.set(105*overviewScale,72*overviewScale,112*overviewScale);
+    INTRO_START_POS.current.set(132*overviewScale,100*overviewScale,140*overviewScale);
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.5, 500);
     camera.position.copy(INTRO_START_POS.current);
     cameraRef.current = camera;
 
@@ -548,7 +544,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     renderer.setPixelRatio(
       Math.min(window.devicePixelRatio, isMobileDevice ? 1.35 : 1.75),
     );
-    renderer.setClearColor(isLight ? 0xf5f7fa : 0x0a1128, 1);
+    renderer.setClearColor(isLight ? 0xf5f7fa : 0x05080d, 1);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.35;
     renderer.shadowMap.enabled = true;
@@ -653,7 +649,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     controls.screenSpacePanning = true;
     controls.maxPolarAngle = Math.PI / 2 - 0.04; // Keep camera above ground
     controls.minDistance = 4;
-    controls.maxDistance = 240;
+    controls.maxDistance = 340;
     controls.rotateSpeed = 0.85;
     controls.zoomSpeed = 1.15;
     controls.panSpeed = 0.8;
@@ -827,7 +823,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
           }
         } else if (t < 18) {
           // 4. Hero skyline pull-back
-          camera.position.lerp(new THREE.Vector3(82, 47, 88), 0.05);
+          camera.position.lerp(new THREE.Vector3(105, 72, 112), 0.05);
           controlsRef.current?.target.lerp(new THREE.Vector3(0, 6, 0), 0.05);
         } else {
           // End showcase

@@ -210,7 +210,7 @@ export function generateCityLayout(rooms: RoomCluster[]): {
   const slots: [number, number][] = [];
   for (let z = -3; z <= 3; z++)
     for (let x = -3; x <= 3; x++)
-      if (x !== 0 || z !== 0) slots.push([x * 14, z * 14]);
+      if (x !== 0 || z !== 0) slots.push([x * 18, z * 18]);
   rooms.slice(0, 48).forEach((room, index) => {
     const [x, z] = slots[index];
     const seed = Math.abs(Math.sin(index * 12.9898 + 7.31));
@@ -219,10 +219,10 @@ export function generateCityLayout(rooms: RoomCluster[]): {
     const high = index % 9 === 0;
     const medium = index % 4 === 0;
     const height = high
-      ? 23 + seed * 10
+      ? 21 + seed * 5
       : medium
-        ? 13 + seed * 6
-        : 5.8 + seed * 5.5;
+        ? 12 + seed * 3
+        : 6 + seed * 4.5;
     const b: BuildingLayout = {
       room,
       position: [x, 0, z],
@@ -238,6 +238,8 @@ export function generateCityLayout(rooms: RoomCluster[]): {
             ? "social-block"
             : index % 3 === 1
               ? "research-lab"
+              : index % 5 === 0
+              ? "data-center"
               : "broadcast-hall",
       color: "#00B4D8",
       beaconColor: getBeaconColor(room.lastProbeArm),

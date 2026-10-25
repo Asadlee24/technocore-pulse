@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Compass,
   Eye,
+  Footprints,
   Layers3,
   Maximize2,
   RefreshCw,
@@ -70,7 +71,7 @@ function Metropolis() {
     "orbit" | "drone" | "plaza" | "walk" | "building"
   >("orbit");
   const [query, setQuery] = useState("");
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [showInfo, setShowInfo] = useState(false);
   const [showDirectory, setShowDirectory] = useState(false);
   const [cityUnavailable, setCityUnavailable] = useState(false);
@@ -239,6 +240,18 @@ function Metropolis() {
             }}
           >
             <Compass size={18} />
+          </button>
+          <button
+            title="Explore the streets"
+            aria-label="Explore the streets"
+            aria-pressed={perspective === "walk"}
+            disabled={cityUnavailable}
+            onClick={() => {
+              setView("city");
+              setPerspective(perspective === "walk" ? "orbit" : "walk");
+            }}
+          >
+            <Footprints size={18} />
           </button>
           <button
             title="Full screen"

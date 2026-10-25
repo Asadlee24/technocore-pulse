@@ -9,6 +9,7 @@ export default defineConfig({
     tailwindcss(),
   ],
   server: {
+    allowedHosts: ["terminal.local"],
     proxy: {
       '/api/technocore': {
         target: 'https://technocore.chat',

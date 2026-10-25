@@ -18,3 +18,10 @@ console.log("All 1,128 building-pair spacing checks passed.");
 assert.ok(city.buildings.filter(b=>b.height<12).length>24,'Most city blocks should remain low-rise');
 assert.ok(city.buildings.filter(b=>b.height>23).length<10,'Tall towers should be occasional skyline anchors');
 assert.ok(city.buildings.every(b=>b.position[0]!==0||b.position[2]!==0),'Central community square remains clear');
+
+for (const a of city.buildings) for (const b of city.buildings) {
+  if (a === b) continue;
+  const dx = Math.abs(a.position[0] - b.position[0]), dz = Math.abs(a.position[2] - b.position[2]);
+  if (dz === 0) assert.ok(dx - (a.width + b.width) * .65 >= 6, 'Neighbouring foundations leave a wide street corridor');
+  if (dx === 0) assert.ok(dz - (a.depth + b.depth) * .65 >= 6, 'Rows leave a wide street corridor');
+}

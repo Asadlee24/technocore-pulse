@@ -116,7 +116,7 @@ export class CityBuilding {
     add(
       this.shell,
       new THREE.BoxGeometry(w, split - 2.7, d),
-      glass,
+      layout.archetype === "social-block" || layout.archetype === "broadcast-hall" ? concrete : glass,
       0,
       (split + 2.7) / 2,
       0,
@@ -320,42 +320,19 @@ export class CityBuilding {
     this.shell.add(this.windows);
     this.paintWindows();
     this.labelCanvas = document.createElement("canvas");
-    this.labelCanvas.width = 512;
+    this.labelCanvas.width = 1024;
     this.labelCanvas.height = 128;
     this.labelTexture = new THREE.CanvasTexture(this.labelCanvas);
     this.labelTexture.colorSpace = THREE.SRGBColorSpace;
-    const sign = add(
-      this.shell,
-      new THREE.PlaneGeometry(w * 0.88, w * 0.22),
-      new THREE.MeshBasicMaterial({
-        map: this.labelTexture,
-        toneMapped: false,
-      }),
-      0,
-      1.55,
-      d * 0.526 + 0.02,
-    );
-    sign.name = "public-room-nameplate";
-    // Two real roof-mounted signs plus a camera-facing identifier for aerial navigation.
-    // All text is the source room name; these are not invented protocol facilities.
-    for (const side of [-1, 1]) {
-      for (const x of [-.32, .32])
-        add(this.shell, new THREE.BoxGeometry(.07, 1.5, .07), trim,
-          roofX + x * roofW, h + .9, side * roofD * .42);
-      const rooftop = add(this.shell,
-        new THREE.PlaneGeometry(Math.max(6.8, roofW), Math.max(6.8, roofW) / 4),
-        new THREE.MeshBasicMaterial({map: this.labelTexture, toneMapped: false, side: THREE.DoubleSide}),
-        roofX, h + 1.6, side * roofD * .42);
-      rooftop.rotation.y = side === 1 ? 0 : Math.PI;
-      rooftop.name = "rooftop-room-name";
-    }
-    const aerial = new THREE.Sprite(new THREE.SpriteMaterial({
+    // Exactly one rooftop identifier per building, readable from any orbit angle.
+    const rooftop = new THREE.Sprite(new THREE.SpriteMaterial({
       map: this.labelTexture, toneMapped: false, depthTest: true,
     }));
-    aerial.name = "aerial-room-identifier";
-    aerial.scale.set(9, 2.25, 1);
-    aerial.position.set(roofX, h + 3.6, 0);
-    this.shell.add(aerial);
+    rooftop.name = "rooftop-room-name";
+    const signWidth = Math.min(8, Math.max(6, roofW));
+    rooftop.scale.set(signWidth, signWidth / 8, 1);
+    rooftop.position.set(roofX, h + .95, 0);
+    this.shell.add(rooftop);
     this.paintLabel();
     this.selection = new THREE.LineSegments(
       new THREE.EdgesGeometry(new THREE.BoxGeometry(w * 1.32, 0.22, d * 1.32)),
@@ -425,18 +402,15 @@ export class CityBuilding {
   private paintLabel() {
     const c = this.labelCanvas.getContext("2d");
     if (!c) return;
-    c.fillStyle = "#0A1128";
-    c.fillRect(0, 0, 512, 128);
+    c.fillStyle = "#080D16";
+    c.fillRect(0, 0, 1024, 128);
     c.fillStyle = "#00B4D8";
-    c.fillRect(0, 0, 7, 128);
+    c.fillRect(0, 0, 10, 128);
     c.fillStyle = "#F5F7FA";
     const name = `#${this.layout.room.name}`;
-    const fontSize = Math.max(12, Math.min(38, Math.floor(760 / name.length)));
-    c.font = `bold ${fontSize}px monospace`;
-    c.fillText(name, 22, 57, 470);
-    c.font = "19px monospace";
-    c.fillStyle = "#A1A7AE";
-    c.fillText("TECHNOCORE / FLOP ECOSYSTEM", 22, 100);
+    c.font = `bold ${Math.max(21, Math.min(56, Math.floor(1450 / name.length)))}px monospace`;
+    c.textAlign = "center";
+    c.fillText(name, 512, 83, 960);
     this.labelTexture.needsUpdate = true;
   }
   setCutaway(value: boolean) {

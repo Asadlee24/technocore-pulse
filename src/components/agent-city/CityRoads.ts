@@ -7,6 +7,7 @@ export class CityRoads {
   private cars: THREE.InstancedMesh;
   private roofs: THREE.InstancedMesh;
   private lamps: THREE.InstancedMesh;
+  private wheels: THREE.InstancedMesh;
   private people: THREE.InstancedMesh;
   private heads: THREE.InstancedMesh;
   private legs: THREE.InstancedMesh;
@@ -14,11 +15,11 @@ export class CityRoads {
     this.group.name = "walkable-city-blocks";
     this.group.userData.isScenery = true;
     const road = new THREE.MeshStandardMaterial({
-      color: theme === "light" ? 0x56616d : 0x243343,
+      color: theme === "light" ? 0x56616d : 0x151b24,
       roughness: 0.95,
     });
     const pavement = new THREE.MeshStandardMaterial({
-      color: 0x778795,
+      color: 0x424952,
       roughness: 0.88,
     });
     const paint = new THREE.MeshBasicMaterial({ color: 0xb3b9b8 });
@@ -35,27 +36,27 @@ export class CityRoads {
       this.group.add(m);
       return m;
     };
-    const axes = [-49, -35, -21, -7, 7, 21, 35, 49];
+    const axes = [-63, -45, -27, -9, 9, 27, 45, 63];
     for (const axis of axes) {
-      add(new THREE.BoxGeometry(3.2, 0.035, 102), road, axis, 0.015, 0);
-      add(new THREE.BoxGeometry(102, 0.035, 3.2), road, 0, 0.016, axis);
+      add(new THREE.BoxGeometry(4.6, 0.035, 132), road, axis, 0.015, 0);
+      add(new THREE.BoxGeometry(132, 0.035, 4.6), road, 0, 0.016, axis);
       for (const side of [-1, 1]) {
         add(
-          new THREE.BoxGeometry(0.65, 0.12, 102),
+          new THREE.BoxGeometry(1.1, 0.12, 132),
           pavement,
-          axis + side * 2,
+          axis + side * 2.9,
           0.06,
           0,
         );
         add(
-          new THREE.BoxGeometry(102, 0.12, 0.65),
+          new THREE.BoxGeometry(132, 0.12, 1.1),
           pavement,
           0,
           0.061,
-          axis + side * 2,
+          axis + side * 2.9,
         );
       }
-      for (let p = -48; p <= 48; p += 4) {
+      for (let p = -64; p <= 64; p += 4) {
         add(new THREE.BoxGeometry(0.055, 0.018, 0.65), paint, axis, 0.05, p);
         add(new THREE.BoxGeometry(0.65, 0.018, 0.055), paint, p, 0.051, axis);
       }
@@ -74,24 +75,24 @@ export class CityRoads {
             paint,
             x + (stripe - 2) * 0.4,
             0.075,
-            z + 2.5,
+            z + 3.1,
           );
           add(
             new THREE.BoxGeometry(2.8, 0.02, 0.2),
             paint,
-            x + 2.5,
+            x + 3.1,
             0.076,
             z + (stripe - 2) * 0.4,
           );
         }
-        if (Math.abs(x) < 45 && Math.abs(z) < 45) {
-          add(poleGeo, poleMat, x + 2.2, 0.95, z + 2.2);
+        if (Math.abs(x) < 63 && Math.abs(z) < 63) {
+          add(poleGeo, poleMat, x + 2.8, 0.95, z + 2.8);
           add(
             new THREE.BoxGeometry(0.14, 0.38, 0.15),
             poleMat,
-            x + 2.2,
+            x + 2.8,
             1.85,
-            z + 2.2,
+            z + 2.8,
           );
         }
       }
@@ -118,6 +119,12 @@ export class CityRoads {
       new THREE.MeshBasicMaterial({ color: 0xf5edda }),
       64,
     );
+    this.wheels = new THREE.InstancedMesh(
+      new THREE.CylinderGeometry(.13, .13, .09, 10).rotateX(Math.PI / 2),
+      new THREE.MeshStandardMaterial({color: 0x090b10, roughness: .9}),
+      256,
+    );
+    this.wheels.name = "vehicle-wheels";
     this.people = new THREE.InstancedMesh(
       new THREE.CylinderGeometry(0.11, 0.14, 0.38, 6),
       new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85 }),
@@ -148,6 +155,7 @@ export class CityRoads {
       this.cars,
       this.roofs,
       this.lamps,
+      this.wheels,
       this.people,
       this.heads,
       this.legs,
@@ -160,8 +168,8 @@ export class CityRoads {
       roughness: 0.85,
     });
     for (let i = 0; i < 20; i++) {
-      const x = ((i % 5) - 2) * 14 + 4.7,
-        z = (Math.floor(i / 5) - 1.5) * 14;
+      const x = ((i % 5) - 2) * 18 + 6.1,
+        z = (Math.floor(i / 5) - 1.5) * 18;
       add(tabletop, wood, x, 0.68, z);
       add(tableleg, poleMat, x, 0.35, z);
       for (const side of [-1, 1])
@@ -180,7 +188,7 @@ export class CityRoads {
     for (let z = -3; z <= 3; z++)
       for (let x = -3; x <= 3; x++) {
         if (x === 0 && z === 0) continue;
-        if (i-- === 0) return [x * 14, z * 14];
+        if (i-- === 0) return [x * 18, z * 18];
       }
     return [0, 0];
   }
@@ -197,7 +205,7 @@ export class CityRoads {
     const obj = new THREE.Object3D();
     for (let i = 0; i < 64; i++) {
       const [bx, bz] = this.block(i * 7),
-        p = this.route(i * 0.71 + time * (0.085 + (i % 3) * 0.012), 6.55);
+        p = this.route(i * 0.71 + time * (0.085 + (i % 3) * 0.012), 8.3);
       const yaw = Math.atan2(-p.dz, p.dx),
         bus = i % 11 === 0;
       obj.rotation.set(0, yaw, 0);
@@ -217,10 +225,19 @@ export class CityRoads {
       );
       obj.updateMatrix();
       this.lamps.setMatrixAt(i, obj.matrix);
+      for (let axle = 0; axle < 2; axle++) for (let side = 0; side < 2; side++) {
+        const along = (axle === 0 ? -1 : 1) * (bus ? .85 : .38);
+        const across = (side === 0 ? -1 : 1) * .28;
+        obj.position.set(bx + p.x + p.dx * along - p.dz * across, .14,
+          bz + p.z + p.dz * along + p.dx * across);
+        obj.rotation.set(0, yaw, 0);
+        obj.updateMatrix();
+        this.wheels.setMatrixAt(i * 4 + axle * 2 + side, obj.matrix);
+      }
     }
     for (let i = 0; i < 144; i++) {
       const [bx, bz] = this.block(i),
-        p = this.route(i * 0.137 + time * (0.025 + (i % 5) * 0.003), 5.05),
+        p = this.route(i * 0.137 + time * (0.025 + (i % 5) * 0.003), 6.1),
         x = bx + p.x,
         z = bz + p.z,
         yaw = Math.atan2(-p.dz, p.dx);
@@ -247,6 +264,7 @@ export class CityRoads {
       this.cars,
       this.roofs,
       this.lamps,
+      this.wheels,
       this.people,
       this.heads,
       this.legs,
