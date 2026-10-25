@@ -1,183 +1,197 @@
-import * as THREE from 'three';
-
+import * as THREE from "three";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 export interface DeskConfig {
   x: number;
   y: number;
   z: number;
   rotationY?: number;
-  screenType?: 'terminal' | 'telemetry' | 'signal';
+  screenType?: "terminal" | "telemetry" | "signal";
   hasWorker?: boolean;
 }
 
 export class AgentDeskFactory {
-  // Shared geometries for performance
-  private static deskTopGeo: THREE.BoxGeometry | null = null;
-  private static deskLegGeo: THREE.CylinderGeometry | null = null;
-  private static chairSeatGeo: THREE.CylinderGeometry | null = null;
-  private static chairBackGeo: THREE.BoxGeometry | null = null;
-  private static laptopBaseGeo: THREE.BoxGeometry | null = null;
-  private static laptopScreenGeo: THREE.BoxGeometry | null = null;
-
-  // Shared materials
-  private static deskMat: THREE.MeshStandardMaterial | null = null;
-  private static legMat: THREE.MeshStandardMaterial | null = null;
-  private static chairMat: THREE.MeshStandardMaterial | null = null;
-  private static laptopBodyMat: THREE.MeshStandardMaterial | null = null;
-  private static screenTerminalMat: THREE.MeshBasicMaterial | null = null;
-  private static screenTelemetryMat: THREE.MeshBasicMaterial | null = null;
-  private static screenSignalMat: THREE.MeshBasicMaterial | null = null;
-
-  public static initSharedResources() {
-    if (this.deskTopGeo) return;
-
-    this.deskTopGeo = new THREE.BoxGeometry(1.25, 0.06, 0.65);
-    this.deskLegGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.68, 8);
-    this.chairSeatGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.05, 14);
-    this.chairBackGeo = new THREE.BoxGeometry(0.36, 0.28, 0.04);
-
-    this.laptopBaseGeo = new THREE.BoxGeometry(0.38, 0.02, 0.26);
-    this.laptopScreenGeo = new THREE.BoxGeometry(0.38, 0.24, 0.015);
-
-    this.deskMat = new THREE.MeshStandardMaterial({
-      color: 0x101A2A,
-      roughness: 0.4,
-      metalness: 0.6
-    });
-
-    this.legMat = new THREE.MeshStandardMaterial({
-      color: 0x1B2A3D,
-      roughness: 0.5,
-      metalness: 0.8
-    });
-
-    this.chairMat = new THREE.MeshStandardMaterial({
-      color: 0x0B1320,
-      roughness: 0.6,
-      metalness: 0.5
-    });
-
-    this.laptopBodyMat = new THREE.MeshStandardMaterial({
-      color: 0x050A12,
-      roughness: 0.2,
-      metalness: 0.9
-    });
-
-    // Procedural glowing screen materials
-    this.screenTerminalMat = new THREE.MeshBasicMaterial({
-      color: 0x36D7E7 // Cyan terminal glow
-    });
-
-    this.screenTelemetryMat = new THREE.MeshBasicMaterial({
-      color: 0x2FD27F // Signal green telemetry
-    });
-
-    this.screenSignalMat = new THREE.MeshBasicMaterial({
-      color: 0x4DA3FF // Soft blue protocol feed
-    });
+  private static geometries = new Map<string, THREE.BufferGeometry>();
+  private static materials = new Map<number, THREE.Material>();
+  private static screens = new Map<
+    string,
+    {
+      canvas: HTMLCanvasElement;
+      texture: THREE.CanvasTexture;
+      material: THREE.Material;
+    }
+  >();
+  private static lastFrame = -1;
+  static initSharedResources() {}
+  private static box(w: number, h: number, d: number) {
+    const key = `${w}/${h}/${d}`;
+    if (!this.geometries.has(key))
+      this.geometries.set(key, new RoundedBoxGeometry(w, h, d, 1, 0.015));
+    return this.geometries.get(key)!;
   }
-
-  /**
-   * Builds an individual desk workstation with chair and glowing laptop
-   */
-  public static createWorkstation(config: DeskConfig): THREE.Group {
-    this.initSharedResources();
-
-    const group = new THREE.Group();
-    group.position.set(config.x, config.y, config.z);
-    if (config.rotationY) group.rotation.y = config.rotationY;
-
-    // 1. Desk Surface
-    const deskTop = new THREE.Mesh(this.deskTopGeo!, this.deskMat!);
-    deskTop.position.y = 0.70;
-    deskTop.castShadow = true;
-    group.add(deskTop);
-
-    // 2. Desk Legs (4 slim minimalist pillars)
-    const legOffsets = [
-      [-0.52, 0.34, -0.24],
-      [0.52, 0.34, -0.24],
-      [-0.52, 0.34, 0.24],
-      [0.52, 0.34, 0.24]
-    ];
-    legOffsets.forEach(([lx, ly, lz]) => {
-      const leg = new THREE.Mesh(this.deskLegGeo!, this.legMat!);
-      leg.position.set(lx, ly, lz);
-      group.add(leg);
+  private static material(color: number) {
+    if (!this.materials.has(color))
+      this.materials.set(
+        color,
+        new THREE.MeshStandardMaterial({
+          color,
+          roughness: 0.58,
+          metalness: 0.2,
+        }),
+      );
+    return this.materials.get(color)!;
+  }
+  private static screen(type: string) {
+    if (!this.screens.has(type)) {
+      const canvas = document.createElement("canvas");
+      canvas.width = 384;
+      canvas.height = 240;
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.minFilter = THREE.LinearFilter;
+      const material = new THREE.MeshBasicMaterial({
+        map: texture,
+        toneMapped: false,
+      });
+      this.screens.set(type, { canvas, texture, material });
+      this.paint(type, 0);
+    }
+    return this.screens.get(type)!.material;
+  }
+  private static paint(type: string, time: number) {
+    const entry = this.screens.get(type);
+    if (!entry) return;
+    const c = entry.canvas.getContext("2d");
+    if (!c) return;
+    c.fillStyle = "#172b2c";
+    c.fillRect(0, 0, 384, 240);
+    c.fillStyle = "#36504c";
+    c.fillRect(0, 0, 384, 32);
+    c.fillStyle = "#d9e2ce";
+    c.font = "14px monospace";
+    c.fillText("TECHNOCORE / WORKSPACE", 14, 21);
+    c.fillStyle = "#a3c9b5";
+    c.font = "12px monospace";
+    c.fillText("ILLUSTRATIVE TERMINAL", 14, 56);
+    const lines =
+      type === "terminal"
+        ? [
+            "> public room reader",
+            "  await room.messages()",
+            "> inspect source record",
+            "  verify signature",
+            "> preserve original text",
+          ]
+        : type === "telemetry"
+          ? [
+              "> observation window",
+              "  public records only",
+              "> observer.read()",
+              "  unknown stays unknown",
+              "> no inferred execution",
+            ]
+          : [
+              "> coordination layer",
+              "  discover public rooms",
+              "> inspect signed identity",
+              "  read original payload",
+              "> local visualization",
+            ];
+    lines.forEach((line, i) => {
+      c.fillStyle = i % 2 ? "#d0dbca" : "#8ab9a5";
+      c.fillText(line, 14, 85 + i * 24);
     });
-
-    // 3. Ergonomic Minimalist Chair
-    const chairGroup = new THREE.Group();
-    chairGroup.position.set(0, 0, 0.48); // positioned behind desk
-
-    const seat = new THREE.Mesh(this.chairSeatGeo!, this.chairMat!);
-    seat.position.y = 0.44;
-    chairGroup.add(seat);
-
-    const chairPost = new THREE.Mesh(this.deskLegGeo!, this.legMat!);
-    chairPost.scale.set(1, 0.62, 1);
-    chairPost.position.y = 0.22;
-    chairGroup.add(chairPost);
-
-    const backrest = new THREE.Mesh(this.chairBackGeo!, this.chairMat!);
-    backrest.position.set(0, 0.68, 0.16);
-    chairGroup.add(backrest);
-
-    group.add(chairGroup);
-
-    // 4. Autonomous Agent Laptop
-    const laptopGroup = new THREE.Group();
-    laptopGroup.position.set(0, 0.71, 0.04);
-
-    // Laptop Base
-    const laptopBase = new THREE.Mesh(this.laptopBaseGeo!, this.laptopBodyMat!);
-    laptopGroup.add(laptopBase);
-
-    // Laptop Display (raised at ~105 deg angle)
-    const screenMat = config.screenType === 'telemetry'
-      ? this.screenTelemetryMat!
-      : config.screenType === 'signal'
-        ? this.screenSignalMat!
-        : this.screenTerminalMat!;
-
-    const laptopScreen = new THREE.Mesh(this.laptopScreenGeo!, screenMat);
-    laptopScreen.position.set(0, 0.12, -0.12);
-    laptopScreen.rotation.x = -Math.PI / 10; // angled upward
-    laptopGroup.add(laptopScreen);
-
-    // Tiny keyboard accent plate
-    const kbGeo = new THREE.PlaneGeometry(0.32, 0.14);
-    const kbMat = new THREE.MeshBasicMaterial({ color: 0x1B2A3D });
-    const kb = new THREE.Mesh(kbGeo, kbMat);
-    kb.rotation.x = -Math.PI / 2;
-    kb.position.set(0, 0.021, 0.03);
-    laptopGroup.add(kb);
-
-    group.add(laptopGroup);
-
+    if (Math.floor(time * 2) % 2 === 0) {
+      c.fillStyle = "#edbf7c";
+      c.fillRect(16, 214, 8, 13);
+    }
+    entry.texture.needsUpdate = true;
+  }
+  static updateScreens(time: number) {
+    const frame = Math.floor(time * 3);
+    if (frame === this.lastFrame) return;
+    this.lastFrame = frame;
+    this.screens.forEach((_, type) => this.paint(type, time));
+  }
+  static createWorkstation(config: DeskConfig) {
+    const group = new THREE.Group();
+    group.name = "agent-workstation";
+    group.position.set(config.x, config.y, config.z);
+    group.rotation.y = config.rotationY ?? 0;
+    const wood = this.material(0xa58d6a),
+      metal = this.material(0x4d6058),
+      chair = this.material(0x36504a),
+      hardware = this.material(0x273936);
+    const add = (
+      geo: THREE.BufferGeometry,
+      mat: THREE.Material,
+      x: number,
+      y: number,
+      z: number,
+    ) => {
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(x, y, z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      group.add(mesh);
+      return mesh;
+    };
+    add(this.box(1.2, 0.055, 0.66), wood, 0, 0.7, 0);
+    [-0.49, 0.49].forEach((x) => {
+      add(this.box(0.045, 0.68, 0.045), metal, x, 0.34, -0.23);
+      add(this.box(0.045, 0.68, 0.045), metal, x, 0.34, 0.23);
+    });
+    add(this.box(0.36, 0.065, 0.32), chair, 0, 0.44, 0.48);
+    add(this.box(0.35, 0.36, 0.065), chair, 0, 0.65, 0.64);
+    add(this.box(0.04, 0.42, 0.04), metal, 0, 0.21, 0.48);
+    add(this.box(0.4, 0.035, 0.05), metal, 0, 0.055, 0.48);
+    add(this.box(0.05, 0.035, 0.4), metal, 0, 0.055, 0.48);
+    [-1, 1].forEach((s) =>
+      add(this.box(0.035, 0.11, 0.23), metal, s * 0.23, 0.51, 0.48),
+    );
+    // Desktop monitor faces the character (+Z), with a separate keyboard and mouse.
+    add(this.box(0.18, 0.025, 0.14), metal, 0, 0.743, -0.15);
+    add(this.box(0.035, 0.18, 0.035), metal, 0, 0.82, -0.19);
+    add(this.box(0.62, 0.4, 0.038), hardware, 0, 1.07, -0.19);
+    const display = add(
+      this.box(0.57, 0.345, 0.008),
+      this.screen(config.screenType ?? "terminal"),
+      0,
+      1.075,
+      -0.166,
+    );
+    display.userData.illustrative = true;
+    add(this.box(0.38, 0.018, 0.145), hardware, 0, 0.742, 0.16);
+    const keyGeo = this.box(0.027, 0.006, 0.022);
+    const keys = new THREE.InstancedMesh(keyGeo, this.material(0x99aaa0), 30);
+    const matrix = new THREE.Matrix4();
+    for (let i = 0; i < 30; i++) {
+      matrix.makeTranslation(
+        ((i % 10) - 4.5) * 0.034,
+        0.755,
+        0.12 + Math.floor(i / 10) * 0.035,
+      );
+      keys.setMatrixAt(i, matrix);
+    }
+    keys.instanceMatrix.needsUpdate = true;
+    group.add(keys);
+    add(this.box(0.09, 0.008, 0.13), metal, 0.35, 0.738, 0.16);
+    add(this.box(0.045, 0.025, 0.07), hardware, 0.35, 0.755, 0.16);
+    // Task light and notebook give the desks a human-designed material scale.
+    add(this.box(0.045, 0.26, 0.045), metal, -0.47, 0.87, -0.19);
+    add(this.box(0.16, 0.035, 0.1), this.material(0xd7c5a1), -0.43, 1.0, -0.17);
+    add(this.box(0.15, 0.018, 0.2), this.material(0xd8dbc4), 0.46, 0.74, -0.04);
     return group;
   }
-
-  public static dispose() {
-    this.deskTopGeo?.dispose();
-    this.deskLegGeo?.dispose();
-    this.chairSeatGeo?.dispose();
-    this.chairBackGeo?.dispose();
-    this.laptopBaseGeo?.dispose();
-    this.laptopScreenGeo?.dispose();
-
-    this.deskMat?.dispose();
-    this.legMat?.dispose();
-    this.chairMat?.dispose();
-    this.laptopBodyMat?.dispose();
-    this.screenTerminalMat?.dispose();
-    this.screenTelemetryMat?.dispose();
-    this.screenSignalMat?.dispose();
-
-    this.deskTopGeo = null;
-    this.deskLegGeo = null;
-    this.chairSeatGeo = null;
-    this.chairBackGeo = null;
-    this.laptopBaseGeo = null;
-    this.laptopScreenGeo = null;
+  static dispose() {
+    this.screens.forEach((s) => {
+      s.texture.dispose();
+      s.material.dispose();
+    });
+    this.screens.clear();
+    this.geometries.forEach((g) => g.dispose());
+    this.geometries.clear();
+    this.materials.forEach((m) => m.dispose());
+    this.materials.clear();
+    this.lastFrame = -1;
   }
 }

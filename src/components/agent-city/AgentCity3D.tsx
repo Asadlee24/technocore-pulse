@@ -1,32 +1,38 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import type { SignedRecord, RoomCluster } from '../../types/probe';
-import { generateCityLayout, type BuildingLayout } from './cityLayout';
-import { createCityMaterials, disposeCityMaterials, type CityMaterials } from './cityMaterials';
-import { CityBuilding } from './CityBuilding';
-import { MetroLandmark as CityDistrictManager } from './MetroLandmark';
-import { CityRoads } from './CityRoads';
-import { CitySkyline } from './CitySkyline';
-import { CityEnvironment } from './CityEnvironment';
-import { CityRoutes } from './CityRoutes';
-import { AgentParticles } from './AgentParticles';
-import { ProbePulseSystem } from './ProbePulseSystem';
-import { CityTransportManager } from './CityTransport';
-import { CityPedestrians } from './CityPedestrians';
-import { CityLODManager, type CameraViewLevel } from './CityLODManager';
-import { 
-  Radio, 
-  Sparkles, 
-  Footprints, 
-  RotateCcw, 
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import type { SignedRecord, RoomCluster } from "../../types/probe";
+import { generateCityLayout, type BuildingLayout } from "./cityLayout";
+import {
+  createCityMaterials,
+  disposeCityMaterials,
+  type CityMaterials,
+} from "./cityMaterials";
+import { CityBuilding } from "./CityBuilding";
+import { AgentDeskFactory } from "./AgentDesk";
+import { AgentWorker } from "./AgentWorker";
+import { MetroLandmark as CityDistrictManager } from "./MetroLandmark";
+import { CityRoads } from "./CityRoads";
+import { CitySkyline } from "./CitySkyline";
+import { CityEnvironment } from "./CityEnvironment";
+import { CityRoutes } from "./CityRoutes";
+import { AgentParticles } from "./AgentParticles";
+import { ProbePulseSystem } from "./ProbePulseSystem";
+import { CityTransportManager } from "./CityTransport";
+import { CityPedestrians } from "./CityPedestrians";
+import { CityLODManager, type CameraViewLevel } from "./CityLODManager";
+import {
+  Radio,
+  Sparkles,
+  Footprints,
+  RotateCcw,
   RotateCw,
-  ArrowUp, 
-  ArrowDown, 
-  ArrowLeft, 
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
   ArrowRight,
-  Building2
-} from 'lucide-react';
+  Building2,
+} from "lucide-react";
 
 interface AgentCity3DProps {
   activeRoomClusters: RoomCluster[];
@@ -39,27 +45,29 @@ interface AgentCity3DProps {
   onPulseComplete?: () => void;
   viewLevel?: CameraViewLevel;
   onViewLevelChange?: (level: CameraViewLevel) => void;
-  theme?: 'dark' | 'light';
-  cameraPerspective?: 'orbit' | 'drone' | 'plaza' | 'walk' | 'building';
-  onPerspectiveChange?: (persp: 'orbit' | 'drone' | 'plaza' | 'walk' | 'building') => void;
+  theme?: "dark" | "light";
+  cameraPerspective?: "orbit" | "drone" | "plaza" | "walk" | "building";
+  onPerspectiveChange?: (
+    persp: "orbit" | "drone" | "plaza" | "walk" | "building",
+  ) => void;
   isShowcase?: boolean;
   onExitShowcase?: () => void;
 }
 
 const DEFAULT_FALLBACK_ROOM: RoomCluster = {
-  id: 'live-room-technocore',
-  name: 'technocore',
-  displayName: '#technocore',
-  category: 'unclassified',
-  visualDistrict: 'coordination',
+  id: "live-room-technocore",
+  name: "technocore",
+  displayName: "#technocore",
+  category: "unclassified",
+  visualDistrict: "coordination",
   signedIdentitiesObserved: null,
   activeAgentsCount: null,
   totalProbesReceived: 0,
   medianSubsequentLatencySeconds: null,
   averageResponseLatency: null,
-  status: 'active',
-  color: '#36D7E7',
-  coordinates: [0, 0, 0]
+  status: "active",
+  color: "#36D7E7",
+  coordinates: [0, 0, 0],
 };
 
 export const AgentCity3D: React.FC<AgentCity3DProps> = ({
@@ -73,26 +81,39 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   onPulseComplete,
   viewLevel: controlledViewLevel,
   onViewLevelChange,
-  theme = 'dark',
-  cameraPerspective = 'orbit',
+  theme = "dark",
+  cameraPerspective = "orbit",
   onPerspectiveChange,
   isShowcase = false,
-  onExitShowcase
+  onExitShowcase,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
-  
-  // Visual scale state: 'city' | 'building' | 'interior'
-  const [internalViewLevel, setInternalViewLevel] = useState<CameraViewLevel>('city');
-  const viewLevel = controlledViewLevel !== undefined ? controlledViewLevel : internalViewLevel;
-  
-  const setViewLevel = useCallback((level: CameraViewLevel) => {
-    setInternalViewLevel(level);
-    if (onViewLevelChange) onViewLevelChange(level);
-  }, [onViewLevelChange]);
 
-  const [isAutoRotate, setIsAutoRotate] = useState<boolean>(() => !window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-  const [hoveredRoom, setHoveredRoom] = useState<{ room: RoomCluster; x: number; y: number } | null>(null);
-  const [pulseLog, setPulseLog] = useState<string>('Public room observer · waiting for observations');
+  // Visual scale state: 'city' | 'building' | 'interior'
+  const [internalViewLevel, setInternalViewLevel] =
+    useState<CameraViewLevel>("city");
+  const viewLevel =
+    controlledViewLevel !== undefined ? controlledViewLevel : internalViewLevel;
+
+  const setViewLevel = useCallback(
+    (level: CameraViewLevel) => {
+      setInternalViewLevel(level);
+      if (onViewLevelChange) onViewLevelChange(level);
+    },
+    [onViewLevelChange],
+  );
+
+  const [isAutoRotate, setIsAutoRotate] = useState<boolean>(
+    () => !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
+  const [hoveredRoom, setHoveredRoom] = useState<{
+    room: RoomCluster;
+    x: number;
+    y: number;
+  } | null>(null);
+  const [pulseLog, setPulseLog] = useState<string>(
+    "Public room observer · waiting for observations",
+  );
   const [showIntroBadge, setShowIntroBadge] = useState<boolean>(true);
 
   // Persistent Three.js References
@@ -119,7 +140,9 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   const INTRO_START_LOOK = useRef<THREE.Vector3>(new THREE.Vector3(0, 10, 0));
   const INTRO_END_LOOK = useRef<THREE.Vector3>(new THREE.Vector3(0, 6, 0));
 
-  const cameraPerspectiveRef = useRef<'orbit' | 'drone' | 'plaza' | 'walk' | 'building'>(cameraPerspective);
+  const cameraPerspectiveRef = useRef<
+    "orbit" | "drone" | "plaza" | "walk" | "building"
+  >(cameraPerspective);
   cameraPerspectiveRef.current = cameraPerspective;
 
   const onPerspectiveChangeRef = useRef(onPerspectiveChange);
@@ -139,7 +162,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   viewLevelRef.current = viewLevel;
 
   const safeClusters = activeRoomClusters;
-  const topologyKey = safeClusters.map(r => r.id).join('|');
+  const topologyKey = safeClusters.map((r) => r.id).join("|");
   const seenRecordsRef = useRef(new Set<string>());
   const activeRoom = selectedRoom || safeClusters[0] || DEFAULT_FALLBACK_ROOM;
   const activeRoomRef = useRef<RoomCluster>(activeRoom);
@@ -172,9 +195,25 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   // WASD Keyboard Exploration Listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (['input', 'textarea'].includes((e.target as HTMLElement)?.tagName?.toLowerCase())) return;
+      if (
+        ["input", "textarea"].includes(
+          (e.target as HTMLElement)?.tagName?.toLowerCase(),
+        )
+      )
+        return;
       const k = e.key.toLowerCase();
-      if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) {
+      if (
+        [
+          "w",
+          "a",
+          "s",
+          "d",
+          "arrowup",
+          "arrowdown",
+          "arrowleft",
+          "arrowright",
+        ].includes(k)
+      ) {
         keysPressedRef.current[k] = true;
         if (isAutoRotateRef.current) setIsAutoRotate(false);
         isTransitioningRef.current = false;
@@ -184,11 +223,11 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       const k = e.key.toLowerCase();
       keysPressedRef.current[k] = false;
     };
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
     };
   }, []);
 
@@ -208,59 +247,63 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   // -------------------------------------------------------------
 
   const switchCameraToCity = useCallback(() => {
-    setViewLevel('city');
+    setViewLevel("city");
     setIsAutoRotate(true);
     isTransitioningRef.current = true;
-    lodManagerRef.current.setViewLevel('city', null);
+    lodManagerRef.current.setViewLevel("city", null);
 
     // Close all cutaways
-    buildingsMapRef.current.forEach(b => b.setCutaway(false));
+    buildingsMapRef.current.forEach((b) => b.setCutaway(false));
 
     cameraTargetPos.current.set(56, 36, 62);
     cameraTargetLookAt.current.set(0, 6, 0);
-    setPulseLog('Camera returned to Agent City metropolitan overview.');
+    setPulseLog("Camera returned to Agent City metropolitan overview.");
   }, []);
 
   const switchCameraToBuilding = useCallback((building: BuildingLayout) => {
     isIntroRef.current = false;
     setShowIntroBadge(false);
-    setViewLevel('building');
+    setViewLevel("building");
     setIsAutoRotate(false);
     isTransitioningRef.current = true;
-    lodManagerRef.current.setViewLevel('building', building.room.id);
+    lodManagerRef.current.setViewLevel("building", building.room.id);
 
     // Open cutaway for selected building, close others
     buildingsMapRef.current.forEach((b) => {
       b.setCutaway(b.layout.room.id === building.room.id);
+      b.interior.setFocusedFloor(null);
     });
 
     const bX = building.position[0];
     const bZ = building.position[2];
-    const bY = Math.min(building.height * 0.5, 12);
-
-    const isMobilePortrait = typeof window !== 'undefined' && window.innerWidth < 640 && window.innerHeight > window.innerWidth;
-    const offsetDist = isMobilePortrait ? 16 : 13;
-    const angle = Math.atan2(bZ, bX) + 0.35;
+    // The cutaway's representative office floors occupy the bottom 7.2 units.
+    const bY = 3.1;
+    const isMobilePortrait =
+      window.innerWidth < 640 && window.innerHeight > window.innerWidth;
+    const offsetDist = isMobilePortrait ? 11 : 8;
     cameraTargetPos.current.set(
-      bX + Math.cos(angle) * offsetDist,
-      Math.max(6, bY + (isMobilePortrait ? 5 : 4)),
-      bZ + Math.sin(angle) * offsetDist
+      bX + offsetDist * 0.75,
+      bY + 4,
+      bZ + offsetDist,
     );
     cameraTargetLookAt.current.set(bX, bY, bZ);
-    setPulseLog(`Focusing optical sensor on #${building.room.name}. Office cutaway active.`);
+    setPulseLog(
+      `Focusing optical sensor on #${building.room.name}. Office cutaway active.`,
+    );
   }, []);
 
   const switchCameraToInterior = useCallback((building: BuildingLayout) => {
     isIntroRef.current = false;
     setShowIntroBadge(false);
-    setViewLevel('interior');
+    setViewLevel("interior");
     setIsAutoRotate(false);
     isTransitioningRef.current = true;
-    lodManagerRef.current.setViewLevel('interior', building.room.id);
+    lodManagerRef.current.setViewLevel("interior", building.room.id);
 
     // Ensure cutaway is open
     buildingsMapRef.current.forEach((b) => {
       b.setCutaway(b.layout.room.id === building.room.id);
+      b.interior.setFocusedFloor(0);
     });
 
     const bX = building.position[0];
@@ -268,14 +311,16 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // Focus close on active office workstations with clear view of laptops and agents
     const bY = 0.85;
 
-    const angle = Math.atan2(bZ, bX) + 0.25;
+    // All office desks share the same local orientation. Approach the open +Z facade.
     cameraTargetPos.current.set(
-      bX + Math.cos(angle) * 5.2,
-      bY + 1.25,
-      bZ + Math.sin(angle) * 5.2
+      bX + building.width * 0.65,
+      bY + 2.4,
+      bZ + building.depth * 1.18,
     );
-    cameraTargetLookAt.current.set(bX, bY + 0.45, bZ);
-    setPulseLog(`Office model for #${building.room.name}. Workers are an activity metaphor.`);
+    cameraTargetLookAt.current.set(bX, 1.15, bZ);
+    setPulseLog(
+      `Office model for #${building.room.name}. Workers are an activity metaphor.`,
+    );
   }, []);
 
   const rotateAroundBuilding = useCallback((angleDelta: number) => {
@@ -294,7 +339,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     setIsAutoRotate(false);
     isTransitioningRef.current = true;
     if (onPerspectiveChangeRef.current) {
-      onPerspectiveChangeRef.current('walk');
+      onPerspectiveChangeRef.current("walk");
     }
     const bX = building.position[0];
     const bZ = building.position[2];
@@ -304,50 +349,67 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 
     cameraTargetPos.current.set(walkX, 1.75, walkZ);
     cameraTargetLookAt.current.set(bX, 2.2, bZ);
-    setPulseLog(`Arrived outside #${building.room.name}. Walk with WASD or touch buttons.`);
+    setPulseLog(
+      `Arrived outside #${building.room.name}. Walk with WASD or touch buttons.`,
+    );
   }, []);
 
-  const handleWalkStep = useCallback((direction: 'forward' | 'backward' | 'left' | 'right') => {
-    if (!cameraRef.current || !controlsRef.current) return;
-    const camera = cameraRef.current;
-    const fwd = new THREE.Vector3();
-    camera.getWorldDirection(fwd);
-    fwd.y = 0;
-    fwd.normalize();
-    const rgt = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
-    const stepDist = 2.4;
-    const move = new THREE.Vector3();
-    if (direction === 'forward') move.add(fwd);
-    if (direction === 'backward') move.sub(fwd);
-    if (direction === 'right') move.add(rgt);
-    if (direction === 'left') move.sub(rgt);
+  const handleWalkStep = useCallback(
+    (direction: "forward" | "backward" | "left" | "right") => {
+      if (!cameraRef.current || !controlsRef.current) return;
+      const camera = cameraRef.current;
+      const fwd = new THREE.Vector3();
+      camera.getWorldDirection(fwd);
+      fwd.y = 0;
+      fwd.normalize();
+      const rgt = new THREE.Vector3()
+        .crossVectors(fwd, new THREE.Vector3(0, 1, 0))
+        .normalize();
+      const stepDist = 2.4;
+      const move = new THREE.Vector3();
+      if (direction === "forward") move.add(fwd);
+      if (direction === "backward") move.sub(fwd);
+      if (direction === "right") move.add(rgt);
+      if (direction === "left") move.sub(rgt);
 
-    move.normalize().multiplyScalar(stepDist);
-    camera.position.add(move);
-    controlsRef.current.target.add(move);
-    if (cameraPerspectiveRef.current === 'walk') {
-      camera.position.y = 1.75;
-      controlsRef.current.target.y = 1.75;
-    }
-  }, []);
+      move.normalize().multiplyScalar(stepDist);
+      camera.position.add(move);
+      controlsRef.current.target.add(move);
+      if (cameraPerspectiveRef.current === "walk") {
+        camera.position.y = 1.75;
+        controlsRef.current.target.y = 1.75;
+      }
+    },
+    [],
+  );
 
   // Sync view scale with controlled prop from parent
   useEffect(() => {
     if (!controlledViewLevel) return;
-    if (controlledViewLevel === 'city') {
+    if (controlledViewLevel === "city") {
       switchCameraToCity();
-    } else if (controlledViewLevel === 'building') {
-      const bObj = buildingsMapRef.current.get(activeRoom.id) || Array.from(buildingsMapRef.current.values())[0];
+    } else if (controlledViewLevel === "building") {
+      const bObj =
+        buildingsMapRef.current.get(activeRoom.id) ||
+        Array.from(buildingsMapRef.current.values())[0];
       if (bObj) switchCameraToBuilding(bObj.layout);
-    } else if (controlledViewLevel === 'interior') {
-      const bObj = buildingsMapRef.current.get(activeRoom.id) || Array.from(buildingsMapRef.current.values())[0];
+    } else if (controlledViewLevel === "interior") {
+      const bObj =
+        buildingsMapRef.current.get(activeRoom.id) ||
+        Array.from(buildingsMapRef.current.values())[0];
       if (bObj) switchCameraToInterior(bObj.layout);
     }
-  }, [controlledViewLevel, activeRoom.id, switchCameraToCity, switchCameraToBuilding, switchCameraToInterior]);
+  }, [
+    controlledViewLevel,
+    activeRoom.id,
+    switchCameraToCity,
+    switchCameraToBuilding,
+    switchCameraToInterior,
+  ]);
 
   // Sync camera perspective (orbit | drone | plaza | walk | building)
   useEffect(() => {
-    if (cameraPerspective === 'walk') {
+    if (cameraPerspective === "walk") {
       isTransitioningRef.current = true;
       setIsAutoRotate(false);
       const curX = cameraRef.current ? cameraRef.current.position.x : 14;
@@ -360,31 +422,35 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       cameraTargetLookAt.current.set(
         startWalkX + Math.cos(angle + 0.5) * 8,
         2.1,
-        startWalkZ + Math.sin(angle + 0.5) * 8
+        startWalkZ + Math.sin(angle + 0.5) * 8,
       );
       if (controlsRef.current) {
         controlsRef.current.minDistance = 0.1;
         controlsRef.current.maxDistance = 60;
       }
-      setPulseLog('Street Walk Mode active. Use W A S D to walk through NYC streets.');
-    } else if (cameraPerspective === 'building') {
-      const bObj = buildingsMapRef.current.get(activeRoom.id) || Array.from(buildingsMapRef.current.values())[0];
+      setPulseLog(
+        "Street Walk Mode active. Use W A S D to walk through NYC streets.",
+      );
+    } else if (cameraPerspective === "building") {
+      const bObj =
+        buildingsMapRef.current.get(activeRoom.id) ||
+        Array.from(buildingsMapRef.current.values())[0];
       if (bObj) switchCameraToBuilding(bObj.layout);
-    } else if (cameraPerspective === 'plaza') {
+    } else if (cameraPerspective === "plaza") {
       isTransitioningRef.current = true;
       cameraTargetPos.current.set(13, 2.4, 13);
       cameraTargetLookAt.current.set(0, 14, 0);
-      setPulseLog('Camera switched to Plaza ground view.');
-    } else if (cameraPerspective === 'orbit') {
-      if (viewLevelRef.current === 'city') {
+      setPulseLog("Camera switched to Plaza ground view.");
+    } else if (cameraPerspective === "orbit") {
+      if (viewLevelRef.current === "city") {
         isTransitioningRef.current = true;
         cameraTargetPos.current.set(56, 36, 62);
         cameraTargetLookAt.current.set(0, 6, 0);
       }
-      setPulseLog('Camera switched to Free Orbit mode.');
-    } else if (cameraPerspective === 'drone') {
+      setPulseLog("Camera switched to Free Orbit mode.");
+    } else if (cameraPerspective === "drone") {
       isTransitioningRef.current = false;
-      setPulseLog('Autonomous Drone Flythrough Tour initiated.');
+      setPulseLog("Autonomous Drone Flythrough Tour initiated.");
     }
   }, [cameraPerspective, activeRoom.id, switchCameraToBuilding]);
 
@@ -394,17 +460,21 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   useEffect(() => {
     if (isSimulatingPulse && pulseSystemRef.current && activeRoom) {
       const bObj = buildingsMapRef.current.get(activeRoom.id);
-      const pos: [number, number, number] = bObj 
-        ? bObj.layout.position 
+      const pos: [number, number, number] = bObj
+        ? bObj.layout.position
         : [0, 0, 0];
 
       pulseSystemRef.current.triggerPulse(pos);
       if (bObj) bObj.triggerProbeEffect();
 
-      setPulseLog(`Visual demonstration signal emitted across #${activeRoom.name}.`);
-      
+      setPulseLog(
+        `Visual demonstration signal emitted across #${activeRoom.name}.`,
+      );
+
       const timer = setTimeout(() => {
-        setPulseLog(`Visual demonstration pulse complete. (No protocol write performed).`);
+        setPulseLog(
+          `Visual demonstration pulse complete. (No protocol write performed).`,
+        );
         if (onPulseComplete) onPulseComplete();
       }, 2600);
 
@@ -432,13 +502,20 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       const key = `${record.room}:${record.sequence ?? record.timestamp}:${record.did}`;
       if (seenRecordsRef.current.has(key)) continue;
       seenRecordsRef.current.add(key);
-      const building = Array.from(buildingsMapRef.current.values()).find(b => b.layout.room.name === record.room);
+      const building = Array.from(buildingsMapRef.current.values()).find(
+        (b) => b.layout.room.name === record.room,
+      );
       if (building && pulseSystemRef.current) {
         pulseSystemRef.current.triggerPulse(building.layout.position);
-        setPulseLog(`Observed message in #${record.room} · ${record.verificationStatus.toLowerCase().replaceAll('_', ' ')}`);
+        setPulseLog(
+          `Observed message in #${record.room} · ${record.verificationStatus.toLowerCase().replaceAll("_", " ")}`,
+        );
       }
     }
-    if (seenRecordsRef.current.size > 1000) seenRecordsRef.current = new Set(Array.from(seenRecordsRef.current).slice(-500));
+    if (seenRecordsRef.current.size > 1000)
+      seenRecordsRef.current = new Set(
+        Array.from(seenRecordsRef.current).slice(-500),
+      );
   }, [observedRecords, topologyKey]);
 
   // -------------------------------------------------------------
@@ -448,12 +525,12 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     const container = mountRef.current;
     if (!container) return;
 
-    const isLight = theme === 'light';
+    const isLight = theme === "light";
 
     // 1. Scene & Atmospheric Fog (Target: 10-15% sky readability, softened fog so buildings don't vanish)
     const scene = new THREE.Scene();
     sceneRef.current = scene;
-    scene.fog = new THREE.FogExp2(isLight ? 0xE8EEF5 : 0x202C32, 0.0038);
+    scene.fog = new THREE.FogExp2(isLight ? 0xe8eef5 : 0x202c32, 0.0038);
 
     // 2. Camera Setup
     const width = container.clientWidth;
@@ -463,23 +540,26 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     cameraRef.current = camera;
 
     // 3. WebGL Renderer (Mobile optimized, no preserveDrawingBuffer to maximize framerate)
-    const isMobileDevice = typeof window !== 'undefined' && window.innerWidth <= 768;
+    const isMobileDevice =
+      typeof window !== "undefined" && window.innerWidth <= 768;
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
       alpha: true,
       preserveDrawingBuffer: false,
-      powerPreference: 'high-performance'
+      powerPreference: "high-performance",
     });
     renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobileDevice ? 1.35 : 1.75));
-    renderer.setClearColor(isLight ? 0xE8EEF5 : 0x202C32, 1);
+    renderer.setPixelRatio(
+      Math.min(window.devicePixelRatio, isMobileDevice ? 1.35 : 1.75),
+    );
+    renderer.setClearColor(isLight ? 0xe8eef5 : 0x202c32, 1);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.15;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     rendererRef.current = renderer;
 
-    container.innerHTML = '';
+    container.innerHTML = "";
     container.appendChild(renderer.domElement);
 
     // 4. Shared Materials & Pulse System
@@ -518,7 +598,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     interactiveMeshesRef.current = [];
 
     const cityGroup = new THREE.Group();
-    cityGroup.name = 'city-buildings-group';
+    cityGroup.name = "city-buildings-group";
     cityGroupRef.current = cityGroup;
 
     buildings.forEach((bLayout) => {
@@ -548,31 +628,31 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 
     // 10. Balanced Night Lighting (Readable graphite facades without daytime wash)
     const ambientLight = new THREE.AmbientLight(
-      isLight ? 0xFFFFFF : 0xD9D3C2,
-      isLight ? 2.2 : 1.1
+      isLight ? 0xffffff : 0xd9d3c2,
+      isLight ? 2.2 : 1.1,
     );
     scene.add(ambientLight);
 
     const hemiLight = new THREE.HemisphereLight(
-      isLight ? 0xF0F9FF : 0xB8CFD4,
-      isLight ? 0xE2E8F0 : 0x57534C,
-      2.0
+      isLight ? 0xf0f9ff : 0xb8cfd4,
+      isLight ? 0xe2e8f0 : 0x57534c,
+      2.0,
     );
     scene.add(hemiLight);
 
     const coreLight = new THREE.PointLight(
-      isLight ? 0x0284C7 : 0x36D7E7,
+      isLight ? 0x0284c7 : 0x36d7e7,
       isLight ? 5.5 : 5.0,
       170,
-      1.1
+      1.1,
     );
     coreLight.position.set(0, 26, 0);
     scene.add(coreLight);
 
     // Cool Moonlight Directional Key Light (gives crisp architectural edge definition)
     const moonLight = new THREE.DirectionalLight(
-      isLight ? 0x38BDF8 : 0xFFE0B0,
-      isLight ? 2.2 : 2.2
+      isLight ? 0x38bdf8 : 0xffe0b0,
+      isLight ? 2.2 : 2.2,
     );
     moonLight.position.set(40, 70, -35);
     moonLight.castShadow = true;
@@ -585,8 +665,8 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     scene.add(moonLight);
 
     const fillLight = new THREE.DirectionalLight(
-      isLight ? 0x60A5FA : 0x475569,
-      isLight ? 1.6 : 1.5
+      isLight ? 0x60a5fa : 0x475569,
+      isLight ? 1.6 : 1.5,
     );
     fillLight.position.set(-50, 60, -45);
     scene.add(fillLight);
@@ -607,14 +687,14 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     controls.autoRotateSpeed = 0.6;
 
     // Interrupt any automated sweep or intro when the user touches controls
-    controls.addEventListener('start', () => {
+    controls.addEventListener("start", () => {
       if (isIntroRef.current) {
         isIntroRef.current = false;
         setShowIntroBadge(false);
       }
-      if (cameraPerspectiveRef.current === 'drone') {
+      if (cameraPerspectiveRef.current === "drone") {
         if (onPerspectiveChangeRef.current) {
-          onPerspectiveChangeRef.current('orbit');
+          onPerspectiveChangeRef.current("orbit");
         }
       }
       isTransitioningRef.current = false;
@@ -639,11 +719,14 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     };
 
     const handlePointerUp = (e: PointerEvent) => {
-      const dist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+      const dist = Math.hypot(
+        e.clientX - pointerDownPos.x,
+        e.clientY - pointerDownPos.y,
+      );
       const elapsed = performance.now() - pointerDownTime;
 
       // Relax tap tolerance on touch screens (fingers jitter slightly on glass)
-      const isTouch = e.pointerType === 'touch';
+      const isTouch = e.pointerType === "touch";
       const maxDist = isTouch ? 18 : 6;
       const maxElapsed = isTouch ? 480 : 350;
 
@@ -654,7 +737,10 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
         mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
         raycaster.setFromCamera(mouse, camera);
-        const intersects = raycaster.intersectObjects(interactiveMeshesRef.current, false);
+        const intersects = raycaster.intersectObjects(
+          interactiveMeshesRef.current,
+          false,
+        );
 
         if (intersects.length > 0) {
           const hit = intersects[0].object;
@@ -669,10 +755,13 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
               const currentActiveId = activeRoomRef.current?.id;
               const currentLevel = viewLevelRef.current;
 
-              if (currentActiveId === room.id && currentLevel === 'building') {
+              if (currentActiveId === room.id && currentLevel === "building") {
                 // Clicking on the currently focused building again steps inside its office interior
                 switchCameraToInterior(bObj.layout);
-              } else if (currentActiveId === room.id && currentLevel === 'interior') {
+              } else if (
+                currentActiveId === room.id &&
+                currentLevel === "interior"
+              ) {
                 // Already inside office interior, trigger probe pulse highlight
                 bObj.triggerProbeEffect();
               } else {
@@ -687,31 +776,34 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 
     const handlePointerMove = (e: PointerEvent) => {
       // Don't calculate hover states on touch events
-      if (e.pointerType === 'touch') return;
+      if (e.pointerType === "touch") return;
 
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
       raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(interactiveMeshesRef.current, false);
+      const intersects = raycaster.intersectObjects(
+        interactiveMeshesRef.current,
+        false,
+      );
       if (intersects.length > 0) {
         const hit = intersects[0].object;
         const room: RoomCluster = hit.userData.room;
         if (room) {
           setHoveredRoom({ room, x: e.clientX, y: e.clientY });
-          renderer.domElement.style.cursor = 'pointer';
+          renderer.domElement.style.cursor = "pointer";
           return;
         }
       }
       setHoveredRoom(null);
-      renderer.domElement.style.cursor = 'grab';
+      renderer.domElement.style.cursor = "grab";
     };
 
     const domElement = renderer.domElement;
-    domElement.addEventListener('pointerdown', handlePointerDown);
-    domElement.addEventListener('pointerup', handlePointerUp);
-    domElement.addEventListener('pointermove', handlePointerMove);
+    domElement.addEventListener("pointerdown", handlePointerDown);
+    domElement.addEventListener("pointerup", handlePointerUp);
+    domElement.addEventListener("pointermove", handlePointerMove);
 
     // 12. Animation Loop (60 FPS)
     let animationFrameId: number;
@@ -729,7 +821,11 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
         if (t < 5) {
           // 1. Orbit kinetic central landmark
           const ang = t * 0.45;
-          camera.position.set(Math.cos(ang) * 44, 22 + Math.sin(t * 0.4) * 3, Math.sin(ang) * 44);
+          camera.position.set(
+            Math.cos(ang) * 44,
+            22 + Math.sin(t * 0.4) * 3,
+            Math.sin(ang) * 44,
+          );
           controlsRef.current?.target.set(0, 10, 0);
         } else if (t < 10) {
           // 2. Fly low through district towards first building
@@ -737,8 +833,16 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
           const bPos = b ? b.layout.position : [20, 0, 20];
           const pT = Math.min(1, (t - 5) / 5);
           const ease = pT * (2 - pT);
-          camera.position.lerpVectors(new THREE.Vector3(38, 18, 38), new THREE.Vector3(bPos[0] + 8, 5.5, bPos[2] + 8), ease);
-          controlsRef.current?.target.lerpVectors(new THREE.Vector3(0, 8, 0), new THREE.Vector3(bPos[0], 2.2, bPos[2]), ease);
+          camera.position.lerpVectors(
+            new THREE.Vector3(38, 18, 38),
+            new THREE.Vector3(bPos[0] + 8, 5.5, bPos[2] + 8),
+            ease,
+          );
+          controlsRef.current?.target.lerpVectors(
+            new THREE.Vector3(0, 8, 0),
+            new THREE.Vector3(bPos[0], 2.2, bPos[2]),
+            ease,
+          );
         } else if (t < 14) {
           // 3. Open cutaway interior and zoom on workers
           const b = Array.from(buildingsMapRef.current.values())[0];
@@ -761,9 +865,17 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
         introProgressRef.current += delta;
         const t = Math.min(1, introProgressRef.current / 4.2);
         const ease = 1 - Math.pow(1 - t, 3);
-        camera.position.lerpVectors(INTRO_START_POS.current, INTRO_END_POS.current, ease);
+        camera.position.lerpVectors(
+          INTRO_START_POS.current,
+          INTRO_END_POS.current,
+          ease,
+        );
         if (controlsRef.current) {
-          controlsRef.current.target.lerpVectors(INTRO_START_LOOK.current, INTRO_END_LOOK.current, ease);
+          controlsRef.current.target.lerpVectors(
+            INTRO_START_LOOK.current,
+            INTRO_END_LOOK.current,
+            ease,
+          );
           controlsRef.current.update();
         }
         if (t >= 1) {
@@ -772,7 +884,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
           cameraTargetPos.current.copy(INTRO_END_POS.current);
           cameraTargetLookAt.current.copy(INTRO_END_LOOK.current);
         }
-      } else if (cameraPerspectiveRef.current === 'drone') {
+      } else if (cameraPerspectiveRef.current === "drone") {
         // Continuous aerial drone flythrough tour
         const droneAngle = time * 0.16;
         const droneRadius = 31;
@@ -782,26 +894,41 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
         camera.position.y = droneHeight;
         const lookAngle = droneAngle + 0.35;
         if (controlsRef.current) {
-          controlsRef.current.target.set(Math.cos(lookAngle) * 4, 7 + Math.sin(time * 0.25) * 2, Math.sin(lookAngle) * 4);
+          controlsRef.current.target.set(
+            Math.cos(lookAngle) * 4,
+            7 + Math.sin(time * 0.25) * 2,
+            Math.sin(lookAngle) * 4,
+          );
           controlsRef.current.update();
         }
       } else {
         // WASD / Arrow Keys Keyboard Exploration
         const keys = keysPressedRef.current;
-        if (keys['w'] || keys['s'] || keys['a'] || keys['d'] || keys['arrowup'] || keys['arrowdown'] || keys['arrowleft'] || keys['arrowright']) {
+        if (
+          keys["w"] ||
+          keys["s"] ||
+          keys["a"] ||
+          keys["d"] ||
+          keys["arrowup"] ||
+          keys["arrowdown"] ||
+          keys["arrowleft"] ||
+          keys["arrowright"]
+        ) {
           const fwd = new THREE.Vector3();
           camera.getWorldDirection(fwd);
           fwd.y = 0;
           fwd.normalize();
-          const rgt = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
-          const isSprint = keys['shift'] || false;
-          const baseSpeed = cameraPerspectiveRef.current === 'walk' ? 14 : 24;
+          const rgt = new THREE.Vector3()
+            .crossVectors(fwd, new THREE.Vector3(0, 1, 0))
+            .normalize();
+          const isSprint = keys["shift"] || false;
+          const baseSpeed = cameraPerspectiveRef.current === "walk" ? 14 : 24;
           const moveSpeed = (isSprint ? baseSpeed * 1.8 : baseSpeed) * delta;
           const move = new THREE.Vector3();
-          if (keys['w'] || keys['arrowup']) move.add(fwd);
-          if (keys['s'] || keys['arrowdown']) move.sub(fwd);
-          if (keys['d'] || keys['arrowright']) move.add(rgt);
-          if (keys['a'] || keys['arrowleft']) move.sub(rgt);
+          if (keys["w"] || keys["arrowup"]) move.add(fwd);
+          if (keys["s"] || keys["arrowdown"]) move.sub(fwd);
+          if (keys["d"] || keys["arrowright"]) move.add(rgt);
+          if (keys["a"] || keys["arrowleft"]) move.sub(rgt);
 
           if (move.lengthSq() > 0) {
             move.normalize().multiplyScalar(moveSpeed);
@@ -809,13 +936,16 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
             if (controlsRef.current) {
               controlsRef.current.target.add(move);
             }
-            if (cameraPerspectiveRef.current === 'walk') {
+            if (cameraPerspectiveRef.current === "walk") {
               camera.position.y = 1.75;
               if (controlsRef.current) {
                 controlsRef.current.target.y = 1.75;
               }
             } else {
-              camera.position.y = Math.max(1.75, Math.min(65, camera.position.y));
+              camera.position.y = Math.max(
+                1.75,
+                Math.min(65, camera.position.y),
+              );
             }
             camera.position.x = Math.max(-85, Math.min(85, camera.position.x));
             camera.position.z = Math.max(-85, Math.min(85, camera.position.z));
@@ -829,7 +959,8 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 
           if (
             camera.position.distanceTo(cameraTargetPos.current) < 0.25 &&
-            controlsRef.current.target.distanceTo(cameraTargetLookAt.current) < 0.25
+            controlsRef.current.target.distanceTo(cameraTargetLookAt.current) <
+              0.25
           ) {
             camera.position.copy(cameraTargetPos.current);
             controlsRef.current.target.copy(cameraTargetLookAt.current);
@@ -839,13 +970,18 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 
         // Update OrbitControls with damping and auto-rotate
         if (controlsRef.current) {
-          controlsRef.current.autoRotate = isAutoRotateRef.current && viewLevelRef.current === 'city' && cameraPerspectiveRef.current === 'orbit';
+          controlsRef.current.autoRotate =
+            isAutoRotateRef.current &&
+            viewLevelRef.current === "city" &&
+            cameraPerspectiveRef.current === "orbit";
           controlsRef.current.update();
         }
       }
 
       // Update Sub-systems
-      districtMgr.update(lodManagerRef.current.config.prefersReducedMotion ? 0 : time);
+      districtMgr.update(
+        lodManagerRef.current.config.prefersReducedMotion ? 0 : time,
+      );
       transportMgr.update(delta, time);
       pedestrians.update(time);
       routes.update(time);
@@ -856,7 +992,10 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       // Update individual buildings & interiors
       const currentActiveId = activeRoomRef.current.id;
       buildingsMapRef.current.forEach((bObj) => {
-        bObj.update(time, bObj.layout.room.id === currentActiveId);
+        bObj.update(
+          lodManagerRef.current.config.prefersReducedMotion ? 0 : time,
+          bObj.layout.room.id === currentActiveId,
+        );
       });
 
       renderer.render(scene, camera);
@@ -882,9 +1021,9 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       cancelAnimationFrame(animationFrameId);
       resizeObserver.disconnect();
 
-      domElement.removeEventListener('pointerdown', handlePointerDown);
-      domElement.removeEventListener('pointerup', handlePointerUp);
-      domElement.removeEventListener('pointermove', handlePointerMove);
+      domElement.removeEventListener("pointerdown", handlePointerDown);
+      domElement.removeEventListener("pointerup", handlePointerUp);
+      domElement.removeEventListener("pointermove", handlePointerMove);
 
       controls.dispose();
 
@@ -897,21 +1036,32 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       environment.dispose();
       disposeCityMaterials(materials);
 
-      buildingsMapRef.current.forEach(b => b.dispose());
+      buildingsMapRef.current.forEach((b) => b.dispose());
       buildingsMapRef.current.clear();
+      AgentDeskFactory.dispose();
+      AgentWorker.dispose();
 
-      if (container && renderer.domElement && container.contains(renderer.domElement)) {
+      if (
+        container &&
+        renderer.domElement &&
+        container.contains(renderer.domElement)
+      ) {
         container.removeChild(renderer.domElement);
       }
       renderer.dispose();
     };
   }, [switchCameraToBuilding, theme, topologyKey]);
 
-  const isLight = theme === 'light';
+  const isLight = theme === "light";
 
   return (
-    <div className={`relative w-full h-full ${compactControls ? 'metro-canvas' : ''}`}>
-      <div ref={mountRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
+    <div
+      className={`relative w-full h-full ${compactControls ? "metro-canvas" : ""}`}
+    >
+      <div
+        ref={mountRef}
+        className="w-full h-full cursor-grab active:cursor-grabbing"
+      />
 
       {/* Floating Cinematic Intro Skip Badge */}
       {showIntroBadge && (
@@ -919,25 +1069,29 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
           onClick={skipIntro}
           className={`absolute top-20 right-4 z-20 flex items-center space-x-2 px-3.5 py-1.5 rounded-xl backdrop-blur-md border text-xs font-mono font-bold transition-all shadow-xl hover:scale-105 active:scale-95 ${
             isLight
-              ? 'bg-white/95 border-[#0284C7]/40 text-[#0284C7] shadow-slate-300/60'
-              : 'bg-[#0B1320]/90 border-[#36D7E7]/60 text-[#36D7E7] shadow-[#36D7E7]/20'
+              ? "bg-white/95 border-[#0284C7]/40 text-[#0284C7] shadow-slate-300/60"
+              : "bg-[#0B1320]/90 border-[#36D7E7]/60 text-[#36D7E7] shadow-[#36D7E7]/20"
           }`}
           title="Skip cinematic fly-in"
         >
           <Sparkles className="w-3.5 h-3.5 animate-pulse" />
           <span>Cinematic Descent</span>
-          <span className="text-[10px] uppercase ml-1 px-1.5 py-0.5 rounded bg-white/10 underline">Skip</span>
+          <span className="text-[10px] uppercase ml-1 px-1.5 py-0.5 rounded bg-white/10 underline">
+            Skip
+          </span>
         </button>
       )}
-
-
 
       {/* Showcase Tour Overlay */}
       {isShowcase && (
         <div className="absolute top-5 left-1/2 -translate-x-1/2 z-30 flex items-center space-x-3 px-4 py-2 rounded-full bg-[#0B1320]/95 border border-[#36D7E7]/60 text-[#36D7E7] font-mono text-xs backdrop-blur-xl shadow-2xl shadow-[#36D7E7]/20">
           <span className="w-2.5 h-2.5 rounded-full bg-[#36D7E7] animate-ping" />
-          <span className="font-bold tracking-wider uppercase text-white">SHOWCASE DEMONSTRATION</span>
-          <span className="text-[#95A4B8] text-[11px] hidden sm:inline">(Automated 18s Tour)</span>
+          <span className="font-bold tracking-wider uppercase text-white">
+            SHOWCASE DEMONSTRATION
+          </span>
+          <span className="text-[#95A4B8] text-[11px] hidden sm:inline">
+            (Automated 18s Tour)
+          </span>
           {onExitShowcase && (
             <button
               onClick={onExitShowcase}
@@ -954,27 +1108,36 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
         onClick={() => setIsAutoRotate(!isAutoRotate)}
         className={`absolute top-20 left-4 z-20 flex items-center space-x-1.5 px-3 py-1.5 rounded-xl backdrop-blur-md border text-xs font-mono transition-all shadow-xl cursor-pointer ${
           isAutoRotate
-            ? 'bg-[#0B1320]/85 border-[#36D7E7]/50 text-[#36D7E7]'
-            : 'bg-[#0B1320]/75 border-[#1B2A3D] text-[#6F8096]'
+            ? "bg-[#0B1320]/85 border-[#36D7E7]/50 text-[#36D7E7]"
+            : "bg-[#0B1320]/75 border-[#1B2A3D] text-[#6F8096]"
         }`}
         title="Toggle automatic city slow rotation"
       >
-        <RotateCw className={`w-3.5 h-3.5 ${isAutoRotate ? 'text-[#36D7E7] animate-spin' : 'text-[#6F8096]'}`} />
-        <span className="text-[10px] uppercase font-bold">{isAutoRotate ? 'Spin: ON' : 'Spin: OFF'}</span>
+        <RotateCw
+          className={`w-3.5 h-3.5 ${isAutoRotate ? "text-[#36D7E7] animate-spin" : "text-[#6F8096]"}`}
+        />
+        <span className="text-[10px] uppercase font-bold">
+          {isAutoRotate ? "Spin: ON" : "Spin: OFF"}
+        </span>
       </button>
 
       {/* Walk Mode Active HUD Banner */}
-      {cameraPerspective === 'walk' && (
+      {cameraPerspective === "walk" && (
         <div className="absolute top-16 sm:top-20 left-1/2 -translate-x-1/2 z-30 flex items-center space-x-2 sm:space-x-3 px-3.5 py-1.5 sm:py-2 rounded-2xl bg-[#0B1320]/95 border border-emerald-500/50 text-emerald-400 font-mono text-xs backdrop-blur-xl shadow-2xl shadow-emerald-500/20 max-w-[95vw]">
           <Footprints className="w-4 h-4 text-emerald-400 animate-pulse shrink-0" />
           <div className="truncate">
-            <span className="font-bold uppercase text-white">NYC Street Walk</span>
-            <span className="text-[#95A4B8] text-[11px] hidden md:inline ml-2">WASD to walk · Mouse drag to look around</span>
+            <span className="font-bold uppercase text-white">
+              NYC Street Walk
+            </span>
+            <span className="text-[#95A4B8] text-[11px] hidden md:inline ml-2">
+              WASD to walk · Mouse drag to look around
+            </span>
           </div>
           <button
             onClick={() => {
-              if (onPerspectiveChangeRef.current) onPerspectiveChangeRef.current('orbit');
-              setViewLevel('city');
+              if (onPerspectiveChangeRef.current)
+                onPerspectiveChangeRef.current("orbit");
+              setViewLevel("city");
             }}
             className="ml-2 px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] uppercase font-bold border border-emerald-500/40 transition-all cursor-pointer shrink-0"
           >
@@ -984,10 +1147,10 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       )}
 
       {/* On-Screen D-Pad for Street Walking (Desktop & Mobile) */}
-      {cameraPerspective === 'walk' && (
+      {cameraPerspective === "walk" && (
         <div className="absolute bottom-24 left-4 z-30 flex flex-col items-center bg-[#0B1320]/90 backdrop-blur-md p-2 rounded-2xl border border-[#1B2A3D] shadow-2xl select-none">
           <button
-            onClick={() => handleWalkStep('forward')}
+            onClick={() => handleWalkStep("forward")}
             className="w-9 h-9 rounded-xl bg-[#101A2A] border border-[#1E3048] flex items-center justify-center text-white active:scale-90 hover:bg-[#36D7E7]/20 cursor-pointer"
             title="Walk Forward (W)"
           >
@@ -995,37 +1158,41 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
           </button>
           <div className="flex items-center space-x-1.5 my-1">
             <button
-              onClick={() => handleWalkStep('left')}
+              onClick={() => handleWalkStep("left")}
               className="w-9 h-9 rounded-xl bg-[#101A2A] border border-[#1E3048] flex items-center justify-center text-white active:scale-90 hover:bg-[#36D7E7]/20 cursor-pointer"
               title="Strafe Left (A)"
             >
               <ArrowLeft className="w-4 h-4 text-[#36D7E7]" />
             </button>
             <button
-              onClick={() => handleWalkStep('backward')}
+              onClick={() => handleWalkStep("backward")}
               className="w-9 h-9 rounded-xl bg-[#101A2A] border border-[#1E3048] flex items-center justify-center text-white active:scale-90 hover:bg-[#36D7E7]/20 cursor-pointer"
               title="Walk Backward (S)"
             >
               <ArrowDown className="w-4 h-4 text-[#36D7E7]" />
             </button>
             <button
-              onClick={() => handleWalkStep('right')}
+              onClick={() => handleWalkStep("right")}
               className="w-9 h-9 rounded-xl bg-[#101A2A] border border-[#1E3048] flex items-center justify-center text-white active:scale-90 hover:bg-[#36D7E7]/20 cursor-pointer"
               title="Strafe Right (D)"
             >
               <ArrowRight className="w-4 h-4 text-[#36D7E7]" />
             </button>
           </div>
-          <span className="text-[8px] font-mono text-[#6F8096] uppercase font-bold">WALK D-PAD</span>
+          <span className="text-[8px] font-mono text-[#6F8096] uppercase font-bold">
+            WALK D-PAD
+          </span>
         </div>
       )}
 
       {/* Building Orbit & Inspection Controls Bar */}
-      {viewLevel === 'building' && (
+      {viewLevel === "building" && (
         <div className="absolute top-16 sm:top-20 left-1/2 -translate-x-1/2 z-30 flex items-center space-x-1.5 sm:space-x-2 p-1.5 rounded-2xl bg-[#0B1320]/95 border border-[#38BDF8]/50 font-mono text-xs backdrop-blur-xl shadow-2xl shadow-cyan-500/20 select-none max-w-[95vw] overflow-x-auto no-scrollbar">
           <div className="flex items-center space-x-1.5 px-2 py-1 text-white font-bold shrink-0">
             <Building2 className="w-4 h-4 text-[#38BDF8]" />
-            <span className="truncate max-w-[100px] sm:max-w-[140px]">#{activeRoom.name}</span>
+            <span className="truncate max-w-[100px] sm:max-w-[140px]">
+              #{activeRoom.name}
+            </span>
           </div>
 
           <button
@@ -1072,17 +1239,23 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 
       {/* WASD Desktop Exploration Control Prompt */}
       <div className="absolute bottom-4 left-4 z-10 hidden md:flex items-center space-x-2 text-[10px] font-mono backdrop-blur-md px-2.5 py-1.5 rounded-lg border bg-[#0B1320]/80 border-[#1B2A3D] text-[#6F8096]">
-        <span className="px-1.5 py-0.5 rounded bg-[#101A2A] border border-[#1B2A3D] text-[#36D7E7] font-bold">W A S D</span>
+        <span className="px-1.5 py-0.5 rounded bg-[#101A2A] border border-[#1B2A3D] text-[#36D7E7] font-bold">
+          W A S D
+        </span>
         <span>Drag to orbit · Scroll to zoom</span>
       </div>
 
       {/* Floating Status Ticker */}
-      <div className={`absolute bottom-4 right-4 z-10 hidden sm:flex items-center space-x-2 text-[11px] font-mono backdrop-blur-md px-3 py-1.5 rounded-lg border transition-colors ${
-        isLight
-          ? 'bg-white/90 border-slate-200 text-slate-700 shadow-lg'
-          : 'bg-[#0B1320]/80 border-[#1B2A3D] text-[#95A4B8]'
-      }`}>
-        <Radio className={`w-3 h-3 animate-pulse flex-shrink-0 ${isLight ? 'text-[#0284C7]' : 'text-[#36D7E7]'}`} />
+      <div
+        className={`absolute bottom-4 right-4 z-10 hidden sm:flex items-center space-x-2 text-[11px] font-mono backdrop-blur-md px-3 py-1.5 rounded-lg border transition-colors ${
+          isLight
+            ? "bg-white/90 border-slate-200 text-slate-700 shadow-lg"
+            : "bg-[#0B1320]/80 border-[#1B2A3D] text-[#95A4B8]"
+        }`}
+      >
+        <Radio
+          className={`w-3 h-3 animate-pulse flex-shrink-0 ${isLight ? "text-[#0284C7]" : "text-[#36D7E7]"}`}
+        />
         <span className="truncate max-w-xs">{pulseLog}</span>
       </div>
 
@@ -1091,8 +1264,8 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
         <div
           className={`fixed pointer-events-none z-30 px-2.5 py-1 rounded shadow-lg text-[11px] font-mono -translate-x-1/2 -translate-y-full mb-2 ${
             isLight
-              ? 'bg-white border border-[#0284C7]/60 text-[#0284C7] shadow-md'
-              : 'bg-[#0B1320]/90 border border-[#36D7E7]/50 text-[#36D7E7]'
+              ? "bg-white border border-[#0284C7]/60 text-[#0284C7] shadow-md"
+              : "bg-[#0B1320]/90 border border-[#36D7E7]/50 text-[#36D7E7]"
           }`}
           style={{ left: hoveredRoom.x, top: hoveredRoom.y - 10 }}
         >
@@ -1102,4 +1275,3 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     </div>
   );
 };
-

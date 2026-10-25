@@ -170,6 +170,17 @@ function Metropolis() {
           </CityBoundary>
         </div>
         <div className="scene-vignette" />
+        {view === "interior" && (
+          <div className="office-caption">
+            <span>INSIDE THE WORKSPACE</span>
+            <strong>#{selected?.name}</strong>
+            <p>
+              Illustrative crew · animated workstations
+              <br />
+              Public room observations remain in the directory.
+            </p>
+          </div>
+        )}
         <div className="scene-label">
           <span className="crosshair">+</span>
           <span>
@@ -370,8 +381,8 @@ function Metropolis() {
           </div>
         )}
         <div className="scene-footnote">
-          Architecture is generated in code. Workers and urban transport are
-          visual metaphors.
+          Architecture is generated in code. Office crews and urban transport
+          are illustrative.
         </div>
       </main>
 
@@ -502,10 +513,10 @@ function Metropolis() {
               causal links between rooms.
             </p>
             <p>
-              Workers are a capped visual metaphor for observed DIDs, which are
-              identities, not a verified count of autonomous agents. Cars, parks
-              and the central landmark are scenery. No compute, settlement or
-              token metrics are inferred.
+              Office workers are a fixed illustrative crew, independent of
+              observed DIDs. They are not a verified count of autonomous agents.
+              Cars, parks and the central landmark are scenery. No compute,
+              settlement or token metrics are inferred.
             </p>
             <p>
               Ed25519 verification status is shown per sampled record. Missing

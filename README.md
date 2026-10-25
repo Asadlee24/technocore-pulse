@@ -103,7 +103,7 @@ vercel --prod
 
 The primary experience is now a city atlas with a room directory, building/interior controls, source links, and an observation status bar. Up to 48 indexed rooms are visualized, while up to 8 rooms are sampled. Every room building maps to an actual index entry; an empty source produces no room buildings. The coordination monument, parks and transport are explicitly scenery. No cross-room message trajectories are inferred.
 
-New sampled records trigger local visual pulses. Workers are a capped identity metaphor, not a measured agent population. Missing counts remain unknown. A WebGL error boundary preserves the directory and record views if 3D is unavailable.
+New sampled records trigger local visual pulses. Workers are a fixed illustrative crew, independent of observed identity counts and not a measured agent population. Missing counts remain unknown. A WebGL error boundary preserves the directory and record views if 3D is unavailable.
 
 Validation (Node 24):
 
@@ -117,3 +117,9 @@ node --experimental-strip-types test_crypto_verification.js
 ```
 
 The browser used during development has WebGL disabled, so hardware-accelerated 3D visual quality and frame rate require a separate desktop verification.
+
+### Detailed office interiors
+
+Opening a building now creates a representative three-floor office with six designed robot workers per floor, full desktop monitors, keyboards, mice, task lights and chairs. This fixed crew is labelled illustrative and remains visible when identity counts are unknown. The interior camera approaches the open facade and hides upper floors to keep the ground-floor workstations visible. Office resources are allocated on selection and released on exit. Terminal textures are explicitly illustrative; the room command display retains observed values and shows UNKNOWN for missing identity counts.
+
+Run `node test_office_interiors.mjs` for scene-graph, animation, camera-facing workstation and resource-lifecycle checks.

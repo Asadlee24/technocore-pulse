@@ -1,4 +1,5 @@
-import * as THREE from 'three';
+import * as THREE from "three";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 
 export interface AgentWorkerConfig {
   x: number;
@@ -6,222 +7,291 @@ export interface AgentWorkerConfig {
   z: number;
   rotationY?: number;
   isSeated?: boolean;
-  activityState?: 'idle' | 'active' | 'surge';
+  activityState?: "idle" | "active" | "surge";
   isWalking?: boolean;
   walkPath?: { start: THREE.Vector3; end: THREE.Vector3; speed: number };
+  animationPhase?: number;
   visorColor?: string | number;
 }
 
+/** Designed characters are office scenery, never a measured agent population. */
 export class AgentWorker {
-  public group: THREE.Group;
-  public config: AgentWorkerConfig;
-  
-  private headMesh: THREE.Mesh;
-  private visorMesh: THREE.Mesh;
-  private leftArmMesh: THREE.Mesh;
-  private rightArmMesh: THREE.Mesh;
-  private bodyMesh: THREE.Mesh;
+  readonly group = new THREE.Group();
+  readonly config: AgentWorkerConfig;
+  private head = new THREE.Group();
+  private torso = new THREE.Group();
+  private forearms: THREE.Mesh[] = [];
+  private palms: THREE.Mesh[] = [];
+  private phase: number;
+  private lastTime: number | null = null;
+  private walkDistance = 0;
+  private ownMaterials: THREE.Material[] = [];
+  private static geometries = new Map<string, THREE.BufferGeometry>();
+  private static materials = new Map<string, THREE.Material>();
 
-  private baseHeadY: number = 0.95;
-  private animOffset: number;
-  private walkT: number = 0;
-  private walkDirection: number = 1;
-
-  // Shared Geometries & Materials across all agent workers
-  private static headGeo: THREE.BoxGeometry | null = null;
-  private static bodyGeo: THREE.BoxGeometry | null = null;
-  private static armGeo: THREE.CylinderGeometry | null = null;
-  private static visorGeo: THREE.PlaneGeometry | null = null;
-  private static thighGeo: THREE.BoxGeometry | null = null;
-  private static shinGeo: THREE.BoxGeometry | null = null;
-  private static standingLegGeo: THREE.BoxGeometry | null = null;
-
-  private static bodyMat: THREE.MeshStandardMaterial | null = null;
-  private static visorMat: THREE.MeshBasicMaterial | null = null;
-  private static visorSurgeMat: THREE.MeshBasicMaterial | null = null;
-
-  public static initSharedResources() {
-    if (this.headGeo) return;
-
-    // Stylized low-poly cybernetic forms
-    this.headGeo = new THREE.BoxGeometry(0.24, 0.22, 0.24);
-    this.bodyGeo = new THREE.BoxGeometry(0.30, 0.44, 0.20);
-    
-    // Arm geometry with shoulder pivot at origin (0, 0, 0)
-    this.armGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.28, 8);
-    this.armGeo.translate(0, -0.14, 0);
-
-    // Seated and standing leg geometries
-    this.thighGeo = new THREE.BoxGeometry(0.09, 0.09, 0.24);
-    this.shinGeo = new THREE.BoxGeometry(0.08, 0.24, 0.08);
-    this.standingLegGeo = new THREE.BoxGeometry(0.09, 0.44, 0.09);
-
-    this.visorGeo = new THREE.PlaneGeometry(0.2, 0.08);
-
-    this.bodyMat = new THREE.MeshStandardMaterial({
-      color: 0x080F1D,
-      roughness: 0.35,
-      metalness: 0.85
-    });
-
-    this.visorMat = new THREE.MeshBasicMaterial({
-      color: 0x36D7E7 // Iconic Technocore Cyan
-    });
-
-    this.visorSurgeMat = new THREE.MeshBasicMaterial({
-      color: 0x2FD27F // Surge state green
-    });
+  static initSharedResources() {}
+  private static box(w: number, h: number, d: number, r = 0.035) {
+    const key = `${w}/${h}/${d}/${r}`;
+    if (!this.geometries.has(key))
+      this.geometries.set(key, new RoundedBoxGeometry(w, h, d, 2, r));
+    return this.geometries.get(key)!;
   }
-
+  private static material(color: number, metalness = 0.15) {
+    const key = `${color}/${metalness}`;
+    if (!this.materials.has(key))
+      this.materials.set(
+        key,
+        new THREE.MeshStandardMaterial({ color, roughness: 0.48, metalness }),
+      );
+    return this.materials.get(key)!;
+  }
   constructor(config: AgentWorkerConfig) {
-    AgentWorker.initSharedResources();
     this.config = config;
-    this.animOffset = Math.random() * Math.PI * 2;
-
-    this.group = new THREE.Group();
+    this.phase =
+      config.animationPhase ??
+      (config.x * 7.3 + config.z * 3.9 + config.y * 4.1) % 6.28;
+    this.group.name = "illustrative-office-worker";
+    this.group.userData.isIllustrative = true;
     this.group.position.set(config.x, config.y, config.z);
-    if (config.rotationY) this.group.rotation.y = config.rotationY;
-
-    const vMat = config.visorColor
-      ? new THREE.MeshBasicMaterial({ color: new THREE.Color(config.visorColor) })
-      : config.activityState === 'surge' 
-        ? AgentWorker.visorSurgeMat! 
-        : AgentWorker.visorMat!;
-
-    // 1. Torso
-    this.bodyMesh = new THREE.Mesh(AgentWorker.bodyGeo!, AgentWorker.bodyMat!);
-    this.bodyMesh.position.y = config.isSeated ? 0.48 : 0.65;
-    this.group.add(this.bodyMesh);
-
-    // 2. Head
-    this.headMesh = new THREE.Mesh(AgentWorker.headGeo!, AgentWorker.bodyMat!);
-    this.baseHeadY = config.isSeated ? 0.78 : 0.95;
-    this.headMesh.position.y = this.baseHeadY;
-    this.group.add(this.headMesh);
-
-    // 3. Emissive Visor Screen (faces -Z forward)
-    this.visorMesh = new THREE.Mesh(AgentWorker.visorGeo!, vMat);
-    this.visorMesh.position.set(0, 0, -0.125);
-    this.visorMesh.rotation.y = Math.PI; // faces forward toward -Z
-    this.headMesh.add(this.visorMesh);
-
-    // 4. Arms (Typing pose pointing forward toward keyboard at -Z if seated, natural resting pose if standing)
-    this.leftArmMesh = new THREE.Mesh(AgentWorker.armGeo!, AgentWorker.bodyMat!);
-    this.rightArmMesh = new THREE.Mesh(AgentWorker.armGeo!, AgentWorker.bodyMat!);
-
-    if (config.isSeated) {
-      // Arms angled forward and slightly inward resting on the laptop keyboard
-      this.leftArmMesh.position.set(-0.16, 0.54, -0.06);
-      this.leftArmMesh.rotation.set(-1.18, -0.14, -0.06);
-
-      this.rightArmMesh.position.set(0.16, 0.54, -0.06);
-      this.rightArmMesh.rotation.set(-1.18, 0.14, 0.06);
-
-      // Seated legs (thighs forward onto chair, shins hanging down toward floor)
-      const leftThigh = new THREE.Mesh(AgentWorker.thighGeo!, AgentWorker.bodyMat!);
-      leftThigh.position.set(-0.08, 0.30, -0.10);
-      this.group.add(leftThigh);
-
-      const rightThigh = new THREE.Mesh(AgentWorker.thighGeo!, AgentWorker.bodyMat!);
-      rightThigh.position.set(0.08, 0.30, -0.10);
-      this.group.add(rightThigh);
-
-      const leftShin = new THREE.Mesh(AgentWorker.shinGeo!, AgentWorker.bodyMat!);
-      leftShin.position.set(-0.08, 0.14, -0.21);
-      this.group.add(leftShin);
-
-      const rightShin = new THREE.Mesh(AgentWorker.shinGeo!, AgentWorker.bodyMat!);
-      rightShin.position.set(0.08, 0.14, -0.21);
-      this.group.add(rightShin);
-    } else {
-      // Standing upright arms resting at side
-      this.leftArmMesh.position.set(-0.18, 0.62, 0);
-      this.rightArmMesh.position.set(0.18, 0.62, 0);
-
-      // Standing legs
-      const leftLeg = new THREE.Mesh(AgentWorker.standingLegGeo!, AgentWorker.bodyMat!);
-      leftLeg.position.set(-0.08, 0.22, 0);
-      this.group.add(leftLeg);
-
-      const rightLeg = new THREE.Mesh(AgentWorker.standingLegGeo!, AgentWorker.bodyMat!);
-      rightLeg.position.set(0.08, 0.22, 0);
-      this.group.add(rightLeg);
-    }
-
-    this.group.add(this.leftArmMesh);
-    this.group.add(this.rightArmMesh);
-  }
-
-  /**
-   * Subtle procedural micro-animations: typing, head nodding, walking
-   */
-  public update(time: number) {
-    const t = time * 3.5 + this.animOffset;
-
-    if (this.config.isWalking && this.config.walkPath) {
-      // Walking procedural patrol
-      const path = this.config.walkPath;
-      this.walkT += 0.008 * this.walkDirection * path.speed;
-      if (this.walkT >= 1) {
-        this.walkT = 1;
-        this.walkDirection = -1;
-      } else if (this.walkT <= 0) {
-        this.walkT = 0;
-        this.walkDirection = 1;
+    this.group.rotation.y = config.rotationY ?? 0;
+    const shell = AgentWorker.material(0xd9dfd2);
+    const dark = AgentWorker.material(0x273c3b, 0.35);
+    const joint = AgentWorker.material(0x6e827a, 0.5);
+    const bronze = AgentWorker.material(0xb3986e, 0.6);
+    const accent = new THREE.MeshStandardMaterial({
+      color: config.visorColor ?? 0x86c5b5,
+      roughness: 0.4,
+      metalness: 0.25,
+    });
+    this.ownMaterials.push(accent);
+    const add = (
+      parent: THREE.Group,
+      geo: THREE.BufferGeometry,
+      mat: THREE.Material,
+      x: number,
+      y: number,
+      z: number,
+    ) => {
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(x, y, z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      parent.add(mesh);
+      return mesh;
+    };
+    const seated = !!config.isSeated;
+    const bodyY = seated ? 0.48 : 0.65;
+    this.torso.position.y = bodyY;
+    add(this.torso, AgentWorker.box(0.3, 0.36, 0.2, 0.055), shell, 0, 0, 0);
+    add(
+      this.torso,
+      AgentWorker.box(0.18, 0.18, 0.025, 0.018),
+      accent,
+      0,
+      0.015,
+      -0.109,
+    );
+    add(
+      this.torso,
+      AgentWorker.box(0.11, 0.018, 0.016, 0.004),
+      bronze,
+      0,
+      0.04,
+      -0.13,
+    );
+    this.group.add(this.torso);
+    this.head.position.y = seated ? 0.79 : 0.96;
+    add(this.head, AgentWorker.box(0.28, 0.245, 0.25, 0.065), shell, 0, 0, 0);
+    add(
+      this.head,
+      AgentWorker.box(0.238, 0.112, 0.027, 0.025),
+      dark,
+      0,
+      0,
+      -0.127,
+    );
+    const eyes = new THREE.MeshBasicMaterial({ color: 0xb4ead7 });
+    this.ownMaterials.push(eyes);
+    [-0.065, 0.065].forEach((x) =>
+      add(
+        this.head,
+        AgentWorker.box(0.041, 0.024, 0.012, 0.008),
+        eyes,
+        x,
+        0.008,
+        -0.147,
+      ),
+    );
+    // Over-ear communications headset with a small boom microphone.
+    [-1, 1].forEach((side) =>
+      add(
+        this.head,
+        AgentWorker.box(0.045, 0.12, 0.12, 0.018),
+        bronze,
+        side * 0.154,
+        0,
+        0,
+      ),
+    );
+    add(
+      this.head,
+      AgentWorker.box(0.022, 0.022, 0.13, 0.006),
+      dark,
+      0.15,
+      -0.055,
+      -0.09,
+    );
+    add(
+      this.head,
+      AgentWorker.box(0.065, 0.022, 0.025, 0.008),
+      dark,
+      0.125,
+      -0.055,
+      -0.15,
+    );
+    this.group.add(this.head);
+    [-1, 1].forEach((side) => {
+      const x = side * 0.17;
+      add(
+        this.group,
+        AgentWorker.box(0.1, 0.1, 0.1, 0.035),
+        joint,
+        x,
+        bodyY + 0.1,
+        0,
+      );
+      const upper = add(
+        this.group,
+        AgentWorker.box(0.078, seated ? 0.18 : 0.25, 0.08, 0.025),
+        shell,
+        x,
+        bodyY + 0.065,
+        seated ? -0.07 : 0,
+      );
+      upper.rotation.x = seated ? -0.65 : 0;
+      const elbowZ = seated ? -0.14 : 0;
+      add(
+        this.group,
+        AgentWorker.box(0.086, 0.075, 0.075, 0.025),
+        joint,
+        x,
+        bodyY - 0.005,
+        elbowZ,
+      );
+      const forearm = add(
+        this.group,
+        AgentWorker.box(
+          0.075,
+          seated ? 0.085 : 0.2,
+          seated ? 0.23 : 0.075,
+          0.022,
+        ),
+        shell,
+        x * 0.85,
+        bodyY + 0.025,
+        seated ? -0.24 : 0,
+      );
+      this.forearms.push(forearm);
+      const palm = add(
+        this.group,
+        AgentWorker.box(0.082, 0.038, 0.095, 0.016),
+        bronze,
+        x * 0.8,
+        bodyY + 0.025,
+        seated ? -0.36 : 0,
+      );
+      this.palms.push(palm);
+      if (seated) {
+        add(
+          this.group,
+          AgentWorker.box(0.095, 0.095, 0.25, 0.025),
+          dark,
+          side * 0.085,
+          0.28,
+          -0.1,
+        );
+        add(
+          this.group,
+          AgentWorker.box(0.085, 0.24, 0.085, 0.02),
+          shell,
+          side * 0.085,
+          0.13,
+          -0.215,
+        );
+        add(
+          this.group,
+          AgentWorker.box(0.105, 0.065, 0.17, 0.02),
+          dark,
+          side * 0.085,
+          0.035,
+          -0.25,
+        );
+      } else {
+        add(
+          this.group,
+          AgentWorker.box(0.095, 0.4, 0.1, 0.025),
+          shell,
+          side * 0.085,
+          0.23,
+          0,
+        );
+        add(
+          this.group,
+          AgentWorker.box(0.11, 0.07, 0.18, 0.02),
+          dark,
+          side * 0.085,
+          0.035,
+          -0.025,
+        );
       }
-
-      const currentPos = new THREE.Vector3().lerpVectors(path.start, path.end, this.walkT);
-      this.group.position.copy(currentPos);
-
-      // Rotate towards walking direction
-      const dirAngle = this.walkDirection > 0 
-        ? Math.atan2(path.end.x - path.start.x, path.end.z - path.start.z)
-        : Math.atan2(path.start.x - path.end.x, path.start.z - path.end.z);
-      this.group.rotation.y = dirAngle;
-
-      // Walking bounce & arm swing around shoulder pivot
-      this.group.position.y = this.config.y + Math.abs(Math.sin(time * 8)) * 0.04;
-      this.leftArmMesh.rotation.x = Math.sin(time * 8) * 0.35;
-      this.rightArmMesh.rotation.x = -Math.sin(time * 8) * 0.35;
+    });
+  }
+  update(time: number) {
+    const dt =
+      this.lastTime === null
+        ? 0
+        : Math.min(0.05, Math.max(0, time - this.lastTime));
+    this.lastTime = time;
+    if (this.config.isWalking && this.config.walkPath) {
+      const { start, end, speed } = this.config.walkPath;
+      const length = start.distanceTo(end) || 1;
+      this.walkDistance += (dt * speed) / length;
+      const cycle = this.walkDistance % 2,
+        t = cycle > 1 ? 2 - cycle : cycle;
+      this.group.position.lerpVectors(start, end, t);
+      const sign = cycle > 1 ? -1 : 1;
+      this.group.rotation.y =
+        Math.atan2((end.x - start.x) * sign, (end.z - start.z) * sign) +
+        Math.PI;
+      this.group.position.y += Math.abs(Math.sin(time * 7)) * 0.025;
       return;
     }
-
     if (this.config.isSeated) {
-      // Typing micro-animation on the keyboard (negative X angle pointing forward)
-      const typingSpeed = this.config.activityState === 'surge' ? 14 : 7;
-      this.leftArmMesh.rotation.x = -1.18 + Math.sin(time * typingSpeed + this.animOffset) * 0.06;
-      this.rightArmMesh.rotation.x = -1.18 + Math.cos(time * typingSpeed + this.animOffset) * 0.06;
-
-      // Occasional thoughtful head tilt/nod looking down at screen
-      this.headMesh.position.y = this.baseHeadY + Math.sin(t * 0.5) * 0.01;
-      this.headMesh.rotation.x = 0.08 + Math.sin(t * 0.6) * 0.03;
-      this.headMesh.rotation.y = Math.sin(t * 0.3) * 0.04;
-    } else {
-      // Standing idle breathing
-      this.headMesh.position.y = this.baseHeadY + Math.sin(t * 0.8) * 0.01;
-      this.headMesh.rotation.y = Math.sin(t * 0.3) * 0.12;
-    }
+      const typing =
+        time * (this.config.activityState === "surge" ? 12 : 8) + this.phase;
+      this.palms.forEach((p, i) => {
+        p.position.y = 0.505 + Math.sin(typing + i * 2.5) * 0.012;
+        p.rotation.x = Math.sin(typing + i) * 0.09;
+      });
+      this.forearms.forEach((arm, i) => {
+        arm.rotation.x = Math.sin(typing + i * 2.5) * 0.035;
+      });
+      this.head.rotation.set(
+        0.11 + Math.sin(time * 0.7 + this.phase) * 0.035,
+        Math.sin(time * 0.45 + this.phase) * 0.11,
+        Math.sin(time * 0.3 + this.phase) * 0.025,
+      );
+      this.torso.rotation.x = 0.035 + Math.sin(time * 0.9 + this.phase) * 0.015;
+    } else this.head.rotation.y = Math.sin(time * 0.5 + this.phase) * 0.16;
   }
-
-  public static dispose() {
-    this.headGeo?.dispose();
-    this.bodyGeo?.dispose();
-    this.armGeo?.dispose();
-    this.visorGeo?.dispose();
-    this.thighGeo?.dispose();
-    this.shinGeo?.dispose();
-    this.standingLegGeo?.dispose();
-
-    this.bodyMat?.dispose();
-    this.visorMat?.dispose();
-    this.visorSurgeMat?.dispose();
-
-    this.headGeo = null;
-    this.bodyGeo = null;
-    this.armGeo = null;
-    this.visorGeo = null;
-    this.thighGeo = null;
-    this.shinGeo = null;
-    this.standingLegGeo = null;
+  dispose() {
+    this.ownMaterials.forEach((m) => m.dispose());
+    this.ownMaterials = [];
+  }
+  static dispose() {
+    this.geometries.forEach((g) => g.dispose());
+    this.materials.forEach((m) => m.dispose());
+    this.geometries.clear();
+    this.materials.clear();
   }
 }
