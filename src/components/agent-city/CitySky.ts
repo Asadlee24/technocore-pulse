@@ -45,15 +45,21 @@ export class CitySky {
           vertexShader: `varying vec3 surface;void main(){surface=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
           fragmentShader: `varying vec3 surface;
             float h(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
-            void main(){vec3 n=normalize(surface);float grain=h(floor(n*95.));
-              float maria=sin(n.x*17.+sin(n.y*13.))*sin(n.z*19.+n.y*7.);
-              float shade=.24+.76*max(dot(n,normalize(vec3(.6,.35,.8))),0.);
-              vec3 col=mix(vec3(.52,.57,.63),vec3(.89,.90,.86),smoothstep(-.6,.4,maria));
-              gl_FragColor=vec4(col*shade*(.91+.09*grain),1.);
+            float noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
+              return mix(mix(mix(h(i),h(i+vec3(1,0,0)),f.x),mix(h(i+vec3(0,1,0)),h(i+vec3(1,1,0)),f.x),f.y),mix(mix(h(i+vec3(0,0,1)),h(i+vec3(1,0,1)),f.x),mix(h(i+vec3(0,1,1)),h(i+vec3(1,1,1)),f.x),f.y),f.z);}
+            void main(){vec3 n=normalize(surface);
+              float maria=noise(n*4.)*.6+noise(n*11.)*.28+noise(n*31.)*.12;
+              float shade=.22+.78*max(dot(n,normalize(vec3(.6,.35,.8))),0.);
+              float crater=0.;
+              for(int i=0;i<24;i++){float k=float(i)+1.;vec3 center=normalize(vec3(h(vec3(k,1,3)),h(vec3(k,7,2)),h(vec3(k,4,9)))*2.-1.);
+                float radius=.035+h(vec3(k,2,6))*.075;float distance=length(n-center);
+                crater+=.075*exp(-pow((distance-radius)/.012,2.))-.045*(1.-smoothstep(radius*.65,radius,distance));}
+              vec3 col=mix(vec3(.43,.46,.49),vec3(.84,.85,.82),smoothstep(.29,.67,maria));
+              gl_FragColor=vec4((col+crater)*shade,1.);
               #include <colorspace_fragment>
             }`, depthWrite: false, fog: false,
         });
-    const body = new THREE.Mesh(new THREE.SphereGeometry(day ? 19.5 : 25.5, 40, 28), bodyMaterial);
+    const body = new THREE.Mesh(new THREE.SphereGeometry(day ? 19.5 : 22, 40, 28), bodyMaterial);
     body.name = day ? "sun-disc" : "textured-moon";
     body.position.copy(direction).multiplyScalar(1100);
     body.renderOrder = -8;
