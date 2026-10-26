@@ -527,11 +527,11 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // 2. Camera Setup
     const width = container.clientWidth;
     const height = container.clientHeight || 540;
-    const overviewScale = width/height < .85 ? 1.5 : 1;
-    INTRO_END_POS.current.set(105*overviewScale,72*overviewScale,112*overviewScale);
-    INTRO_START_POS.current.set(132*overviewScale,100*overviewScale,140*overviewScale);
-    INTRO_START_LOOK.current.set(0, 38 * overviewScale, 0);
-    INTRO_END_LOOK.current.set(0, 32 * overviewScale, 0);
+    const overviewScale = width / height < .85 ? 1.25 : 1;
+    INTRO_END_POS.current.set(92 * overviewScale, 57 * overviewScale, 105 * overviewScale);
+    INTRO_START_POS.current.set(104 * overviewScale, 72 * overviewScale, 118 * overviewScale);
+    INTRO_START_LOOK.current.set(0, 24 * overviewScale, 0);
+    INTRO_END_LOOK.current.set(0, 18 * overviewScale, 0);
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.5, 2000);
     camera.position.copy(INTRO_START_POS.current);
     cameraRef.current = camera;

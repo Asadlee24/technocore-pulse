@@ -1,9 +1,11 @@
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 /** Waterfront, gardens and light poles are architectural scenery, not telemetry. */
 export class CityEnvironment {
   readonly group = new THREE.Group();
   private water: THREE.Mesh;
+  private waterMaterial: THREE.ShaderMaterial;
   constructor(theme: "dark" | "light" = "dark") {
     const light = theme === "light";
     this.group.name = "waterfront-city-landscape";
@@ -44,18 +46,71 @@ export class CityEnvironment {
       add(new THREE.BoxGeometry(182, .5, .15), navy, 0, .35, side * 91);
       add(new THREE.BoxGeometry(.15, .5, 182), navy, side * 91, .35, 0);
     }
-    this.water = add(
-      new THREE.PlaneGeometry(5000, 5000),
-      new THREE.MeshStandardMaterial({
-        color: light ? 0x5b90b3 : 0x07141e,
-        roughness: 0.28,
-        metalness: 0.55,
-      }),
-      0,
-      -2.1,
-      0,
-    );
+    this.waterMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        time: { value: 0 }, daylight: { value: light ? 1 : 0 },
+        deep: { value: new THREE.Color(light ? 0x326e91 : 0x081724) },
+        horizon: { value: new THREE.Color(light ? 0xdaecf8 : 0x22304f) },
+      },
+      vertexShader: `varying vec3 world;void main(){vec4 p=modelMatrix*vec4(position,1.);world=p.xyz;gl_Position=projectionMatrix*viewMatrix*p;}`,
+      fragmentShader: `varying vec3 world;uniform float time;uniform float daylight;uniform vec3 deep;uniform vec3 horizon;
+        void main(){vec2 p=world.xz;float t=time*.35;
+          float a=sin(p.x*.31+p.y*.18+t),b=cos(p.y*.49-p.x*.12-t*.7);
+          vec3 n=normalize(vec3(a*.10,1.,b*.08));vec3 view=normalize(cameraPosition-world);
+          float fresnel=pow(1.-max(dot(n,view),0.),4.);
+          vec3 col=mix(deep,horizon,fresnel*.52);
+          float glint=pow(max(dot(reflect(-normalize(vec3(-.61,.18,-.79)),n),view),0.),100.);
+          float ripples=.5+.5*sin(p.x*1.8+p.y*.7+a*2.);
+          col+=mix(vec3(.28,.35,.47),vec3(1.,.86,.60),daylight)*glint*(.25+.5*ripples);
+          col+=vec3(.008,.014,.018)*a*b;
+          float haze=1.-exp(-pow(length(cameraPosition-world)*.0018,2.));
+          col=mix(col,horizon,haze);gl_FragColor=vec4(col,1.);
+          #include <colorspace_fragment>
+        }`,
+    });
+    this.water = add(new THREE.PlaneGeometry(5000, 5000), this.waterMaterial, 0, -2.1, 0);
+    this.water.name = "animated-waterfront-water";
     this.water.rotation.x = -Math.PI / 2;
+    // An inhabited waterfront edge fills the foreground around the room district.
+    const warm = new THREE.MeshBasicMaterial({ color: light ? 0xe4dfc5 : 0xffd599, toneMapped: false });
+    for (const side of [-1, 1]) {
+      add(new THREE.BoxGeometry(206, .38, 10), stone, 0, -.1, side * 97);
+      add(new THREE.BoxGeometry(10, .38, 186), stone, side * 97, -.1, 0);
+      add(new THREE.BoxGeometry(206, .10, .12), navy, 0, .95, side * 101.5);
+      add(new THREE.BoxGeometry(.12, .10, 186), navy, side * 101.5, .95, 0);
+      for (let i = 0; i < 11; i++) {
+        const along = (i - 5) * 18;
+        for (const orientation of [0, 1]) {
+          const x = orientation ? side * 98 : along;
+          const z = orientation ? along : side * 98;
+          add(new THREE.CylinderGeometry(.07, .10, 3.7, 6), navy, x, 1.95, z);
+          add(new THREE.SphereGeometry(.23, 8, 6), warm, x, 3.85, z);
+          const seat = add(new THREE.BoxGeometry(2.5, .18, .65), ground, x + (orientation ? 0 : 3.5), .6, z + (orientation ? 3.5 : 0));
+          const back = add(new THREE.BoxGeometry(2.5, .65, .12), navy, seat.position.x, .98, seat.position.z + .3);
+          if (orientation) { seat.rotation.y = Math.PI / 2; back.rotation.y = Math.PI / 2; back.position.set(seat.position.x + .3, .98, seat.position.z); }
+        }
+      }
+    }
+    // Distant shore and architecture are scenery, kept separate from public rooms.
+    const shore = new THREE.MeshStandardMaterial({ color: light ? 0x789286 : 0x1c3037, roughness: 1 });
+    const distant = new THREE.MeshStandardMaterial({ color: light ? 0x8cabb9 : 0x253b50, roughness: .8 });
+    for (const side of [-1, 1]) {
+      add(new THREE.BoxGeometry(1300, 3, 220), shore, 0, -2, side * 510);
+      add(new THREE.BoxGeometry(220, 3, 820), shore, side * 510, -2, 0);
+    }
+    const skyline = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), distant, 88);
+    skyline.name = "distant-scenery-skyline";
+    skyline.userData.isScenery = true;
+    const transform = new THREE.Object3D();
+    for (let i = 0; i < 88; i++) {
+      const edge = Math.floor(i / 22), along = (i % 22 - 10.5) * 42;
+      const height = 18 + Math.abs(Math.sin(i * 7.31)) ** 3 * 68;
+      transform.position.set(edge < 2 ? along : (edge === 2 ? -1 : 1) * 480, height / 2 - .5, edge < 2 ? (edge === 0 ? -1 : 1) * 480 : along);
+      transform.scale.set(12 + i % 4 * 4, height, 14 + i % 3 * 5);
+      transform.updateMatrix();skyline.setMatrixAt(i, transform.matrix);
+    }
+    skyline.instanceMatrix.needsUpdate = true;
+    this.group.add(skyline);
     // Four clean arrival piers create a recognizable waterfront silhouette.
     for (let i = 0; i < 4; i++) {
       const angle = (i * Math.PI) / 2;
@@ -138,8 +193,32 @@ export class CityEnvironment {
       add(poleGeo, navy, x, 1.2, z);
       add(bulbGeo, glow, x, 2.4, z);
     }
+    // Keep promenade detail inexpensive on mobile by batching static scenery.
+    const batches = new Map<THREE.Material, THREE.Mesh[]>();
+    for (const child of this.group.children) {
+      if (!(child instanceof THREE.Mesh) || child instanceof THREE.InstancedMesh || child.name || Array.isArray(child.material)) continue;
+      const list = batches.get(child.material) ?? [];
+      list.push(child);
+      batches.set(child.material, list);
+    }
+    for (const [material, meshes] of batches) {
+      if (meshes.length < 2) continue;
+      const parts = meshes.map(mesh => {
+        mesh.updateMatrix();
+        return mesh.geometry.clone().applyMatrix4(mesh.matrix);
+      });
+      const geometry = mergeGeometries(parts, false);
+      parts.forEach(part => part.dispose());
+      if (!geometry) continue;
+      const combined = new THREE.Mesh(geometry, material);
+      combined.name = "batched-waterfront-scenery";
+      combined.receiveShadow = true;
+      meshes.forEach(mesh => { this.group.remove(mesh); mesh.geometry.dispose(); });
+      this.group.add(combined);
+    }
   }
   update(time: number) {
+    this.waterMaterial.uniforms.time.value = time;
     this.water.position.y = -2.1 + Math.sin(time * 0.3) * 0.025;
   }
   dispose() {
