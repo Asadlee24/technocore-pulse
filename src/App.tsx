@@ -135,6 +135,7 @@ function Metropolis() {
     setShowDirectory(false);
   };
   const records = signedRecords.filter((r) => r.room === selected?.name);
+  const visibleRecords = records.length ? records : signedRecords;
   const healthy = !snapshotMode && observerHealth === "LIVE" && !isLiveLoading;
   const verified = new Set(
     signedRecords
@@ -556,7 +557,7 @@ function Metropolis() {
           </p>
         </div>
         <div className="event-records">
-          {(selected ? records : signedRecords).slice(0, 3).map((record, i) => (
+          {visibleRecords.slice(0, 3).map((record, i) => (
             <button
               className="record-journey"
               onClick={() => {
@@ -583,7 +584,7 @@ function Metropolis() {
               <ArrowUpRight size={16} />
             </button>
           ))}
-          {(selected ? records : signedRecords).length === 0 && (
+          {visibleRecords.length === 0 && (
             <div className="no-records">
               No sampled signed records for{" "}
               {selected ? `#${selected.name}` : "this observation window"}.

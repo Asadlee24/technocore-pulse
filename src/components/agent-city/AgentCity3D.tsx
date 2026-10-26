@@ -965,7 +965,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       pulseSystem.update(delta);
       environment.update(time);
       civicLife.update(lodManagerRef.current.config.prefersReducedMotion ? 0 : time, rainRef.current);
-      sky.update(lodManagerRef.current.config.prefersReducedMotion ? 0 : time, camera);
+      sky.update(lodManagerRef.current.config.prefersReducedMotion ? 0 : time, camera, rainRef.current);
       roads.update(
         lodManagerRef.current.config.prefersReducedMotion ? 0 : time,
       );
@@ -1064,7 +1064,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 
       {/* Showcase Tour Overlay */}
       {isShowcase && (
-        <div className="absolute top-5 left-1/2 -translate-x-1/2 z-30 flex items-center space-x-3 px-4 py-2 rounded-full bg-[#0B1320]/95 border border-[#36D7E7]/60 text-[#36D7E7] font-mono text-xs backdrop-blur-xl shadow-2xl shadow-[#36D7E7]/20">
+        <div role="status" className="tour-progress absolute top-5 left-1/2 -translate-x-1/2 z-30 flex items-center space-x-3 px-4 py-2 rounded-full bg-[#0B1320]/95 border border-[#36D7E7]/60 text-[#36D7E7] font-mono text-xs backdrop-blur-xl shadow-2xl shadow-[#36D7E7]/20">
           <span className="w-2.5 h-2.5 rounded-full bg-[#36D7E7] animate-ping" />
           <span className="font-bold tracking-wider uppercase text-white">
             {["01 / Waterfront arrival", "02 / FLOP Central Plaza", "03 / Room architecture", "04 / Inside the workspace", "05 / City skyline"][tourStep]}

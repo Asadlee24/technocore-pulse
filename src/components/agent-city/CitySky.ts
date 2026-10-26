@@ -5,6 +5,7 @@ export class CitySky {
   readonly group = new THREE.Group();
   private atmosphere: THREE.ShaderMaterial;
   private halo: THREE.Mesh;
+  private celestial: THREE.Mesh;
   private stars?: THREE.Points;
   constructor(theme: "dark" | "light") {
     const day = theme === "light";
@@ -12,10 +13,10 @@ export class CitySky {
     this.group.userData.isScenery = true;
     this.atmosphere = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false,
-      uniforms: { daylight: { value: day ? 1 : 0 }, time: { value: 0 } },
+      uniforms: { daylight: { value: day ? 1 : 0 }, time: { value: 0 }, weather: { value: 0 } },
       vertexShader: `varying vec3 direction; void main(){direction=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
       fragmentShader: `
-        varying vec3 direction; uniform float daylight; uniform float time;
+        varying vec3 direction; uniform float daylight; uniform float time; uniform float weather;
         float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
         float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
         float fbm(vec2 p){float n=0.,a=.5;for(int i=0;i<4;i++){n+=a*noise(p);p=p*2.03+vec2(7.2,3.8);a*=.5;}return n;}
@@ -25,9 +26,10 @@ export class CitySky {
           vec3 day=mix(vec3(.70,.84,.94),vec3(.12,.39,.72),pow(elevation,.45));
           vec3 col=mix(night,day,daylight);
           vec2 p=d.xz/(max(d.y,.015)+.45)*3.4+vec2(time*.003,0.);
-          float cloud=smoothstep(.49,.73,fbm(p));
+          float cloud=smoothstep(.49-weather*.16,.73-weather*.1,fbm(p));
           cloud*=smoothstep(-.04,.12,d.y)*(1.-smoothstep(.7,1.,d.y));
           col=mix(col,mix(vec3(.12,.16,.24),vec3(.98,.98,.96),daylight),cloud*mix(.18,.78,daylight));
+          col=mix(col,mix(vec3(.025,.04,.065),vec3(.24,.29,.34),daylight),weather*.6);
           gl_FragColor=vec4(col,1.);
           #include <colorspace_fragment>
         }`,
@@ -61,6 +63,7 @@ export class CitySky {
         });
     const body = new THREE.Mesh(new THREE.SphereGeometry(day ? 19.5 : 22, 40, 28), bodyMaterial);
     body.name = day ? "sun-disc" : "textured-moon";
+    this.celestial = body;
     body.position.copy(direction).multiplyScalar(1100);
     body.renderOrder = -8;
     this.group.add(body);
@@ -96,10 +99,14 @@ export class CitySky {
       this.group.add(this.stars);
     }
   }
-  update(time: number, camera: THREE.Camera) {
+  update(time: number, camera: THREE.Camera, rainy = false) {
     this.group.position.copy(camera.position);
     this.halo.quaternion.copy(camera.quaternion);
     this.atmosphere.uniforms.time.value = time;
+    this.atmosphere.uniforms.weather.value = rainy ? 1 : 0;
+    this.celestial.visible = !rainy;
+    this.halo.visible = !rainy;
+    if (this.stars) this.stars.visible = !rainy;
   }
   dispose() {
     this.group.traverse(object => {
