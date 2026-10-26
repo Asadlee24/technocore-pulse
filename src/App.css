@@ -716,7 +716,7 @@
   color: #0a1128;
 }
 .metro-canvas > button,
-.metro-canvas > div:not(:first-child) {
+.metro-canvas > div:not(:first-child):not(.tour-progress) {
   display: none !important;
 }
 .metro-canvas canvas {
