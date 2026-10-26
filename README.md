@@ -1,135 +1,121 @@
-# Technocore Pulse  Probe v1 Observatory
-> **Visualizing agent communication in the wild**  
-> *Community-built by Asad Lee · Not an official FLOP Labs product*
+<p align="center">
+  <img src="public/brand/flop-lockup-on-dark.png" alt="FLOP" width="320" />
+</p>
 
-[![Built by Asad Lee](https://img.shields.io/badge/Builder-Asad%20Lee-36D7E7?style=flat-square)](https://asad-lee-portfolio.vercel.app/)
-[![X @asadleo416](https://img.shields.io/badge/X-@asadleo416-4DA3FF?style=flat-square)](https://x.com/asadleo416)
-[![GitHub Asadlee24](https://img.shields.io/badge/GitHub-Asadlee24-white?style=flat-square)](https://github.com/Asadlee24)
-[![Protocol](https://img.shields.io/badge/Protocol-Technocore%20Probe%20v1-2FD27F?style=flat-square)](https://technocore.chat)
+<h1 align="center">Technocore City</h1>
 
----
+<p align="center">
+  Explore public Technocore rooms as an interactive 3D city.
+</p>
 
-## Overview
-
-**Technocore Pulse** is a standalone public data observatory and experimental intelligence atlas dedicated to Technocore’s labelled **`probe v1`** experiment.
-
-Unlike standard explorers, **Pulse** measures subsequent autonomous AI agent activity across HTTP-native, zero-auth chat rooms under strict **120-second observation windows**.
-
----
-
-## Data Honesty & Dual-Mode Architecture
-
-To prevent presenting simulated baseline metrics as empirical findings, Technocore Pulse implements a global **LIVE vs DEMO** data engine:
-
-### 1. DEMO Mode (Illustrative Benchmark)
-- Explicitly labeled: *"Demo dataset — illustrative data, not live Technocore experiment results."*
-- Uses calibrated reference values for user interface testing and architectural demonstrations.
-- Uses strict non-causal terminology: *"120s window activity rate"* and *"median subsequent message latency"*.
-
-### 2. LIVE Mode (Real-Time Technocore Ingestion)
-- Connects directly to documented public read-only endpoints:
-  - `GET /rooms?format=json` (sampling currently observed active rooms from the public index)
-  - `GET /r/<room>?format=json` (inspecting chronological message sequences, Ed25519 signatures, and signed DIDs)
-- Detects documented probe format:
-  ```text
-  probe v1 | <run>.<n> | <arm> | <payload>
-  ```
-- If zero probe posts are active in the recent ephemeral buffer, displays an honest collector status:
-  `Observation began <timestamp> · 0 probe v1 events detected in recent ephemeral window`
+<p align="center">
+  <a href="https://technocore-pulse-hazel.vercel.app/">Explore the city</a>
+  · <a href="https://asadlee.bond">Built by Asad Lee</a>
+  · <a href="https://x.com/asadleo416">Follow the build</a>
+</p>
 
 ---
 
-## Architectural Positioning: The FLOP Model
+Technocore City turns the public room index into a city you can explore, from its waterfront and streets to rooftop gardens and office interiors. Each room building links back to its public Technocore source.
 
-Technocore coordinates agents prior to economic settlement:
+Built with **Three.js, React and TypeScript**, this is an independent community project inspired by the FLOP Lab ecosystem. The repository retains its original name, **technocore-pulse**, and its public-data observation tools.
 
-$$\text{Coordinate (Technocore)} \longrightarrow \text{Agree} \longrightarrow \text{Settle} \longrightarrow \text{Verify}$$
+## Explore the city
 
-1. **Coordinate (Technocore)**: HTTP-native, zero-auth chat and shared notes. Agents discover peers, exchange quotes, and calibrate parameters without transaction fees or gas latency.
-2. **Agree**: Multi-party intent schemas and mutual cryptographic signatures.
-3. **Settle**: On-chain smart contracts and atomic escrow release.
-4. **Verify**: Zero-knowledge state transition proofs and verification nodes.
+- **Room buildings:** discover up to 48 indexed rooms through named buildings and a searchable directory.
+- **City, building and interior views:** move from the skyline into a selected building and its furnished office cutaway.
+- **Guided tour:** take a 32-second route through the waterfront, FLOP Plaza, a room building, an office interior and the skyline.
+- **Day and night:** switch between a sunlit sky and a moonlit city with stars, or turn on rain.
+- **Waterfront life:** animated water, promenades, a ferry, a tram, parks, a plaza fountain and rooftop gardens.
+- **Street scenery:** moving vehicles and walking characters bring the blocks to life.
+- **Saved rooms:** bookmark rooms and filter the directory; bookmarks stay on your device.
+- **Public message journeys:** select a sampled record, visit its room building and open the original public source.
+- **Responsive browsing:** touch-friendly controls and a directory that remains available if WebGL cannot start.
 
----
+## Public data and illustrative scenery
 
-## Scientific Methodology & Non-Causality Caveats
+The city combines public observations with designed scenery. They have different meanings:
 
-- **120-Second Window Rule**: Events occurring after 120s from the probe drop are excluded from windowed calculations.
-- **Non-Causality Attribution**: We measure *observed subsequent activity* and *participating signed identities*, avoiding ungrounded claims of universal mechanical causality unless an agent explicitly cites the probe sequence hash.
-- **Cryptographic Verification**: Only valid W3C DIDs (`did:key:...`) with verified Ed25519 signature digests are counted.
-- **Room Ephemerality**: Technocore room messages are ephemeral and purge regularly; historical events prior to server restarts are never fabricated.
+| Element | What it represents |
+| --- | --- |
+| Room building | An entry from the public room index |
+| Sampled message | A record retrieved from a public room, with a source link |
+| Signature status | The result of checking the sampled record's available signature |
+| Architectural style | An illustrative visual assignment, not a protocol classification |
+| Office workers and terminals | A fixed illustrative crew, not a measured agent population |
+| Cars, pedestrians, ferry, tram, weather and parks | Animated scenery |
 
----
+**LIVE** observation starts empty and uses public read-only endpoints. If requests fail or are rate limited, the interface reports that state. Missing identity counts remain unknown.
 
-## Tech Stack & Launch Assets
+**Captured public index** is an explicitly selected, timestamped snapshot for exploring the city when live access is unavailable. It contains original room-index entries, not fabricated messages or identities, and never seeds the live provider.
 
-- **Framework**: React 19 + TypeScript + Vite
-- **3D Engine**: Three.js WebGL (Hero constellation + Signature 3D Signal Map)
-- **Styling**: Tailwind CSS v4 + Dark Obsidian Glass System
-- **Icons**: Lucide React + Clean Vector SVG Social Icons
-- **SEO & Social**: Custom 1200x630 Social Preview Card (`/og-image.png` with `/og-image.svg` source), robots.txt, sitemap.xml, custom brand favicon (`/favicon.svg`), canonical tags.
+The underlying observation tools also retain separately labelled demo/replay datasets. These are not live Technocore results. Visual pulses indicate newly sampled local records; the project does not infer cross-room message routes.
 
----
+### Sources and observation limits
 
-## Deployment to Vercel
+Public reads use:
+
+- `https://technocore.chat/rooms?format=json`
+- `https://technocore.chat/r/<room>?format=json`
+
+The adapter supports caching, bounded request concurrency, incremental reads and rate-limit backoff. The Vercel deployment includes a read-only API proxy.
+
+Probe analysis recognizes `probe v1 | <run>.<n> | <arm> | <payload>` and measures subsequent activity within a 120-second observation window. Subsequent activity alone does not establish causation. Public room history is ephemeral; unavailable history is not reconstructed.
+
+## Run locally
+
+Use **Node.js 24** and npm.
 
 ```bash
-# Clone the repository
 git clone https://github.com/Asadlee24/technocore-pulse.git
 cd technocore-pulse
-
-# Install dependencies
-npm install
-
-# Test build
-npm run build
-
-# Deploy to Vercel
-vercel --prod
+npm ci
+npm run dev
 ```
 
----
-
-## 👤 Builder Identity & Attribution
-
-- **Builder**: [Asad Lee](https://asad-lee-portfolio.vercel.app/)
-- **X / Twitter**: [@asadleo416](https://x.com/asadleo416)
-- **GitHub**: [Asadlee24](https://github.com/Asadlee24)
-- **Portfolio**: [https://asad-lee-portfolio.vercel.app/](https://asad-lee-portfolio.vercel.app/)
-
-> **Disclaimer**: *Technocore Pulse is an independent community contribution by Asad Lee. It is not an official FLOP Labs product.*
-
-## Community City redesign
-
-The primary experience is now a city atlas with a room directory, building/interior controls, source links, and an observation status bar. Up to 48 indexed rooms are visualized, while up to 8 rooms are sampled. Every room building maps to an actual index entry; an empty source produces no room buildings. The coordination monument, parks and transport are explicitly scenery. No cross-room message trajectories are inferred.
-
-New sampled records trigger local visual pulses. Workers are a fixed illustrative crew, independent of observed identity counts and not a measured agent population. Missing counts remain unknown. A WebGL error boundary preserves the directory and record views if 3D is unavailable.
-
-Validation (Node 24):
+Open the local URL printed by Vite. No account or API key is required for the public read-only experience. Live data depends on upstream availability and browser access; the captured index remains a separate browsing option.
 
 ```bash
-npm ci
 npm run build
+npm run preview
 npm run lint
-node test_data_modes.js
-node --experimental-strip-types test_city_layout.mjs
-node --experimental-strip-types test_crypto_verification.js
 ```
 
-The browser used during development has WebGL disabled, so hardware-accelerated 3D visual quality and frame rate require a separate desktop verification.
+The production build is written to `dist/`. Vite preview serves the frontend; Vercel serves the included serverless API routes in deployment.
 
-### Detailed office interiors
+## Validation
 
-Opening a building now creates a representative three-floor office with six designed robot workers per floor, full desktop monitors, keyboards, mice, task lights and chairs. This fixed crew is labelled illustrative and remains visible when identity counts are unknown. The interior camera approaches the open facade and hides upper floors to keep the ground-floor workstations visible. Office resources are allocated on selection and released on exit. Terminal textures are explicitly illustrative; the room command display retains observed values and shows UNKNOWN for missing identity counts.
+Run the focused checks from the repository root:
 
-Run `node test_office_interiors.mjs` for scene-graph, animation, camera-facing workstation and resource-lifecycle checks.
+```bash
+node test_data_modes.js
+node test_crypto_verification.js
+node test_api_proxy.mjs
+node test_city_layout.mjs
+node test_city_scene.mjs
+node test_office_interiors.mjs
+node test_city_life.mjs
+```
 
-## FLOP computational city
+These cover data separation, signature verification, the read-only proxy, building spacing, scene structure, interior behavior and animated civic scenery. Visual quality and performance should also be checked in a WebGL-capable browser.
 
-Official logo exports from flop.finance/brand/ are preserved byte-for-byte in `public/brand/`. The interface follows the published Base, Ice White, Cyan and Space Mono direction. The old ornamental towers, water tanks, animated Times Square billboards and elevated pseudo-data rails have been replaced by stepped glass-and-concrete room buildings, roof terraces, a branded community pavilion, waterfront promenades, crosswalks and instanced street vehicles. Transport and architecture remain explicitly scenery.
+## Project structure
 
-When live requests are unavailable, visitors can explicitly choose the timestamped **captured public index**. `src/data/publicCitySnapshot.ts` records the public source URL, retrieval time and 48 original room-index entries. Captured mode has no sampled messages or identities, triggers no fabricated record pulses, and is labelled separately from live observation. It never seeds the LIVE provider.
+| Path | Purpose |
+| --- | --- |
+| `src/components/agent-city/` | Three.js city, buildings, interiors, sky, transport and scenery |
+| `src/data/` | Public API adapter, captured index, parsing and signature verification |
+| `src/context/DataContext.tsx` | Observation state and data-mode separation |
+| `src/App.tsx` | Room directory, saved rooms, source journeys and city controls |
+| `api/` | Vercel read-only public API proxy |
+| `public/brand/` | Original FLOP logo exports and source attribution |
 
-### Walkable blocks update
+## Credits
 
-The repeated radial tower rows have been replaced by a seven-by-seven street grid, keeping the central block for the scaled community pavilion. Most buildings are now low-rise, with selected mid-rise blocks and sparse taller anchors. Facades have fewer, softer lit windows and lighter structural detailing. Street scenery includes 64 moving cars/buses, 144 walking characters, crosswalks, traffic-light poles and pavement cafe furniture. These figures are fixed scene budgets and never presented as observed agent counts. Daylight is the initial scene setting, and the mobile camera pulls back to show more of the city.
+Designed and built by **[Asad Lee](https://asadlee.bond)**.
+
+[Portfolio](https://asadlee.bond) · [X / @asadleo416](https://x.com/asadleo416) · [GitHub](https://github.com/Asadlee24)
+
+Original FLOP logo exports are preserved unchanged, with sources documented in [public/brand/README.md](public/brand/README.md).
+
+Technocore City is an independent community contribution and is not an official FLOP Labs product.
