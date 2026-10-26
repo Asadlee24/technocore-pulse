@@ -1,0 +1,107 @@
+import * as THREE from "three";
+
+/** Procedural outdoor scenery; no network assets or observation data. */
+export class CitySky {
+  readonly group = new THREE.Group();
+  private atmosphere: THREE.ShaderMaterial;
+  private halo: THREE.Mesh;
+  private stars?: THREE.Points;
+  constructor(theme: "dark" | "light") {
+    const day = theme === "light";
+    this.group.name = day ? "day-sky-sun-clouds" : "night-sky-moon-stars";
+    this.group.userData.isScenery = true;
+    this.atmosphere = new THREE.ShaderMaterial({
+      side: THREE.BackSide, depthWrite: false, fog: false,
+      uniforms: { daylight: { value: day ? 1 : 0 }, time: { value: 0 } },
+      vertexShader: `varying vec3 direction; void main(){direction=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+      fragmentShader: `
+        varying vec3 direction; uniform float daylight; uniform float time;
+        float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+        float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
+        float fbm(vec2 p){float n=0.,a=.5;for(int i=0;i<4;i++){n+=a*noise(p);p=p*2.03+vec2(7.2,3.8);a*=.5;}return n;}
+        void main(){
+          vec3 d=normalize(direction);float elevation=max(d.y,0.);
+          vec3 night=mix(vec3(.065,.105,.18),vec3(.008,.016,.045),pow(elevation,.45));
+          vec3 day=mix(vec3(.70,.84,.94),vec3(.12,.39,.72),pow(elevation,.45));
+          vec3 col=mix(night,day,daylight);
+          vec2 p=d.xz/(max(d.y,.015)+.45)*3.4+vec2(time*.003,0.);
+          float cloud=smoothstep(.49,.73,fbm(p));
+          cloud*=smoothstep(-.04,.12,d.y)*(1.-smoothstep(.7,1.,d.y));
+          col=mix(col,mix(vec3(.12,.16,.24),vec3(.98,.98,.96),daylight),cloud*mix(.18,.78,daylight));
+          gl_FragColor=vec4(col,1.);
+          #include <colorspace_fragment>
+        }`,
+    });
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(420, 32, 20), this.atmosphere);
+    dome.name = "atmospheric-sky-dome";
+    dome.renderOrder = -10;
+    dome.frustumCulled = false;
+    this.group.add(dome);
+    const direction = new THREE.Vector3(-.47, .115, -.875).normalize();
+    const bodyMaterial = day
+      ? new THREE.MeshBasicMaterial({ color: 0xfff5d6, toneMapped: false, fog: false })
+      : new THREE.ShaderMaterial({
+          uniforms: {},
+          vertexShader: `varying vec3 surface;void main(){surface=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+          fragmentShader: `varying vec3 surface;
+            float h(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
+            void main(){vec3 n=normalize(surface);float grain=h(floor(n*95.));
+              float maria=sin(n.x*17.+sin(n.y*13.))*sin(n.z*19.+n.y*7.);
+              float shade=.24+.76*max(dot(n,normalize(vec3(.6,.35,.8))),0.);
+              vec3 col=mix(vec3(.52,.57,.63),vec3(.89,.90,.86),smoothstep(-.6,.4,maria));
+              gl_FragColor=vec4(col*shade*(.91+.09*grain),1.);
+              #include <colorspace_fragment>
+            }`, depthWrite: false, fog: false,
+        });
+    const body = new THREE.Mesh(new THREE.SphereGeometry(day ? 5.5 : 7.2, 40, 28), bodyMaterial);
+    body.name = day ? "sun-disc" : "textured-moon";
+    body.position.copy(direction).multiplyScalar(310);
+    body.renderOrder = -8;
+    this.group.add(body);
+    this.halo = new THREE.Mesh(new THREE.PlaneGeometry(day ? 74 : 52, day ? 74 : 52), new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, fog: false,
+      uniforms: { tint: { value: new THREE.Color(day ? 0xffe6ab : 0x9abce9) }, strength: { value: day ? .30 : .11 } },
+      vertexShader: `varying vec2 uvp;void main(){uvp=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+      fragmentShader: `varying vec2 uvp;uniform vec3 tint;uniform float strength;void main(){float r=length(uvp-.5)*2.;float a=exp(-r*r*5.)*smoothstep(1.,.25,r)*strength;gl_FragColor=vec4(tint,a);#include <colorspace_fragment>}`.replace(";#include", ";\n#include"),
+    }));
+    this.halo.position.copy(direction).multiplyScalar(312);
+    this.halo.renderOrder = -9;
+    this.group.add(this.halo);
+    if (!day) {
+      const positions: number[] = [], colors: number[] = [];
+      let seed = 1647;
+      const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+      for (let i = 0; i < 1100; i++) {
+        const y = .025 + random() * .975, angle = random() * Math.PI * 2;
+        const radius = Math.sqrt(1 - y * y);
+        positions.push(Math.cos(angle) * radius * 390, y * 390, Math.sin(angle) * radius * 390);
+        const brightness = .3 + random() * .65;
+        colors.push(brightness * .88, brightness * .93, brightness);
+      }
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+      geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+      this.stars = new THREE.Points(geometry, new THREE.PointsMaterial({
+        vertexColors: true, size: 1.35, sizeAttenuation: false,
+        transparent: true, opacity: .85, depthWrite: false, fog: false, toneMapped: false,
+      }));
+      this.stars.name = "night-star-field";
+      this.stars.renderOrder = -9;
+      this.group.add(this.stars);
+    }
+  }
+  update(time: number, camera: THREE.Camera) {
+    this.group.position.copy(camera.position);
+    this.halo.quaternion.copy(camera.quaternion);
+    this.atmosphere.uniforms.time.value = time;
+  }
+  dispose() {
+    this.group.traverse(object => {
+      if (object instanceof THREE.Mesh || object instanceof THREE.Points) {
+        object.geometry.dispose();
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        materials.forEach(material => material.dispose());
+      }
+    });
+  }
+}

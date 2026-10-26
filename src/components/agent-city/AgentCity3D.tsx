@@ -14,6 +14,7 @@ import { AgentWorker } from "./AgentWorker";
 import { MetroLandmark as CityDistrictManager } from "./MetroLandmark";
 import { CityRoads } from "./CityRoads";
 import { CityEnvironment } from "./CityEnvironment";
+import { CitySky } from "./CitySky";
 import { ProbePulseSystem } from "./ProbePulseSystem";
 import { CityLODManager, type CameraViewLevel } from "./CityLODManager";
 import {
@@ -519,7 +520,9 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // 1. Scene & Atmospheric Fog (Target: 10-15% sky readability, softened fog so buildings don't vanish)
     const scene = new THREE.Scene();
     sceneRef.current = scene;
-    scene.fog = new THREE.FogExp2(isLight ? 0xf5f7fa : 0x05080d, 0.0018);
+    scene.fog = new THREE.FogExp2(isLight ? 0xb8d6e9 : 0x101d32, 0.0015);
+    const sky = new CitySky(theme);
+    scene.add(sky.group);
 
     // 2. Camera Setup
     const width = container.clientWidth;
@@ -527,6 +530,8 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     const overviewScale = width/height < .85 ? 1.5 : 1;
     INTRO_END_POS.current.set(105*overviewScale,72*overviewScale,112*overviewScale);
     INTRO_START_POS.current.set(132*overviewScale,100*overviewScale,140*overviewScale);
+    INTRO_START_LOOK.current.set(0, 38 * overviewScale, 0);
+    INTRO_END_LOOK.current.set(0, 32 * overviewScale, 0);
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.5, 500);
     camera.position.copy(INTRO_START_POS.current);
     cameraRef.current = camera;
@@ -598,14 +603,14 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // 10. Balanced Night Lighting (Readable graphite facades without daytime wash)
     const ambientLight = new THREE.AmbientLight(
       isLight ? 0xffffff : 0xe0e8f2,
-      isLight ? 1.3 : 1.1,
+      isLight ? .85 : .65,
     );
     scene.add(ambientLight);
 
     const hemiLight = new THREE.HemisphereLight(
       isLight ? 0xf0f9ff : 0xb9d5ef,
       isLight ? 0xe2e8f0 : 0x26334f,
-      2.0,
+      isLight ? 1.8 : 1.25,
     );
     scene.add(hemiLight);
 
@@ -621,9 +626,9 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // Cool Moonlight Directional Key Light (gives crisp architectural edge definition)
     const moonLight = new THREE.DirectionalLight(
       isLight ? 0xffedce : 0xe3efff,
-      isLight ? 2.2 : 2.2,
+      isLight ? 2.8 : 1.25,
     );
-    moonLight.position.set(40, 70, -35);
+    moonLight.position.set(-47, 70, -87.5);
     moonLight.castShadow = true;
     moonLight.shadow.mapSize.set(2048, 2048);
     moonLight.shadow.camera.left = -75;
@@ -953,6 +958,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       );
       pulseSystem.update(delta);
       environment.update(time);
+      sky.update(lodManagerRef.current.config.prefersReducedMotion ? 0 : time, camera);
       roads.update(
         lodManagerRef.current.config.prefersReducedMotion ? 0 : time,
       );
@@ -999,6 +1005,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       districtMgr.dispose();
       roads.dispose();
       environment.dispose();
+      sky.dispose();
       disposeCityMaterials(materials);
 
       buildingsMapRef.current.forEach((b) => b.dispose());
