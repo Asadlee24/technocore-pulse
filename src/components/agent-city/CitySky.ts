@@ -21,7 +21,7 @@ export class CitySky {
         float fbm(vec2 p){float n=0.,a=.5;for(int i=0;i<4;i++){n+=a*noise(p);p=p*2.03+vec2(7.2,3.8);a*=.5;}return n;}
         void main(){
           vec3 d=normalize(direction);float elevation=max(d.y,0.);
-          vec3 night=mix(vec3(.065,.105,.18),vec3(.008,.016,.045),pow(elevation,.45));
+          vec3 night=mix(vec3(.016,.028,.06),vec3(.002,.004,.015),pow(elevation,.45));
           vec3 day=mix(vec3(.70,.84,.94),vec3(.12,.39,.72),pow(elevation,.45));
           vec3 col=mix(night,day,daylight);
           vec2 p=d.xz/(max(d.y,.015)+.45)*3.4+vec2(time*.003,0.);
@@ -32,12 +32,12 @@ export class CitySky {
           #include <colorspace_fragment>
         }`,
     });
-    const dome = new THREE.Mesh(new THREE.SphereGeometry(420, 32, 20), this.atmosphere);
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(1500, 32, 20), this.atmosphere);
     dome.name = "atmospheric-sky-dome";
     dome.renderOrder = -10;
     dome.frustumCulled = false;
     this.group.add(dome);
-    const direction = new THREE.Vector3(-.47, .115, -.875).normalize();
+    const direction = new THREE.Vector3(-.61, .07, -.79).normalize();
     const bodyMaterial = day
       ? new THREE.MeshBasicMaterial({ color: 0xfff5d6, toneMapped: false, fog: false })
       : new THREE.ShaderMaterial({
@@ -53,28 +53,28 @@ export class CitySky {
               #include <colorspace_fragment>
             }`, depthWrite: false, fog: false,
         });
-    const body = new THREE.Mesh(new THREE.SphereGeometry(day ? 5.5 : 7.2, 40, 28), bodyMaterial);
+    const body = new THREE.Mesh(new THREE.SphereGeometry(day ? 19.5 : 25.5, 40, 28), bodyMaterial);
     body.name = day ? "sun-disc" : "textured-moon";
-    body.position.copy(direction).multiplyScalar(310);
+    body.position.copy(direction).multiplyScalar(1100);
     body.renderOrder = -8;
     this.group.add(body);
-    this.halo = new THREE.Mesh(new THREE.PlaneGeometry(day ? 74 : 52, day ? 74 : 52), new THREE.ShaderMaterial({
+    this.halo = new THREE.Mesh(new THREE.PlaneGeometry(day ? 260 : 185, day ? 260 : 185), new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, fog: false,
       uniforms: { tint: { value: new THREE.Color(day ? 0xffe6ab : 0x9abce9) }, strength: { value: day ? .30 : .11 } },
       vertexShader: `varying vec2 uvp;void main(){uvp=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
       fragmentShader: `varying vec2 uvp;uniform vec3 tint;uniform float strength;void main(){float r=length(uvp-.5)*2.;float a=exp(-r*r*5.)*smoothstep(1.,.25,r)*strength;gl_FragColor=vec4(tint,a);#include <colorspace_fragment>}`.replace(";#include", ";\n#include"),
     }));
-    this.halo.position.copy(direction).multiplyScalar(312);
+    this.halo.position.copy(direction).multiplyScalar(1110);
     this.halo.renderOrder = -9;
     this.group.add(this.halo);
     if (!day) {
       const positions: number[] = [], colors: number[] = [];
       let seed = 1647;
       const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
-      for (let i = 0; i < 1100; i++) {
+      for (let i = 0; i < 1600; i++) {
         const y = .025 + random() * .975, angle = random() * Math.PI * 2;
         const radius = Math.sqrt(1 - y * y);
-        positions.push(Math.cos(angle) * radius * 390, y * 390, Math.sin(angle) * radius * 390);
+        positions.push(Math.cos(angle) * radius * 1400, y * 1400, Math.sin(angle) * radius * 1400);
         const brightness = .3 + random() * .65;
         colors.push(brightness * .88, brightness * .93, brightness);
       }
@@ -82,7 +82,7 @@ export class CitySky {
       geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
       geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
       this.stars = new THREE.Points(geometry, new THREE.PointsMaterial({
-        vertexColors: true, size: 1.35, sizeAttenuation: false,
+        vertexColors: true, size: 1.7, sizeAttenuation: false,
         transparent: true, opacity: .85, depthWrite: false, fog: false, toneMapped: false,
       }));
       this.stars.name = "night-star-field";

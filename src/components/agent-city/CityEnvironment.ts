@@ -45,7 +45,7 @@ export class CityEnvironment {
       add(new THREE.BoxGeometry(.15, .5, 182), navy, side * 91, .35, 0);
     }
     this.water = add(
-      new THREE.PlaneGeometry(520, 520),
+      new THREE.PlaneGeometry(5000, 5000),
       new THREE.MeshStandardMaterial({
         color: light ? 0x5b90b3 : 0x07141e,
         roughness: 0.28,

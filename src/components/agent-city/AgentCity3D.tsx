@@ -520,7 +520,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // 1. Scene & Atmospheric Fog (Target: 10-15% sky readability, softened fog so buildings don't vanish)
     const scene = new THREE.Scene();
     sceneRef.current = scene;
-    scene.fog = new THREE.FogExp2(isLight ? 0xb8d6e9 : 0x101d32, 0.0015);
+    scene.fog = new THREE.FogExp2(isLight ? 0xdaecf8 : 0x22304f, 0.0018);
     const sky = new CitySky(theme);
     scene.add(sky.group);
 
@@ -532,7 +532,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     INTRO_START_POS.current.set(132*overviewScale,100*overviewScale,140*overviewScale);
     INTRO_START_LOOK.current.set(0, 38 * overviewScale, 0);
     INTRO_END_LOOK.current.set(0, 32 * overviewScale, 0);
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.5, 500);
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.5, 2000);
     camera.position.copy(INTRO_START_POS.current);
     cameraRef.current = camera;
 
