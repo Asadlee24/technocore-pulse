@@ -1,5 +1,8 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Play,
+  CloudRain,
+  Bookmark,
   ArrowDown,
   ArrowUpRight,
   Building2,
@@ -23,7 +26,7 @@ const AgentCity3D = lazy(() =>
   })),
 );
 import type { CameraViewLevel } from "./components/agent-city/CityLODManager";
-import type { RoomCluster } from "./types/probe";
+import type { SignedRecord, RoomCluster } from "./types/probe";
 import "./App.css";
 import { PUBLIC_CITY_SNAPSHOT } from "./data/publicCitySnapshot";
 const capturedRooms: RoomCluster[] = PUBLIC_CITY_SNAPSHOT.rooms.map(
@@ -73,6 +76,17 @@ function Metropolis() {
   const [query, setQuery] = useState("");
   const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [showInfo, setShowInfo] = useState(false);
+  const [rainy, setRainy] = useState(false);
+  const [tour, setTour] = useState(false);
+  const [savedOnly, setSavedOnly] = useState(false);
+  const [focusedRecord, setFocusedRecord] = useState<SignedRecord | null>(null);
+  const [savedRooms, setSavedRooms] = useState<string[]>(() => {
+    try { const value: unknown = JSON.parse(localStorage.getItem("technocore-city:saved-rooms:v1") ?? "[]"); return Array.isArray(value) ? [...new Set(value.filter((item): item is string => typeof item === "string"))].slice(0, 200) : []; }
+    catch { return []; }
+  });
+  useEffect(() => { try { localStorage.setItem("technocore-city:saved-rooms:v1", JSON.stringify(savedRooms)); } catch { /* Browsing remains available when storage is disabled. */ } }, [savedRooms]);
+  const stopTour = () => { setTour(false); setView("city"); setPerspective("orbit"); };
+
   const [showDirectory, setShowDirectory] = useState(false);
   const [cityUnavailable, setCityUnavailable] = useState(false);
   const dialogRef = useRef<HTMLElement>(null);
@@ -106,13 +120,15 @@ function Metropolis() {
   const filtered = useMemo(
     () =>
       rooms.filter((r) =>
-        `${r.name} ${r.topic ?? ""}`
+        (!savedOnly || savedRooms.includes(r.name)) && `${r.name} ${r.topic ?? ""}`
           .toLowerCase()
           .includes(query.toLowerCase()),
       ),
-    [rooms, query],
+    [rooms, query, savedOnly, savedRooms],
   );
   const selectRoom = (room: RoomCluster) => {
+    setTour(false);
+    setFocusedRecord(null);
     setSelectedId(room.id);
     setView("building");
     setPerspective("orbit");
@@ -197,6 +213,9 @@ function Metropolis() {
                 onPerspectiveChange={setPerspective}
                 theme={theme}
                 observedRecords={signedRecords}
+                rainy={rainy}
+                isShowcase={tour}
+                onExitShowcase={stopTour}
                 compactControls
               />
             </Suspense>
@@ -222,6 +241,17 @@ function Metropolis() {
             <small>Independent community atlas</small>
           </span>
         </div>
+        <div className="city-experiences" role="group" aria-label="City experiences">
+          <button disabled={cityUnavailable} aria-pressed={tour} onClick={() => { if (tour) stopTour(); else { setView("city"); setPerspective("orbit"); setFocusedRecord(null); setTour(true); } }}><Play size={14} />{tour ? "Stop tour" : "Take a tour"}</button>
+          <button disabled={cityUnavailable} aria-pressed={rainy} onClick={() => setRainy(!rainy)}><CloudRain size={14} />{rainy ? "Rain on" : "Rain"}</button>
+        </div>
+        {focusedRecord && <section className="message-caption" aria-label="Selected public message">
+          <button className="message-close" aria-label="Close selected message" onClick={() => setFocusedRecord(null)}><X size={15}/></button>
+          <span className="eyebrow">FROM THE PUBLIC RECORD</span><strong>#{focusedRecord.room}</strong>
+          {!rooms.some(room => room.name === focusedRecord.room) && <small>This room is outside the current city index.</small>}
+          <p>{focusedRecord.message.slice(0, 420)}</p><small>{focusedRecord.verificationStatus.replaceAll("_", " ").toLowerCase()}</small>
+          <a href={`https://technocore.chat/r/${encodeURIComponent(focusedRecord.room)}?format=json`} target="_blank" rel="noreferrer">Read original source <ArrowUpRight size={13}/></a>
+        </section>}
         <div className="scene-tools">
           <button
             title="Change scene lighting"
@@ -295,6 +325,7 @@ function Metropolis() {
             />
             <span>/</span>
           </label>
+          <button className="saved-filter" aria-pressed={savedOnly} onClick={() => setSavedOnly(!savedOnly)}><Bookmark size={13}/>{savedOnly ? "Show all rooms" : `Saved rooms (${savedRooms.length})`}</button>
           <div className="room-list">
             {filtered.map((room, index) => (
               <button
@@ -320,7 +351,7 @@ function Metropolis() {
                 {isLiveLoading
                   ? "Reading the public room index…"
                   : rooms.length
-                    ? "No matching room."
+                    ? savedOnly ? "No saved rooms match. Open a room and choose Save room." : "No matching room."
                     : "No rooms available from the public source."}
               </div>
             )}
@@ -328,12 +359,13 @@ function Metropolis() {
           <div className="directory-caption">
             Buildings map to indexed rooms.
             <br />
-            District placement is a visual arrangement.
+            Architecture and district placement are illustrative.
           </div>
           {selected && (
             <div className="room-detail">
               <span className="eyebrow">SELECTED BUILDING</span>
               <h3>#{selected.name}</h3>
+              <button className="save-room" aria-pressed={savedRooms.includes(selected.name)} onClick={() => setSavedRooms(previous => previous.includes(selected.name) ? previous.filter(name => name !== selected.name) : [...previous, selected.name])}><Bookmark size={13}/>{savedRooms.includes(selected.name) ? "Saved on this device" : "Save room"}</button>
               <p>{selected.topic || "No topic published for this room."}</p>
               <dl>
                 <div>
@@ -525,11 +557,15 @@ function Metropolis() {
         </div>
         <div className="event-records">
           {(selected ? records : signedRecords).slice(0, 3).map((record, i) => (
-            <a
+            <button
+              className="record-journey"
+              onClick={() => {
+                const room = rooms.find(room => room.name === record.room);
+                if (room) selectRoom(room);
+                setFocusedRecord(record);
+                document.getElementById("city")?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+              }}
               key={`${record.did}-${record.sequence}-${i}`}
-              href={`https://technocore.chat/r/${encodeURIComponent(record.room)}?format=json`}
-              target="_blank"
-              rel="noreferrer"
             >
               <span>
                 {new Date(record.timestamp).toLocaleTimeString([], {
@@ -541,11 +577,11 @@ function Metropolis() {
                 <strong>#{record.room}</strong>
                 <p>{record.message.slice(0, 140)}</p>
                 <small>
-                  {record.verificationStatus.replaceAll("_", " ").toLowerCase()}
+                  {record.verificationStatus.replaceAll("_", " ").toLowerCase()} · Visit this room
                 </small>
               </div>
               <ArrowUpRight size={16} />
-            </a>
+            </button>
           ))}
           {(selected ? records : signedRecords).length === 0 && (
             <div className="no-records">
@@ -607,7 +643,7 @@ function Metropolis() {
             <p>
               Office workers are a fixed illustrative crew, independent of
               observed DIDs. They are not a verified count of autonomous agents.
-              Cars, parks and the central landmark are scenery. No compute,
+              Cars, the ferry, tram, fountain, gardens and weather are scenery. No compute,
               settlement or token metrics are inferred.
             </p>
             <p>
@@ -616,6 +652,7 @@ function Metropolis() {
               is an independent community project, not an official FLOP Labs
               product.
             </p>
+            <p>Take a tour follows a 32-second route from the waterfront to an illustrative office. Drag to stop the tour. Rain is optional. Saved rooms stay in this browser on this device. Click a public record to visit its room and read the original source.</p>
             <a
               href="https://technocore.chat/rooms?format=json"
               target="_blank"

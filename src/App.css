@@ -553,7 +553,7 @@
   color: var(--muted);
   font-size: 8px;
 }
-.event-records > a {
+.event-records > a, .event-records > .record-journey {
   display: flex;
   align-items: flex-start;
   gap: 18px;
@@ -563,14 +563,14 @@
   color: var(--ink);
   font-size: 11px;
 }
-.event-records > a > span {
+.event-records > a > span, .record-journey > span {
   font:
     10px "Space Mono",
     monospace;
   color: var(--muted);
   padding-top: 3px;
 }
-.event-records > a > div {
+.event-records > a > div, .record-journey > div {
   flex: 1;
   min-width: 0;
 }
@@ -1128,3 +1128,14 @@
 .city-stage:has(.capture-ribbon) .city-plan .webgl-notice { bottom: 190px; }
 
 .scene-dark .city-plan { background: #05080d; }
+
+/* Small, labelled controls for optional city experiences. */
+.city-experiences{position:absolute;z-index:5;top:180px;left:30px;display:flex;gap:8px}
+.city-experiences button,.saved-filter,.save-room{display:inline-flex;align-items:center;gap:7px;border:1px solid #72859b55;border-radius:6px;padding:9px 12px;background:#0a1128e8;color:#eaf2f7;font:11px "Space Mono",monospace;cursor:pointer}
+.city-experiences button[aria-pressed=true],.saved-filter[aria-pressed=true],.save-room[aria-pressed=true]{border-color:#00b4d8;color:#56d5eb;background:#112a3c}
+.city-experiences button:disabled{opacity:.5;cursor:default}.saved-filter{margin:10px 0 8px;padding:7px 10px;font-size:10px}.save-room{padding:7px 9px;font-size:10px;margin:0 0 10px}
+.record-journey{width:100%;background:none;border:0;text-align:left;cursor:pointer}.record-journey:hover strong{color:#36d7e7}
+.message-caption{position:absolute;z-index:6;bottom:135px;left:30px;width:min(370px,calc(100% - 90px));padding:19px;background:#0a1128f5;border:1px solid #52657d;border-radius:8px;box-shadow:0 16px 40px #0005;color:#f5f7fa}
+.message-caption strong{display:block;font:600 17px "Space Mono",monospace;margin:10px 0;overflow-wrap:anywhere}.message-caption p{font-size:12px;line-height:1.7;max-height:160px;overflow:auto;overflow-wrap:anywhere}.message-caption small{color:#a8bdcc;font-size:10px}.message-caption a{display:flex;align-items:center;gap:8px;color:#56d5eb;font-size:11px;margin-top:15px}.message-close{position:absolute;right:10px;top:10px;background:none;border:0;color:inherit;padding:6px;cursor:pointer}
+.scene-light .city-experiences button,.scene-light .saved-filter,.scene-light .save-room{background:#f4f8fbeF;color:#23374a}.scene-light .city-experiences button[aria-pressed=true]{background:#dcecf4;color:#075677}
+@media(max-width:760px){.city-experiences{top:176px;left:20px}.city-experiences button{font-size:10px;padding:9px 10px}.message-caption{left:20px;bottom:140px}.room-detail h3{margin-bottom:10px}}

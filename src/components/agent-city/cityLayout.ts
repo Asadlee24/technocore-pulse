@@ -223,6 +223,15 @@ export function generateCityLayout(rooms: RoomCluster[]): {
       : medium
         ? 12 + seed * 3
         : 6 + seed * 4.5;
+    // Interpret room names only as an architectural theme, never as measured work.
+    const name = room.name.toLowerCase();
+    const themedArchetype: BuildingArchetype | undefined = name === "technocore" ? "skyscraper"
+      : /(^|[-_])(lab|research|probe|benchmark)([-_]|$)/.test(name) ? "research-lab"
+      : /(^|[-_])(gpu|compute|inference|model)([-_]|$)/.test(name) ? "data-center"
+      : /(^|[-_])(tclk|escrow|settlement|offers)([-_]|$)/.test(name) ? "settlement-vault"
+      : /^(lobby|general|web_chat|meta)$/.test(name) ? "social-block"
+      : /^(announcements|pin)$/.test(name) ? "broadcast-hall"
+      : /(^|[-_])(relay|bridge|rpc|routing)([-_]|$)/.test(name) ? "utility-structure" : undefined;
     const b: BuildingLayout = {
       room,
       position: [x, 0, z],
@@ -230,7 +239,7 @@ export function generateCityLayout(rooms: RoomCluster[]): {
       depth: 7.2 + (index % 2) * 0.7,
       height: Math.round(height * 10) / 10,
       district,
-      archetype: high
+      archetype: themedArchetype ?? (high
         ? "skyscraper"
         : medium
           ? "office-tower"
@@ -240,7 +249,7 @@ export function generateCityLayout(rooms: RoomCluster[]): {
               ? "research-lab"
               : index % 5 === 0
               ? "data-center"
-              : "broadcast-hall",
+              : "broadcast-hall"),
       color: "#00B4D8",
       beaconColor: getBeaconColor(room.lastProbeArm),
       windowDensity: 8,

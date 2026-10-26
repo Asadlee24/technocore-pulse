@@ -237,6 +237,26 @@ export class CityBuilding {
       for (const col of [-.46, .46])
         add(this.shell, new THREE.BoxGeometry(.16, split - 2.7, .22), concrete,
           col * w, (split + 2.7) / 2, side * (d / 2 + .1));
+    // Roof gardens and social terraces distinguish public-facing architecture.
+    if (["social-block", "broadcast-hall", "office-tower"].includes(layout.archetype)) {
+      const green = new THREE.MeshStandardMaterial({color: 0x48765c, roughness: .95});
+      const timber = new THREE.MeshStandardMaterial({color: 0x96795b, roughness: .85});
+      add(this.shell,new THREE.BoxGeometry(roofW * .62,.16,roofD * .24),green,roofX,h+.56,-roofD*.29);
+      for (const side of [-1, 1]) {
+        add(this.shell,new THREE.BoxGeometry(.65,.5,.65),concrete,roofX+side*roofW*.3,h+.55,-roofD*.3);
+        add(this.shell,new THREE.IcosahedronGeometry(.45,1),green,roofX+side*roofW*.3,h+1.02,-roofD*.3);
+      }
+      add(this.shell,new THREE.CylinderGeometry(.46,.46,.09,12),timber,roofX+roofW*.25,h+.95,roofD*.23);
+      add(this.shell,new THREE.CylinderGeometry(.05,.08,.6,6),trim,roofX+roofW*.25,h+.65,roofD*.23);
+      for(const side of [-1,1])add(this.shell,new THREE.BoxGeometry(.4,.4,.42),timber,roofX+roofW*.25+side*.7,h+.66,roofD*.23);
+    }
+    if (layout.archetype === "data-center" || layout.archetype === "utility-structure") {
+      for (let i=0;i<3;i++) add(this.shell,new THREE.BoxGeometry(roofW*.58,.16,.16),trim,roofX,h+.85,(i-1)*.45);
+    }
+    if (layout.archetype === "research-lab") {
+      const garden = new THREE.MeshStandardMaterial({color:0x608674,roughness:.9});
+      add(this.shell,new THREE.BoxGeometry(roofW*.25,.26,roofD*.55),garden,roofX+roofW*.32,h+.35,0);
+    }
     // The only strong exterior cyan is a small entrance signal, not a neon outline.
     add(
       this.shell,
@@ -385,7 +405,8 @@ export class CityBuilding {
       if (meshes.length < 2) continue;
       const parts = meshes.map(mesh => {
         mesh.updateMatrix();
-        return mesh.geometry.clone().applyMatrix4(mesh.matrix);
+        const geometry = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone();
+        return geometry.applyMatrix4(mesh.matrix);
       });
       const merged = mergeGeometries(parts, false);
       parts.forEach(part => part.dispose());

@@ -14,6 +14,7 @@ import { AgentWorker } from "./AgentWorker";
 import { MetroLandmark as CityDistrictManager } from "./MetroLandmark";
 import { CityRoads } from "./CityRoads";
 import { CityEnvironment } from "./CityEnvironment";
+import { CityLife } from "./CityLife";
 import { CitySky } from "./CitySky";
 import { ProbePulseSystem } from "./ProbePulseSystem";
 import { CityLODManager, type CameraViewLevel } from "./CityLODManager";
@@ -47,6 +48,7 @@ interface AgentCity3DProps {
     persp: "orbit" | "drone" | "plaza" | "walk" | "building",
   ) => void;
   isShowcase?: boolean;
+  rainy?: boolean;
   onExitShowcase?: () => void;
 }
 
@@ -81,9 +83,20 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   cameraPerspective = "orbit",
   onPerspectiveChange,
   isShowcase = false,
+  rainy = false,
   onExitShowcase,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
+  const rainRef = useRef(rainy);
+  useEffect(() => { rainRef.current = rainy; }, [rainy]);
+  const [tourStep, setTourStep] = useState(0);
+  useEffect(() => {
+    if (!isShowcase) return;
+    setTourStep(0);
+    const started = performance.now();
+    const timer = window.setInterval(() => setTourStep(Math.min(4, Math.floor((performance.now() - started) / 6400))), 500);
+    return () => window.clearInterval(timer);
+  }, [isShowcase]);
 
   // Visual scale state: 'city' | 'building' | 'interior'
   const [internalViewLevel, setInternalViewLevel] =
@@ -180,9 +193,16 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   // Reset showcase timer when showcase mode changes
   useEffect(() => {
     if (isShowcase) {
-      showcaseTimerRef.current = 0;
+      showcaseTimerRef.current = performance.now();
       isIntroRef.current = false;
       setShowIntroBadge(false);
+    } else {
+      buildingsMapRef.current.forEach(building => building.setCutaway(false));
+      if (cameraRef.current && controlsRef.current) {
+        cameraTargetPos.current.copy(INTRO_END_POS.current);
+        cameraTargetLookAt.current.copy(INTRO_END_LOOK.current);
+        isTransitioningRef.current = true;
+      }
     }
   }, [isShowcase]);
 
@@ -570,6 +590,8 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // 5. Foundational Digital Platform & Cyber Flora
     const environment = new CityEnvironment(theme);
     scene.add(environment.group);
+    const civicLife = new CityLife();
+    scene.add(civicLife.group);
 
     // 6. Central Technocore Core Landmark & 8 District Bridges
     const districtMgr = new CityDistrictManager(materials);
@@ -662,6 +684,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 
     // Interrupt any automated sweep or intro when the user touches controls
     controls.addEventListener("start", () => {
+      if (isShowcaseRef.current) onExitShowcaseRef.current?.();
       if (isIntroRef.current) {
         isIntroRef.current = false;
         setShowIntroBadge(false);
@@ -788,52 +811,35 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       const delta = clock.getDelta();
       const time = clock.getElapsedTime();
 
-      // Showcase tour sequence (18 seconds)
+      // Guided city tour. Only illustrative scenery and public room geometry are shown.
       if (isShowcaseRef.current) {
-        showcaseTimerRef.current += delta;
-        const t = showcaseTimerRef.current;
-        if (t < 5) {
-          // 1. Orbit kinetic central landmark
-          const ang = t * 0.45;
-          camera.position.set(
-            Math.cos(ang) * 44,
-            22 + Math.sin(t * 0.4) * 3,
-            Math.sin(ang) * 44,
-          );
-          controlsRef.current?.target.set(0, 10, 0);
-        } else if (t < 10) {
-          // 2. Fly low through district towards first building
-          const b = Array.from(buildingsMapRef.current.values())[0];
-          const bPos = b ? b.layout.position : [20, 0, 20];
-          const pT = Math.min(1, (t - 5) / 5);
-          const ease = pT * (2 - pT);
-          camera.position.lerpVectors(
-            new THREE.Vector3(38, 18, 38),
-            new THREE.Vector3(bPos[0] + 8, 5.5, bPos[2] + 8),
-            ease,
-          );
-          controlsRef.current?.target.lerpVectors(
-            new THREE.Vector3(0, 8, 0),
-            new THREE.Vector3(bPos[0], 2.2, bPos[2]),
-            ease,
-          );
-        } else if (t < 14) {
-          // 3. Open cutaway interior and zoom on workers
-          const b = Array.from(buildingsMapRef.current.values())[0];
-          if (b) {
-            b.setCutaway(true);
-            const bPos = b.layout.position;
-            camera.position.set(bPos[0] + 4.6, 2.1, bPos[2] + 4.6);
-            controlsRef.current?.target.set(bPos[0], 1.1, bPos[2]);
-          }
-        } else if (t < 18) {
-          // 4. Hero skyline pull-back
-          camera.position.lerp(new THREE.Vector3(105, 72, 112), 0.05);
-          controlsRef.current?.target.lerp(new THREE.Vector3(0, 6, 0), 0.05);
-        } else {
-          // End showcase
-          if (onExitShowcaseRef.current) onExitShowcaseRef.current();
-        }
+        const t = (performance.now() - showcaseTimerRef.current) / 1000;
+        const building = Array.from(buildingsMapRef.current.values())[0];
+        const position = building?.layout.position ?? [0, 0, 0];
+        const ease = (v: number) => { const x = THREE.MathUtils.clamp(v, 0, 1); return x * x * (3 - 2 * x); };
+        const move = (a: number[], b: number[], u: number) => camera.position.lerpVectors(new THREE.Vector3(...a), new THREE.Vector3(...b), ease(u));
+        const target = controlsRef.current!.target;
+        if (t < 6.4) {
+          move([116, 20, 126], [98, 15, 108], t / 6.4);
+          target.set(65, 3, 60);
+        } else if (t < 12.8) {
+          const u = ease((t - 6.4) / 6.4);
+          move([98, 15, 108], [27, 17, 31], u);
+          target.lerpVectors(new THREE.Vector3(65, 3, 60), new THREE.Vector3(0, 7, 0), u);
+        } else if (t < 19.2) {
+          const u = ease((t - 12.8) / 6.4);
+          move([27, 17, 31], [position[0] + 10, 7, position[2] + 13], u);
+          target.lerpVectors(new THREE.Vector3(0, 7, 0), new THREE.Vector3(position[0], 3, position[2]), u);
+        } else if (t < 25.6) {
+          if (building) { building.setCutaway(true); building.interior.setFocusedFloor(0); }
+          const u = (t - 19.2) / 6.4;
+          move([position[0] + 10, 7, position[2] + 13], [position[0] + 5, 3.2, position[2] + 8], u);
+          target.set(position[0], 1.2, position[2]);
+        } else if (t < 32) {
+          const u = ease((t - 25.6) / 6.4);
+          move([position[0] + 5, 3.2, position[2] + 8], INTRO_END_POS.current.toArray(), u);
+          target.lerpVectors(new THREE.Vector3(position[0], 1.2, position[2]), INTRO_END_LOOK.current, u);
+        } else onExitShowcaseRef.current?.();
         controlsRef.current?.update();
       } else if (isIntroRef.current) {
         introProgressRef.current += delta;
@@ -958,6 +964,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       );
       pulseSystem.update(delta);
       environment.update(time);
+      civicLife.update(lodManagerRef.current.config.prefersReducedMotion ? 0 : time, rainRef.current);
       sky.update(lodManagerRef.current.config.prefersReducedMotion ? 0 : time, camera);
       roads.update(
         lodManagerRef.current.config.prefersReducedMotion ? 0 : time,
@@ -1005,6 +1012,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       districtMgr.dispose();
       roads.dispose();
       environment.dispose();
+      civicLife.dispose();
       sky.dispose();
       disposeCityMaterials(materials);
 
@@ -1059,10 +1067,10 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
         <div className="absolute top-5 left-1/2 -translate-x-1/2 z-30 flex items-center space-x-3 px-4 py-2 rounded-full bg-[#0B1320]/95 border border-[#36D7E7]/60 text-[#36D7E7] font-mono text-xs backdrop-blur-xl shadow-2xl shadow-[#36D7E7]/20">
           <span className="w-2.5 h-2.5 rounded-full bg-[#36D7E7] animate-ping" />
           <span className="font-bold tracking-wider uppercase text-white">
-            SHOWCASE DEMONSTRATION
+            {["01 / Waterfront arrival", "02 / FLOP Central Plaza", "03 / Room architecture", "04 / Inside the workspace", "05 / City skyline"][tourStep]}
           </span>
           <span className="text-[#95A4B8] text-[11px] hidden sm:inline">
-            (Automated 18s Tour)
+            32-second guided tour
           </span>
           {onExitShowcase && (
             <button
