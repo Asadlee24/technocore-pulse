@@ -42,6 +42,8 @@ interface DataContextType {
   isLiveLoading: boolean;
   liveError: string | null;
   liveRooms: TechnocoreRoomSummary[];
+  indexReceivedAt: string | null;
+  roomSamples: Record<string, { receivedAt: string; messageCount: number }>;
   activeRuns: ProbeRun[];
   activeStats: LiveObservationStats;
   activeRoomClusters: RoomCluster[];
@@ -67,6 +69,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [ephemeralDepth, setEphemeralDepth] = useState<number>(0);
   const [uniqueLiveDids, setUniqueLiveDids] = useState<number>(0);
 
+  const [indexReceivedAt, setIndexReceivedAt] = useState<string | null>(null);
+  const [roomSamples, setRoomSamples] = useState<Record<string, { receivedAt: string; messageCount: number }>>({});
+
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchLiveObservations = useCallback(async () => {
@@ -88,7 +93,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       // 1. Fetch public rooms directly from Technocore
       const roomsData = await fetchPublicRooms(abortController.signal);
+      if (abortController.signal.aborted) return;
       const roomsList = roomsData.rooms || [];
+      setIndexReceivedAt(new Date().toISOString());
+      setRoomSamples({});
       setLiveRooms(roomsList);
 
       if (roomsList.length === 0) {
@@ -111,6 +119,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         3,
         abortController.signal
       );
+
+      if (abortController.signal.aborted) return;
+      const receivedAt = new Date().toISOString();
+      setRoomSamples(Object.fromEntries([...roomSamples].map(([room, messages]) => [room, { receivedAt, messageCount: messages.length }])));
 
       const explicitProbes: { probe: ParsedProbe; roomMessages: any[] }[] = [];
       const generalRuns: { probe: ParsedProbe; roomMessages: any[] }[] = [];
@@ -177,6 +189,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         })
       );
 
+      if (abortController.signal.aborted) return;
       // Sort newest first
       verifiedList.sort((a, b) => b.timestamp - a.timestamp);
       setLiveSignedRecords(verifiedList);
@@ -197,7 +210,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       calculatedRuns.sort((a, b) => b.timestamp - a.timestamp);
 
       setLiveDetectedRuns(calculatedRuns);
-      setObserverHealth('LIVE');
+      setObserverHealth(roomSamples.size < topCandidateRooms.length ? 'STALE' : 'LIVE');
+      if (roomSamples.size < topCandidateRooms.length) setLiveError(`Room index loaded; ${roomSamples.size} of ${topCandidateRooms.length} room samples succeeded. Unsampled activity is unknown.`);
     } catch (err: any) {
       if (err.name === 'AbortError') return;
 
@@ -208,7 +222,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       setLiveError(err?.message || 'Unable to connect to live Technocore public API.');
     } finally {
-      setIsLiveLoading(false);
+      if (abortControllerRef.current === abortController) setIsLiveLoading(false);
     }
   }, [dataMode]);
 
@@ -465,6 +479,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLiveLoading,
         liveError,
         liveRooms,
+        indexReceivedAt,
+        roomSamples,
         activeRuns: dataMode === 'DEMO' ? DEMO_RUNS : liveDetectedRuns,
         activeStats,
         activeRoomClusters,
