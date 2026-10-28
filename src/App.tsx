@@ -19,6 +19,8 @@ import {
   X,
 } from "lucide-react";
 import { DataProvider, useData } from "./context/DataContext";
+import { RoomExplorer } from "./components/RoomExplorer";
+import { roomFromHash } from "./data/explorer";
 import { CityBoundary } from "./components/CityBoundary";
 const AgentCity3D = lazy(() =>
   import("./components/agent-city/AgentCity3D").then((m) => ({
@@ -70,7 +72,13 @@ function Metropolis() {
     return [...sourceRooms].sort((a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name));
   }, [sourceRooms]);
   const signedRecords = snapshotMode ? [] : liveSignedRecords;
-  const [selectedId, setSelectedId] = useState("");
+  const [selectedName, setSelectedName] = useState(() => roomFromHash(window.location.hash));
+  const [quality, setQuality] = useState<"smooth"|"balanced"|"high">(() => {try {const value=localStorage.getItem("technocore-city:quality:v1");return value==="smooth"||value==="high"?value:"balanced";}catch{return "balanced";}});
+  const [motionPaused,setMotionPaused]=useState(()=>window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  const [photoMode,setPhotoMode]=useState(false);
+  useEffect(()=>{const update=()=>setSelectedName(roomFromHash(window.location.hash));window.addEventListener("hashchange",update);return()=>window.removeEventListener("hashchange",update);},[]);
+  useEffect(()=>{try{localStorage.setItem("technocore-city:quality:v1",quality);}catch{/* Optional preference. */}},[quality]);
+  useEffect(()=>{if(!photoMode)return;const exit=(e:KeyboardEvent)=>{if(e.key==="Escape")setPhotoMode(false);};window.addEventListener("keydown",exit);return()=>window.removeEventListener("keydown",exit);},[photoMode]);
   const [view, setView] = useState<CameraViewLevel>("city");
   const [perspective, setPerspective] = useState<
     "orbit" | "drone" | "plaza" | "walk" | "building"
@@ -118,7 +126,7 @@ function Metropolis() {
       guideTrigger.current?.focus();
     };
   }, [showInfo]);
-  const selected = rooms.find((r) => r.id === selectedId) ?? rooms[0];
+  const selected = rooms.find((r) => r.name === selectedName) ?? (selectedName ? undefined : rooms[0]);
   const filtered = useMemo(
     () =>
       rooms.filter((r) =>
@@ -131,7 +139,8 @@ function Metropolis() {
   const selectRoom = (room: RoomCluster) => {
     setTour(false);
     setFocusedRecord(null);
-    setSelectedId(room.id);
+    setSelectedName(room.name);
+    window.history.pushState(null,"", "#"+new URLSearchParams({room:room.name}).toString());
     setView("building");
     setPerspective("orbit");
     setShowDirectory(false);
@@ -151,7 +160,8 @@ function Metropolis() {
   ).size;
 
   return (
-    <div className="metropolis">
+    <div className={`metropolis ${photoMode ? "photo-mode" : ""}`}>
+      {photoMode && <button className="exit-photo" onClick={()=>setPhotoMode(false)}>Exit photo mode · Esc</button>}
       <header className="masthead">
         <a
           className="flop-brand"
@@ -212,7 +222,9 @@ function Metropolis() {
             >
               <AgentCity3D
                 activeRoomClusters={rooms}
-                selectedRoom={selected}
+                selectedRoom={selected ?? rooms[0]}
+                quality={quality}
+                motionPaused={motionPaused}
                 onSelectRoom={selectRoom}
                 onOpenBuildingSheet={selectRoom}
                 viewLevel={view}
@@ -251,6 +263,8 @@ function Metropolis() {
           </span>
         </div>
         <div className="city-experiences" role="group" aria-label="City experiences">
+          <button aria-pressed={motionPaused} onClick={()=>{setMotionPaused(!motionPaused);setTour(false);}}>{motionPaused?"Resume motion":"Pause motion"}</button>
+          <button disabled={cityUnavailable} onClick={()=>{setPhotoMode(true);setTour(false);}}>Photo mode</button>
           <button disabled={cityUnavailable} aria-pressed={tour} onClick={() => { if (tour) stopTour(); else { setView("city"); setPerspective("orbit"); setFocusedRecord(null); setTour(true); } }}><Play size={14} />{tour ? "Stop tour" : "Take a tour"}</button>
           <button disabled={cityUnavailable} aria-pressed={rainy} onClick={() => setRainy(!rainy)}><CloudRain size={14} />{rainy ? "Rain on" : "Rain"}</button>
         </div>
@@ -334,6 +348,7 @@ function Metropolis() {
             />
             <span>/</span>
           </label>
+          <label className="quality-control">Render quality<select aria-label="Render quality" value={quality} onChange={e=>setQuality(e.target.value as typeof quality)}><option value="smooth">Smooth · lower GPU load</option><option value="balanced">Balanced</option><option value="high">High · sharper, heavier</option></select></label>
           <button className="saved-filter" aria-pressed={savedOnly} onClick={() => setSavedOnly(!savedOnly)}><Bookmark size={13}/>{savedOnly ? "Show all rooms" : `Saved rooms (${savedRooms.length})`}</button>
           <div className="room-list">
             {filtered.map((room, index) => (
@@ -399,6 +414,7 @@ function Metropolis() {
                 {selectedSummary && <span>Latest indexed sequence: {selectedSummary.last_seq.toLocaleString()}</span>}
                 <small>Signed identities are not a count of people or autonomous agents. Empty samples do not prove inactivity.</small>
               </div>
+              <button className="conversation-link" onClick={()=>document.getElementById("explorer")?.scrollIntoView({behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"})}>Read messages in City <ArrowDown size={15}/></button>
               <a className="conversation-link" href={`https://technocore.chat/humans#r/${encodeURIComponent(selected.name)}`} target="_blank" rel="noreferrer">Open conversation <ArrowUpRight size={15}/></a>
               <button
                 className="interior-link"
@@ -564,6 +580,7 @@ function Metropolis() {
           may be stale.
         </div>
       )}
+      <RoomExplorer room={selectedName || selected?.name} observed={liveSignedRecords} captured={snapshotMode} indexed={!!selected}/>
       <section className="field-notes">
         <div>
           <span className="eyebrow">FROM THE PUBLIC RECORD</span>

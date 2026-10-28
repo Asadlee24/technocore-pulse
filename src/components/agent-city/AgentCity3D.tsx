@@ -36,6 +36,8 @@ interface AgentCity3DProps {
   activeRoomClusters: RoomCluster[];
   observedRecords?: SignedRecord[];
   compactControls?: boolean;
+  quality?: "smooth" | "balanced" | "high";
+  motionPaused?: boolean;
   selectedRoom: RoomCluster;
   onSelectRoom: (room: RoomCluster) => void;
   onOpenBuildingSheet?: (room: RoomCluster) => void;
@@ -73,6 +75,8 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   activeRoomClusters,
   observedRecords = [],
   compactControls = false,
+  quality = "balanced",
+  motionPaused = false,
   selectedRoom,
   onSelectRoom,
   onOpenBuildingSheet,
@@ -89,6 +93,8 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const rainRef = useRef(rainy);
+  const motionPausedRef = useRef(motionPaused);
+  useEffect(()=>{motionPausedRef.current=motionPaused;},[motionPaused]);
   useEffect(() => { rainRef.current = rainy; }, [rainy]);
   const [tourStep, setTourStep] = useState(0);
   useEffect(() => {
@@ -561,19 +567,19 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     const isMobileDevice =
       typeof window !== "undefined" && window.innerWidth <= 768;
     const renderer = new THREE.WebGLRenderer({
-      antialias: true,
+      antialias: quality !== "smooth",
       alpha: true,
       preserveDrawingBuffer: false,
       powerPreference: "high-performance",
     });
     renderer.setSize(width, height);
     renderer.setPixelRatio(
-      Math.min(window.devicePixelRatio, isMobileDevice ? 1.8 : 2),
+      Math.min(window.devicePixelRatio, quality === "smooth" ? 1 : quality === "high" ? 2 : isMobileDevice ? 1.5 : 1.75),
     );
     renderer.setClearColor(isLight ? 0xf5f7fa : 0x05080d, 1);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = isLight ? 1.15 : 1.28;
-    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.enabled = quality !== "smooth";
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     rendererRef.current = renderer;
     // Procedural reflection capture gives glass and metal a material response
@@ -661,7 +667,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     );
     moonLight.position.set(-47, 70, -87.5);
     moonLight.castShadow = true;
-    moonLight.shadow.mapSize.set(2048, 2048);
+    moonLight.shadow.mapSize.set(quality === "high" ? 2048 : 1024, quality === "high" ? 2048 : 1024);
     moonLight.shadow.camera.left = -75;
     moonLight.shadow.camera.right = 75;
     moonLight.shadow.camera.top = 75;
@@ -814,11 +820,13 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // 12. Animation Loop (60 FPS)
     let animationFrameId: number;
     let clock = new THREE.Clock();
+    let sceneryTime = 0;
 
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
       const delta = clock.getDelta();
       const time = clock.getElapsedTime();
+      if (!motionPausedRef.current) sceneryTime += delta;
 
       // Guided city tour. Only illustrative scenery and public room geometry are shown.
       if (isShowcaseRef.current) {
@@ -960,7 +968,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
         // Update OrbitControls with damping and auto-rotate
         if (controlsRef.current) {
           controlsRef.current.autoRotate =
-            isAutoRotateRef.current &&
+            isAutoRotateRef.current && !motionPausedRef.current &&
             viewLevelRef.current === "city" &&
             cameraPerspectiveRef.current === "orbit";
           controlsRef.current.update();
@@ -969,21 +977,21 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 
       // Update Sub-systems
       districtMgr.update(
-        lodManagerRef.current.config.prefersReducedMotion ? 0 : time,
+        lodManagerRef.current.config.prefersReducedMotion ? 0 : sceneryTime,
       );
-      pulseSystem.update(delta);
-      environment.update(time);
-      civicLife.update(lodManagerRef.current.config.prefersReducedMotion ? 0 : time, rainRef.current);
-      sky.update(lodManagerRef.current.config.prefersReducedMotion ? 0 : time, camera, rainRef.current);
+      pulseSystem.update(motionPausedRef.current ? 0 : delta);
+      environment.update(sceneryTime);
+      civicLife.update(lodManagerRef.current.config.prefersReducedMotion ? 0 : sceneryTime, rainRef.current);
+      sky.update(lodManagerRef.current.config.prefersReducedMotion ? 0 : sceneryTime, camera, rainRef.current);
       roads.update(
-        lodManagerRef.current.config.prefersReducedMotion ? 0 : time,
+        lodManagerRef.current.config.prefersReducedMotion ? 0 : sceneryTime,
       );
 
       // Update individual buildings & interiors
       const currentActiveId = activeRoomRef.current.id;
       buildingsMapRef.current.forEach((bObj) => {
         bObj.update(
-          lodManagerRef.current.config.prefersReducedMotion ? 0 : time,
+          lodManagerRef.current.config.prefersReducedMotion ? 0 : sceneryTime,
           bObj.layout.room.id === currentActiveId,
         );
       });
@@ -1040,7 +1048,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       reflectionTarget.dispose();
       renderer.dispose();
     };
-  }, [switchCameraToBuilding, theme, topologyKey]);
+  }, [switchCameraToBuilding, theme, topologyKey, quality]);
 
   const isLight = theme === "light";
 
