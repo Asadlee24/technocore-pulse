@@ -78,6 +78,16 @@ try {
     });
   assert.deepEqual(loads, ["/brand/flop-lockup-on-dark.png"]);
   assert.equal(pavilion.group.userData.isScenery, true);
+  pavilion.group.updateMatrixWorld(true);
+  const landmarkBounds = new THREE.Box3().setFromObject(pavilion.group);
+  assert.ok(landmarkBounds.max.y > 30, "Central landmark rises above the room-building skyline");
+  assert.ok(Math.max(Math.abs(landmarkBounds.min.x),Math.abs(landmarkBounds.max.x),Math.abs(landmarkBounds.min.z),Math.abs(landmarkBounds.max.z)) < 8.3, "Landmark fits inside the reserved plaza without blocking traffic");
+  const logos=pavilion.group.children.filter(o=>o.name==="flop-landmark-logo");
+  assert.equal(logos.length,4,"FLOP branding is readable from all four approach directions");
+  for(const logo of logos) assert.equal(logo.geometry.parameters.width/logo.geometry.parameters.height,2,"Original logo aspect ratio is preserved");
+  assert.ok(pavilion.group.getObjectByName("landmark-entrance-canopy"));
+  assert.ok(pavilion.group.getObjectByName("landmark-community-inscription"));
+  assert.ok(pavilion.group.children.length<25,"Landmark detail is batched rather than hundreds of draw calls");
   assert.equal(roads.group.userData.isScenery, true);
   const vehicle = roads.group.children.find((o) => o.isInstancedMesh);
   const before = Array.from(vehicle.instanceMatrix.array);
