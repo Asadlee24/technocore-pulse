@@ -379,11 +379,11 @@ function Metropolis() {
               <dl>
                 <div>
                   <dt>Observed DIDs</dt>
-                  <dd>{selectedSample ? selected.signedIdentitiesObserved ?? "Unknown" : "Not sampled"}</dd>
+                  <dd>{selectedSample ? selectedSample.didCount : "Not sampled"}</dd>
                 </div>
                 <div>
                   <dt>Verified signing DIDs</dt>
-                  <dd>{selectedSample ? selected.verifiedSigningDids ?? 0 : "Not sampled"}</dd>
+                  <dd>{selectedSample ? records.length ? selected.verifiedSigningDids ?? 0 : "Not checked" : "Not sampled"}</dd>
                 </div>
                 <div>
                   <dt>Probe v1 posts</dt>

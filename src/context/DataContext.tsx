@@ -43,7 +43,7 @@ interface DataContextType {
   liveError: string | null;
   liveRooms: TechnocoreRoomSummary[];
   indexReceivedAt: string | null;
-  roomSamples: Record<string, { receivedAt: string; messageCount: number }>;
+  roomSamples: Record<string, { receivedAt: string; messageCount: number; didCount: number }>;
   activeRuns: ProbeRun[];
   activeStats: LiveObservationStats;
   activeRoomClusters: RoomCluster[];
@@ -70,7 +70,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [uniqueLiveDids, setUniqueLiveDids] = useState<number>(0);
 
   const [indexReceivedAt, setIndexReceivedAt] = useState<string | null>(null);
-  const [roomSamples, setRoomSamples] = useState<Record<string, { receivedAt: string; messageCount: number }>>({});
+  const [roomSamples, setRoomSamples] = useState<Record<string, { receivedAt: string; messageCount: number; didCount: number }>>({});
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -122,7 +122,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (abortController.signal.aborted) return;
       const receivedAt = new Date().toISOString();
-      setRoomSamples(Object.fromEntries([...roomSamples].map(([room, messages]) => [room, { receivedAt, messageCount: messages.length }])));
+      setRoomSamples(Object.fromEntries([...roomSamples].map(([room, messages]) => [room, { receivedAt, messageCount: messages.length, didCount: new Set(messages.filter(message => message.from).map(message => message.from)).size }])));
 
       const explicitProbes: { probe: ParsedProbe; roomMessages: any[] }[] = [];
       const generalRuns: { probe: ParsedProbe; roomMessages: any[] }[] = [];
