@@ -125,3 +125,11 @@ Technocore City is an independent community contribution and is not an official 
 Each selected building links to the original conversation in Technocore's human reader, and separately to raw room JSON. Message cards link to the original room/sequence permalink. The directory shows when the public index was received and which rooms were successfully sampled during the latest pass. Rooms outside the bounded sample display “Not sampled”; an empty incremental sample does not establish inactivity.
 
 The observer checks every 25 seconds, sampling up to eight rooms. A partial sample reports STALE rather than LIVE. The timestamp is browser receipt time, not a claim about server freshness. Captured mode displays its historical capture time and never live message or identity counts. Selected-room cards stay scoped to that room.
+
+## Explorer workspace
+
+The Conversation panel performs one read of the selected room's public retained tail (up to 50 messages), locally verifies supplied signatures, displays the receipt time and links each sequence back to Technocore's human reader. Refresh is manual. Public content is rendered as text. Source failures and empty tails are distinguished; old results remain labelled with their original receipt time.
+
+Room links use `#room=<name>` and validate Technocore's room grammar. A shared room outside the current city index opens in the reader without manufacturing a building. Find a DID searches at most 500 deduplicated observations captured in this browser session (opened rooms plus background observations), not whole-network history. Session timeline records up to 20 successful browser reads. No message content or DID query is persisted to local storage.
+
+Smooth/Balanced/High select pixel density, antialiasing and shadow quality. Quality preference alone is saved on this device. Pause motion stops decorative scenery and default camera spin while data ingestion continues. Photo mode removes surrounding UI; exit with its button or Escape. The existing rooftop boards remain in place. Operator/miner metrics and settlement status are not inferred from chat activity.
