@@ -122,7 +122,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (abortController.signal.aborted) return;
       const receivedAt = new Date().toISOString();
-      setRoomSamples(Object.fromEntries([...roomSamples].map(([room, messages]) => [room, { receivedAt, messageCount: messages.length, didCount: new Set(messages.filter(message => message.from).map(message => message.from)).size }])));
+      setRoomSamples(Object.fromEntries([...roomSamples].map(([room, messages]) => [room, { receivedAt, messageCount: messages.length, didCount: new Set(messages.filter(message => message.from?.startsWith("did:key:")).map(message => message.from)).size }])));
 
       const explicitProbes: { probe: ParsedProbe; roomMessages: any[] }[] = [];
       const generalRuns: { probe: ParsedProbe; roomMessages: any[] }[] = [];
@@ -136,7 +136,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       roomSamples.forEach((messages, roomName) => {
         totalFetchedMsgs += messages.length;
         messages.forEach((m) => {
-          if (m.from) allDids.add(m.from);
+          if (m.from?.startsWith("did:key:")) allDids.add(m.from);
           const parsed = parseProbeMessage(m, roomName);
           if (parsed) {
             if (parsed.isProbe) {
@@ -283,7 +283,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const roomDids = new Set<string>();
       matchingRuns.forEach(run => {
         run.observedMessages.forEach(m => {
-          if (m.senderDid) roomDids.add(m.senderDid);
+          if (m.senderDid?.startsWith("did:key:")) roomDids.add(m.senderDid);
         });
       });
 
