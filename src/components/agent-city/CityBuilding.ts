@@ -377,19 +377,16 @@ export class CityBuilding {
     this.shell.add(this.windows);
     this.paintWindows();
     this.labelCanvas = document.createElement("canvas");
-    this.labelCanvas.width = 1024;
-    this.labelCanvas.height = 224;
+    this.labelCanvas.width = 2048;
+    this.labelCanvas.height = 448;
     this.labelTexture = new THREE.CanvasTexture(this.labelCanvas);
     this.labelTexture.colorSpace = THREE.SRGBColorSpace;
-    this.labelTexture.anisotropy = 4;
+    this.labelTexture.anisotropy = 8;
     // Exactly one rooftop identifier per building, readable from any orbit angle.
     const rooftop = new THREE.Sprite(new THREE.SpriteMaterial({
       map: this.labelTexture, toneMapped: false, depthTest: true, depthWrite: false,
     }));
     rooftop.name = "rooftop-room-name";
-    // Native projected labels replace minified billboard text. Keep the physical sign
-    // as the anchor used by the existing scene and source-mapping checks.
-    rooftop.visible = false;
     const signWidth = Math.min(8.4, Math.max(7.2, roofW));
     const signHeight = signWidth * 224 / 1024;
     // Keep the whole camera-facing plate above the service core and parapet.
@@ -408,7 +405,6 @@ export class CityBuilding {
         0,
       );
       support.name = "rooftop-sign-support";
-      support.visible = false;
     }
     this.shell.add(rooftop);
     this.paintLabel();
@@ -481,6 +477,7 @@ export class CityBuilding {
   private paintLabel() {
     const c = this.labelCanvas.getContext("2d");
     if (!c) return;
+    c.setTransform(2, 0, 0, 2, 0, 0);
     c.clearRect(0, 0, 1024, 224);
     c.beginPath();
     c.roundRect(4, 4, 1016, 216, 26);

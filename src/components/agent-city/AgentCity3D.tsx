@@ -9,7 +9,6 @@ import {
   disposeCityMaterials,
   type CityMaterials,
 } from "./cityMaterials";
-import { CityRoomLabels } from "./CityRoomLabels";
 import { CityBuilding } from "./CityBuilding";
 import { AgentDeskFactory } from "./AgentDesk";
 import { AgentWorker } from "./AgentWorker";
@@ -588,7 +587,6 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 
     container.innerHTML = "";
     container.appendChild(renderer.domElement);
-    const roomLabels = new CityRoomLabels(container);
 
     // 4. Shared Materials & Pulse System
     const materials = createCityMaterials(theme);
@@ -990,7 +988,6 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
         );
       });
 
-      roomLabels.update(buildingsMapRef.current,camera,container.clientWidth,container.clientHeight,currentActiveId,time);
       renderer.render(scene, camera);
     };
 
@@ -1041,7 +1038,6 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
         container.removeChild(renderer.domElement);
       }
       reflectionTarget.dispose();
-      roomLabels.dispose();
       renderer.dispose();
     };
   }, [switchCameraToBuilding, theme, topologyKey]);
