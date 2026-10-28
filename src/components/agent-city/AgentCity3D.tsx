@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import * as THREE from "three";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { SignedRecord, RoomCluster } from "../../types/probe";
 import { generateCityLayout, type BuildingLayout } from "./cityLayout";
@@ -8,6 +9,7 @@ import {
   disposeCityMaterials,
   type CityMaterials,
 } from "./cityMaterials";
+import { CityRoomLabels } from "./CityRoomLabels";
 import { CityBuilding } from "./CityBuilding";
 import { AgentDeskFactory } from "./AgentDesk";
 import { AgentWorker } from "./AgentWorker";
@@ -567,7 +569,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     });
     renderer.setSize(width, height);
     renderer.setPixelRatio(
-      Math.min(window.devicePixelRatio, isMobileDevice ? 1.35 : 1.75),
+      Math.min(window.devicePixelRatio, isMobileDevice ? 1.8 : 2),
     );
     renderer.setClearColor(isLight ? 0xf5f7fa : 0x05080d, 1);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -575,9 +577,18 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     rendererRef.current = renderer;
+    // Procedural reflection capture gives glass and metal a material response
+    // without downloading a heavy HDR sky texture.
+    const reflectionGenerator = new THREE.PMREMGenerator(renderer);
+    const reflectionStudio = new RoomEnvironment();
+    const reflectionTarget = reflectionGenerator.fromScene(reflectionStudio,.04);
+    scene.environment = reflectionTarget.texture;
+    scene.environmentIntensity = isLight ? .38 : .18;
+    reflectionStudio.dispose();reflectionGenerator.dispose();
 
     container.innerHTML = "";
     container.appendChild(renderer.domElement);
+    const roomLabels = new CityRoomLabels(container);
 
     // 4. Shared Materials & Pulse System
     const materials = createCityMaterials(theme);
@@ -979,6 +990,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
         );
       });
 
+      roomLabels.update(buildingsMapRef.current,camera,container.clientWidth,container.clientHeight,currentActiveId,time);
       renderer.render(scene, camera);
     };
 
@@ -1028,6 +1040,8 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       ) {
         container.removeChild(renderer.domElement);
       }
+      reflectionTarget.dispose();
+      roomLabels.dispose();
       renderer.dispose();
     };
   }, [switchCameraToBuilding, theme, topologyKey]);

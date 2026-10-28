@@ -328,6 +328,12 @@ export class CityBuilding {
         sill.rotation.y=reveal.rotation.y;
       }
     }
+    const contact = new THREE.Mesh(new THREE.PlaneGeometry(w*1.62,d*1.62),new THREE.ShaderMaterial({
+      transparent:true,depthWrite:false,
+      vertexShader:`varying vec2 shadowUv;void main(){shadowUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+      fragmentShader:`varying vec2 shadowUv;void main(){float edge=max(abs(shadowUv.x-.5),abs(shadowUv.y-.5));float shade=(1.-smoothstep(.27,.5,edge))*.28;gl_FragColor=vec4(.025,.035,.045,shade);}`,
+    }));
+    contact.name="architectural-contact-shadow";contact.rotation.x=-Math.PI/2;contact.position.y=.023;this.group.add(contact);
     this.group.add(this.shell);
 
     const rows = Math.max(1, Math.floor((h - 3.1) / 2.4));
@@ -381,6 +387,9 @@ export class CityBuilding {
       map: this.labelTexture, toneMapped: false, depthTest: true, depthWrite: false,
     }));
     rooftop.name = "rooftop-room-name";
+    // Native projected labels replace minified billboard text. Keep the physical sign
+    // as the anchor used by the existing scene and source-mapping checks.
+    rooftop.visible = false;
     const signWidth = Math.min(8.4, Math.max(7.2, roofW));
     const signHeight = signWidth * 224 / 1024;
     // Keep the whole camera-facing plate above the service core and parapet.
@@ -399,6 +408,7 @@ export class CityBuilding {
         0,
       );
       support.name = "rooftop-sign-support";
+      support.visible = false;
     }
     this.shell.add(rooftop);
     this.paintLabel();
