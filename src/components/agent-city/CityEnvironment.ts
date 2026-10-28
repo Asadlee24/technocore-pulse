@@ -11,12 +11,12 @@ export class CityEnvironment {
     this.group.name = "waterfront-city-landscape";
     this.group.userData.isScenery = true;
     const ground = new THREE.MeshStandardMaterial({
-      color: light ? 0xb8c6d3 : 0x1b222b,
+      color: light ? 0xb7b3a4 : 0x22292b,
       roughness: 0.88,
       metalness: 0.08,
     });
     const stone = new THREE.MeshStandardMaterial({
-      color: light ? 0xe0e8ef : 0x505963,
+      color: light ? 0xd8d0be : 0x59605e,
       roughness: 0.8,
     });
     const navy = new THREE.MeshStandardMaterial({
@@ -142,9 +142,9 @@ export class CityEnvironment {
       roughness: 0.95,
     });
     const stemGeo = new THREE.CylinderGeometry(0.08, 0.1, 1.25, 6),
-      canopyGeo = new THREE.IcosahedronGeometry(0.7, 1);
+      canopyGeo = new THREE.IcosahedronGeometry(0.7, 2);
     const stems = new THREE.InstancedMesh(stemGeo, trunk, 160),
-      canopies = new THREE.InstancedMesh(canopyGeo, foliage, 160);
+      canopies = new THREE.InstancedMesh(canopyGeo, foliage, 480);
     const dummy = new THREE.Object3D();
     for (let i = 0; i < 160; i++) {
       const angle = (i / 64) * Math.PI * 2,
@@ -160,10 +160,14 @@ export class CityEnvironment {
       dummy.scale.set(1, 1, 1);
       dummy.updateMatrix();
       stems.setMatrixAt(i, dummy.matrix);
-      dummy.position.y = 1.75;
-      dummy.scale.set(1.2, 1.6, 1.2);
-      dummy.updateMatrix();
-      canopies.setMatrixAt(i, dummy.matrix);
+      const variation = .85 + Math.abs(Math.sin(i*2.17))*.4;
+      for(let crown=0;crown<3;crown++) {
+        const angle=crown*Math.PI*2/3+i*.63;
+        dummy.position.set(x+Math.cos(angle)*.37,1.8+(crown===1?.38:0),z+Math.sin(angle)*.37);
+        dummy.scale.set(variation,variation*1.18,variation);
+        dummy.updateMatrix();canopies.setMatrixAt(i*3+crown,dummy.matrix);
+        canopies.setColorAt(i*3+crown,new THREE.Color().setHSL(.28+(i%5)*.014,.19+(i%3)*.04,light?.28+(i%4)*.025:.19+(i%4)*.018));
+      }
     }
     stems.castShadow = true;
     canopies.castShadow = true;

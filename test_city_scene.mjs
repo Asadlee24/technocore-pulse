@@ -48,9 +48,9 @@ THREE.TextureLoader.prototype.load = function (url) {
 mkdirSync("node_modules/.tmp", { recursive: true });
 const tmp = mkdtempSync(resolve("node_modules/.tmp/city-scene-"));
 try {
-  for (const name of ["CityEnvironment", "CityRoads", "MetroLandmark"])
+  for (const name of ["CityEnvironment", "CityRoads", "MetroLandmark", "streetMotion"])
     writeFileSync(
-      `${tmp}/${name}.mjs`,
+      `${tmp}/${name === "streetMotion" ? "streetMotion.js" : name + ".mjs"}`,
       ts.transpileModule(
         readFileSync(`src/components/agent-city/${name}.ts`, "utf8"),
         {
@@ -81,6 +81,8 @@ try {
   assert.equal(roads.group.userData.isScenery, true);
   const vehicle = roads.group.children.find((o) => o.isInstancedMesh);
   const before = Array.from(vehicle.instanceMatrix.array);
+  assert.ok(roads.group.children.filter(o => o.isMesh && !o.isInstancedMesh).length < 20, "Street geometry is batched by material, not one draw per stripe");
+  assert.ok(roads.group.getObjectByName("vehicle-tail-lights"));
   roads.update(2);
   assert.notDeepEqual(
     Array.from(vehicle.instanceMatrix.array),
