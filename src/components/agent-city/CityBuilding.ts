@@ -65,6 +65,12 @@ export class CityBuilding {
       return m;
     };
     const { width: w, depth: d, height: h } = layout;
+    const masonry = ["social-block", "broadcast-hall", "settlement-vault", "research-lab"].includes(layout.archetype);
+    const wall = new THREE.MeshStandardMaterial({
+      color: layout.archetype === "social-block" ? 0x99715b : layout.archetype === "broadcast-hall" ? 0xc2ae8e : layout.archetype === "settlement-vault" ? 0x8b9797 : 0xb8c1b6,
+      roughness: .94, metalness: .025,
+    });
+    const frame = new THREE.MeshStandardMaterial({color: 0x394950, roughness:.65, metalness:.3});
     add(
       this.group,
       new THREE.BoxGeometry(w * 1.3, 0.2, d * 1.3),
@@ -116,7 +122,7 @@ export class CityBuilding {
     add(
       this.shell,
       new THREE.BoxGeometry(w, split - 2.7, d),
-      layout.archetype === "social-block" || layout.archetype === "broadcast-hall" ? concrete : glass,
+      masonry ? wall : glass,
       0,
       (split + 2.7) / 2,
       0,
@@ -298,12 +304,36 @@ export class CityBuilding {
           d * 0.53 + 0.7,
         );
     }
+    // Recessed entrances, doors, clerestory mullions and a tactile masonry base.
+    const entrance = new THREE.MeshStandardMaterial({color:0x172d37,roughness:.22,metalness:.35});
+    const brass = new THREE.MeshStandardMaterial({color:0xaa9270,roughness:.4,metalness:.7});
+    add(this.shell,new THREE.BoxGeometry(w*.23,1.88,.12),entrance,0,1.15,d*.53+.02);
+    for (const side of [-1,1]) {
+      add(this.shell,new THREE.BoxGeometry(.07,1.98,.18),frame,side*w*.125,1.15,d*.53+.04);
+      add(this.shell,new THREE.BoxGeometry(.025,.4,.04),brass,side*.14,1.18,d*.53+.12);
+      add(this.shell,new THREE.BoxGeometry(w*.31,.12,.75),concrete,side*w*.34,.27,d*.53+.1);
+      for (const col of [-1,0,1]) add(this.shell,new THREE.BoxGeometry(.045,1.6,.06),trim,side*w*.32+col*w*.065,1.35,d*.53+.025);
+    }
+    if (masonry) {
+      // Horizontal masonry joints and shaded window reveals distinguish solid walls from curtain glass.
+      for (let y=3.1;y<split-.35;y+=.45) add(this.shell,new THREE.BoxGeometry(w+.025,.018,d+.025),concrete,0,y,0);
+      for (let y=3.7;y<split-.6;y+=2.4) for (const face of [0,1,2,3]) for (const col of [-1,0,1]) {
+        const sideWidth = face<2?w:d;
+        const reveal = add(this.shell,new THREE.BoxGeometry(sideWidth*.255,1.28,.04),frame,
+          face<2?col*w*.31:(face===2?1:-1)*(w/2+.025), y,
+          face<2?(face===0?1:-1)*(d/2+.025):col*d*.31);
+        reveal.rotation.y=face<2?0:Math.PI/2;
+        const sill=add(this.shell,new THREE.BoxGeometry(sideWidth*.275,.09,.25),concrete,
+          reveal.position.x,y-.67,reveal.position.z);
+        sill.rotation.y=reveal.rotation.y;
+      }
+    }
     this.group.add(this.shell);
 
     const rows = Math.max(1, Math.floor((h - 3.1) / 2.4));
     this.windows = new THREE.InstancedMesh(
       new THREE.PlaneGeometry(w * 0.235, 1.1),
-      new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .24, metalness: .45 }),
       rows * 12,
     );
     this.windows.name = "observed-activity-windows";
@@ -332,6 +362,7 @@ export class CityBuilding {
             );
             dummy.rotation.set(0, face === 2 ? Math.PI / 2 : -Math.PI / 2, 0);
           }
+          dummy.scale.set((face<2?rw:rd)/w,1,1);
           dummy.updateMatrix();
           this.windows.setMatrixAt(index++, dummy.matrix);
         }
@@ -425,7 +456,7 @@ export class CityBuilding {
     const isActive =
       this.layout.room.status === "active" ||
       this.layout.room.status === "surge";
-    const lit = new THREE.Color(0xb3aa8c);
+    const lit = new THREE.Color(0xe9c58b);
     for (let i = 0; i < this.windows.count; i++) {
       // Deterministic architectural lighting. A lit building indicates recent room activity only.
       const pattern = Math.abs(Math.sin(i * 13.7 + this.layout.position[0]));

@@ -571,7 +571,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     );
     renderer.setClearColor(isLight ? 0xf5f7fa : 0x05080d, 1);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.35;
+    renderer.toneMappingExposure = isLight ? 1.15 : 1.28;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     rendererRef.current = renderer;

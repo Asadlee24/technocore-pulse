@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { streetVehiclePose } from "./streetMotion.js";
 import type { RoadWaypoints } from "./cityLayout";
 
 /** Decorative street life, never a count of agents or protocol transactions. */
@@ -7,6 +9,8 @@ export class CityRoads {
   private cars: THREE.InstancedMesh;
   private roofs: THREE.InstancedMesh;
   private lamps: THREE.InstancedMesh;
+  private tailLights: THREE.InstancedMesh;
+  private transform = new THREE.Object3D();
   private wheels: THREE.InstancedMesh;
   private people: THREE.InstancedMesh;
   private heads: THREE.InstancedMesh;
@@ -15,13 +19,14 @@ export class CityRoads {
     this.group.name = "walkable-city-blocks";
     this.group.userData.isScenery = true;
     const road = new THREE.MeshStandardMaterial({
-      color: theme === "light" ? 0x56616d : 0x151b24,
-      roughness: 0.95,
+      color: theme === "light" ? 0x3d454b : 0x1b2026,
+      roughness: 0.98,
     });
     const pavement = new THREE.MeshStandardMaterial({
       color: 0x424952,
       roughness: 0.88,
     });
+    const curb = new THREE.MeshStandardMaterial({ color: 0xa2a4a0, roughness: .95 });
     const paint = new THREE.MeshBasicMaterial({ color: 0xb3b9b8 });
     const add = (
       geo: THREE.BufferGeometry,
@@ -40,23 +45,15 @@ export class CityRoads {
     for (const axis of axes) {
       add(new THREE.BoxGeometry(4.6, 0.035, 132), road, axis, 0.015, 0);
       add(new THREE.BoxGeometry(132, 0.035, 4.6), road, 0, 0.016, axis);
-      for (const side of [-1, 1]) {
-        add(
-          new THREE.BoxGeometry(1.1, 0.12, 132),
-          pavement,
-          axis + side * 2.9,
-          0.06,
-          0,
-        );
-        add(
-          new THREE.BoxGeometry(132, 0.12, 1.1),
-          pavement,
-          0,
-          0.061,
-          axis + side * 2.9,
-        );
+      for (const side of [-1, 1]) for (let block = -54; block <= 54; block += 18) {
+        // Sidewalks stop at junctions instead of running through traffic lanes.
+        add(new THREE.BoxGeometry(1.1,.12,13.2),pavement,axis+side*2.9,.06,block);
+        add(new THREE.BoxGeometry(13.2,.12,1.1),pavement,block,.061,axis+side*2.9);
+        add(new THREE.BoxGeometry(.14,.19,13.2),curb,axis+side*2.38,.095,block);
+        add(new THREE.BoxGeometry(13.2,.19,.14),curb,block,.096,axis+side*2.38);
       }
       for (let p = -64; p <= 64; p += 4) {
+        if (axes.some(cross => Math.abs(cross - p) < 3.3)) continue;
         add(new THREE.BoxGeometry(0.055, 0.018, 0.65), paint, axis, 0.05, p);
         add(new THREE.BoxGeometry(0.65, 0.018, 0.055), paint, p, 0.051, axis);
       }
@@ -119,6 +116,10 @@ export class CityRoads {
       new THREE.MeshBasicMaterial({ color: 0xf5edda }),
       64,
     );
+    this.tailLights = new THREE.InstancedMesh(
+      new THREE.BoxGeometry(.035, .065, .43),
+      new THREE.MeshBasicMaterial({color: 0xdc5b44, toneMapped: false}), 64);
+    this.tailLights.name = "vehicle-tail-lights";
     this.wheels = new THREE.InstancedMesh(
       new THREE.CylinderGeometry(.13, .13, .09, 10).rotateX(Math.PI / 2),
       new THREE.MeshStandardMaterial({color: 0x090b10, roughness: .9}),
@@ -156,6 +157,7 @@ export class CityRoads {
       this.roofs,
       this.lamps,
       this.wheels,
+      this.tailLights,
       this.people,
       this.heads,
       this.legs,
@@ -181,6 +183,42 @@ export class CityRoads {
           z + side * 0.65,
         );
     }
+    // Kerbside drains, bollards and modest bus shelters put detail at pedestrian scale.
+    const metal = new THREE.MeshStandardMaterial({color: 0x303b40, roughness: .65, metalness: .45});
+    const shelterGlass = new THREE.MeshStandardMaterial({color: 0x69878a, roughness: .2, metalness: .35});
+    for (let i = 0; i < 48; i++) {
+      const [bx, bz] = this.block(i);
+      for (const side of [-1, 1]) {
+        add(new THREE.CylinderGeometry(.055,.075,.58,6), metal, bx+side*5.7,.42,bz+5.6);
+        const drain = add(new THREE.BoxGeometry(.5,.025,.24),metal,bx+side*6.5,.14,bz+6.65);
+        drain.rotation.y = Math.PI / 2;
+        for (let groove=0; groove<4; groove++) add(new THREE.BoxGeometry(.025,.03,.18),curb,bx+side*6.5+(groove-1.5)*.1,.16,bz+6.65);
+      }
+      if (i % 8 === 2) {
+        add(new THREE.BoxGeometry(3,.14,1.2),metal,bx+1,.15,bz+5.9);
+        add(new THREE.BoxGeometry(3.1,.12,1.3),metal,bx+1,2.2,bz+5.9);
+        add(new THREE.BoxGeometry(2.9,1.8,.05),shelterGlass,bx+1,1.2,bz+5.35);
+        for (const dx of [-1.4,1.4]) add(new THREE.BoxGeometry(.065,2,.065),metal,bx+1+dx,1.2,bz+6.4);
+        add(new THREE.BoxGeometry(2.2,.14,.38),pavement,bx+1,.65,bz+5.7);
+        add(new THREE.CylinderGeometry(.035,.035,2.6,6),metal,bx-1.1,1.4,bz+6.1);
+        add(new THREE.BoxGeometry(.38,.48,.055),new THREE.MeshStandardMaterial({color:0x407c83,roughness:.7}),bx-1.1,2.4,bz+6.1);
+      }
+    }
+    // One draw per static material instead of one per stripe, curb or street prop.
+    const batches = new Map<THREE.Material, THREE.Mesh[]>();
+    for (const child of this.group.children) {
+      if (!(child instanceof THREE.Mesh) || child instanceof THREE.InstancedMesh || Array.isArray(child.material)) continue;
+      const batch = batches.get(child.material) ?? []; batch.push(child); batches.set(child.material,batch);
+    }
+    for (const [material, meshes] of batches) {
+      if (meshes.length < 2) continue;
+      const parts = meshes.map(mesh => { mesh.updateMatrix(); const g=mesh.geometry.toNonIndexed(); return g.applyMatrix4(mesh.matrix); });
+      const geometry = mergeGeometries(parts,false); parts.forEach(part=>part.dispose());
+      if (!geometry) continue;
+      const old = new Set(meshes.map(mesh=>mesh.geometry));
+      meshes.forEach(mesh=>this.group.remove(mesh)); old.forEach(g=>g.dispose());
+      const mesh = new THREE.Mesh(geometry,material); mesh.name="batched-streetscape"; mesh.receiveShadow=true; this.group.add(mesh);
+    }
     this.update(0);
   }
   private block(index: number) {
@@ -202,10 +240,10 @@ export class CityRoads {
     return { x: -half, z: half - (side - 3) * half * 2, dx: 0, dz: -1 };
   }
   update(time: number) {
-    const obj = new THREE.Object3D();
+    const obj = this.transform;
     for (let i = 0; i < 64; i++) {
       const [bx, bz] = this.block(i * 7),
-        p = this.route(i * 0.71 + time * (0.085 + (i % 3) * 0.012), 8.3);
+        p = streetVehiclePose(time, i);
       const yaw = Math.atan2(-p.dz, p.dx),
         bus = i % 11 === 0;
       obj.rotation.set(0, yaw, 0);
@@ -225,6 +263,8 @@ export class CityRoads {
       );
       obj.updateMatrix();
       this.lamps.setMatrixAt(i, obj.matrix);
+      obj.position.set(bx+p.x-p.dx*(bus?1.22:.61),.3,bz+p.z-p.dz*(bus?1.22:.61));
+      obj.updateMatrix(); this.tailLights.setMatrixAt(i,obj.matrix);
       for (let axle = 0; axle < 2; axle++) for (let side = 0; side < 2; side++) {
         const along = (axle === 0 ? -1 : 1) * (bus ? .85 : .38);
         const across = (side === 0 ? -1 : 1) * .28;
@@ -265,6 +305,7 @@ export class CityRoads {
       this.roofs,
       this.lamps,
       this.wheels,
+      this.tailLights,
       this.people,
       this.heads,
       this.legs,
