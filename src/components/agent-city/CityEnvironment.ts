@@ -60,8 +60,9 @@ export class CityEnvironment {
           float fresnel=pow(1.-max(dot(n,view),0.),4.);
           vec3 col=mix(deep,horizon,fresnel*.52);
           float glint=pow(max(dot(reflect(-normalize(vec3(-.61,.18,-.79)),n),view),0.),100.);
-          float ripples=.5+.5*sin(p.x*1.8+p.y*.7+a*2.);
-          col+=mix(vec3(.28,.35,.47),vec3(1.,.86,.60),daylight)*glint*(.25+.5*ripples);
+          float detail=1.-smoothstep(.12,.8,length(fwidth(p)));
+          float ripples=.5+.5*sin(p.x*.55+p.y*.23+a)*detail;
+          col+=mix(vec3(.28,.35,.47),vec3(1.,.86,.60),daylight)*glint*(.12+.20*ripples);
           col+=vec3(.008,.014,.018)*a*b;
           float haze=1.-exp(-pow(length(cameraPosition-world)*.0018,2.));
           col=mix(col,horizon,haze);gl_FragColor=vec4(col,1.);

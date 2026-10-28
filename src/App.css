@@ -1150,3 +1150,10 @@
 .freshness-strip{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;padding:12px 4vw;background:#11191d;border-top:1px solid #ffffff12;font-size:11px;color:#99aab4}.freshness-strip time{color:#d8e7df;font-variant-numeric:tabular-nums}
 .office-caption .source-link{pointer-events:auto;color:#d4f6a5;display:inline-flex;margin-top:12px}
 @media(max-width:760px){.freshness-strip{padding:12px 20px;gap:6px 12px}.room-provenance{font-size:10px}}
+
+.city-room-labels{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:4}
+.city-room-label{position:absolute;top:0;left:0;box-sizing:border-box;padding:6px 9px;border:1px solid #a6c1ca55;border-radius:4px;background:#0a1524ed;color:#f5f9ff;font:600 11px/1.25 "Space Mono",monospace;white-space:nowrap;text-align:center;box-shadow:0 3px 12px #0007;will-change:transform}
+.city-room-label::after{content:"";position:absolute;width:1px;height:9px;top:100%;left:50%;background:#b0cbd4b0}
+.city-room-label.is-selected{border-color:#8bdded;background:#123446f5;color:#d1f8ff;font-weight:700}
+.city-room-label[hidden]{display:none}
+@media(max-width:760px){.city-room-label{font-size:11px;padding:6px 8px}}
