@@ -1141,3 +1141,12 @@
 @media(max-width:760px){.city-experiences{top:176px;left:20px}.city-experiences button{font-size:10px;padding:9px 10px}.message-caption{left:20px;bottom:140px}.room-detail h3{margin-bottom:10px}}
 
 .metro-canvas > div.tour-progress{display:flex;max-width:calc(100% - 96px);gap:12px}.city-stage:has(.tour-progress) .stage-heading{opacity:0}.tour-progress button{flex-shrink:0}@media(max-width:760px){.metro-canvas > div.tour-progress{font-size:9px;line-height:1.6;padding:10px 12px;max-width:calc(100% - 80px);gap:8px}.tour-progress .hidden{display:none}}
+
+/* Source provenance stays readable in both the room drawer and WebGL fallback. */
+.room-provenance{display:grid;gap:7px;padding:12px 0;margin:10px 0;border-top:1px solid #ffffff18;border-bottom:1px solid #ffffff18;font-size:11px;line-height:1.5;color:#aab7c2}
+.room-provenance strong{color:#d6e8ba;font-size:11px}.room-provenance small{font-size:10px;line-height:1.5;color:#8e9ba8}
+.conversation-link{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;margin:12px 0;color:#10170e;background:#d4f6a5;border-radius:5px;text-decoration:none;font-size:12px;font-weight:700}
+.conversation-link:hover{background:#e5ffc3}.conversation-link:focus-visible,.source-link:focus-visible{outline:2px solid #d4f6a5;outline-offset:4px}
+.freshness-strip{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;padding:12px 4vw;background:#11191d;border-top:1px solid #ffffff12;font-size:11px;color:#99aab4}.freshness-strip time{color:#d8e7df;font-variant-numeric:tabular-nums}
+.office-caption .source-link{pointer-events:auto;color:#d4f6a5;display:inline-flex;margin-top:12px}
+@media(max-width:760px){.freshness-strip{padding:12px 20px;gap:6px 12px}.room-provenance{font-size:10px}}

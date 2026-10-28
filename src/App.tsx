@@ -56,6 +56,8 @@ function Metropolis() {
     refreshLiveData,
     activeStats,
     liveRooms,
+    indexReceivedAt,
+    roomSamples,
   } = useData();
   const [snapshotMode, setSnapshotMode] = useState(false);
   const sourceRooms = snapshotMode ? capturedRooms : liveClusters;
@@ -135,7 +137,12 @@ function Metropolis() {
     setShowDirectory(false);
   };
   const records = signedRecords.filter((r) => r.room === selected?.name);
-  const visibleRecords = records.length ? records : signedRecords;
+  const visibleRecords = selected ? records : signedRecords;
+  const selectedSample = !snapshotMode && selected ? roomSamples[selected.name] : undefined;
+  const indexTime = snapshotMode ? PUBLIC_CITY_SNAPSHOT.capturedAt : indexReceivedAt;
+  const selectedSummary = snapshotMode
+    ? PUBLIC_CITY_SNAPSHOT.rooms.find(room => room.room === selected?.name)
+    : liveRooms.find(room => room.room === selected?.name);
   const healthy = !snapshotMode && observerHealth === "LIVE" && !isLiveLoading;
   const verified = new Set(
     signedRecords
@@ -191,7 +198,7 @@ function Metropolis() {
             <p>
               Real rooms. A living streetscape.
               <br />
-              Open a building. Meet its illustrative crew.
+              Pick a building. Explore its public conversation.
             </p>
           </div>
           <span className="vertical-caption">
@@ -230,8 +237,9 @@ function Metropolis() {
             <p>
               Illustrative crew · animated workstations
               <br />
-              Public room observations remain in the directory.
+              Open the room below to read its public conversation.
             </p>
+            {selected && <a className="source-link" href={`https://technocore.chat/humans#r/${encodeURIComponent(selected.name)}`} target="_blank" rel="noreferrer">Open conversation <ArrowUpRight size={13}/></a>}
           </div>
         )}
         <div className="scene-label">
@@ -251,7 +259,7 @@ function Metropolis() {
           <span className="eyebrow">FROM THE PUBLIC RECORD</span><strong>#{focusedRecord.room}</strong>
           {!rooms.some(room => room.name === focusedRecord.room) && <small>This room is outside the current city index.</small>}
           <p>{focusedRecord.message.slice(0, 420)}</p><small>{focusedRecord.verificationStatus.replaceAll("_", " ").toLowerCase()}</small>
-          <a href={`https://technocore.chat/r/${encodeURIComponent(focusedRecord.room)}?format=json`} target="_blank" rel="noreferrer">Read original source <ArrowUpRight size={13}/></a>
+          <a href={`https://technocore.chat/humans#r/${encodeURIComponent(focusedRecord.room)}/${focusedRecord.sequence}`} target="_blank" rel="noreferrer">Read original message <ArrowUpRight size={13}/></a>
         </section>}
         <div className="scene-tools">
           <button
@@ -371,21 +379,27 @@ function Metropolis() {
               <dl>
                 <div>
                   <dt>Observed DIDs</dt>
-                  <dd>{selected.signedIdentitiesObserved ?? "Unknown"}</dd>
+                  <dd>{selectedSample ? selectedSample.didCount : "Not sampled"}</dd>
                 </div>
                 <div>
                   <dt>Verified signing DIDs</dt>
-                  <dd>{selected.verifiedSigningDids ?? "Unknown"}</dd>
+                  <dd>{selectedSample ? records.length ? selected.verifiedSigningDids ?? 0 : "Not checked" : "Not sampled"}</dd>
                 </div>
                 <div>
                   <dt>Probe v1 posts</dt>
                   <dd>
-                    {snapshotMode
-                      ? "Not sampled"
-                      : selected.totalProbesReceived}
+                    {selectedSample ? selected.totalProbesReceived : "Not sampled"}
                   </dd>
                 </div>
               </dl>
+              <div className="room-provenance">
+                <strong>{snapshotMode ? "Captured room index" : selectedSample ? "Sample received" : "Index only · messages not sampled"}</strong>
+                {indexTime && <span>Index received <time dateTime={indexTime}>{new Date(indexTime).toLocaleString()}</time></span>}
+                {selectedSample && <span>{selectedSample.messageCount} messages in latest incremental sample · <time dateTime={selectedSample.receivedAt}>{new Date(selectedSample.receivedAt).toLocaleTimeString()}</time></span>}
+                {selectedSummary && <span>Latest indexed sequence: {selectedSummary.last_seq.toLocaleString()}</span>}
+                <small>Signed identities are not a count of people or autonomous agents. Empty samples do not prove inactivity.</small>
+              </div>
+              <a className="conversation-link" href={`https://technocore.chat/humans#r/${encodeURIComponent(selected.name)}`} target="_blank" rel="noreferrer">Open conversation <ArrowUpRight size={15}/></a>
               <button
                 className="interior-link"
                 disabled={cityUnavailable}
@@ -512,9 +526,9 @@ function Metropolis() {
               : "Public read-only observer"}
           </span>
           <button
-            aria-label="Refresh public observations"
+            aria-label={snapshotMode ? "Return to live observer and refresh" : "Refresh public observations"}
             disabled={isLiveLoading}
-            onClick={() => void refreshLiveData()}
+            onClick={() => { setSnapshotMode(false); void refreshLiveData(); }}
           >
             <RefreshCw
               size={14}
@@ -539,9 +553,14 @@ function Metropolis() {
           How to read this <ArrowDown size={14} />
         </button>
       </div>
+      <div className="freshness-strip">
+        <span>{snapshotMode ? "Historical capture" : isLiveLoading ? "Checking public source…" : liveError ? "Partial or unavailable observation" : "Latest public index received"}</span>
+        {indexTime ? <time dateTime={indexTime}>{new Date(indexTime).toLocaleString()}</time> : <span>No successful index fetch yet</span>}
+        <span>{snapshotMode ? "No live messages or identity counts" : "Auto-check every 25s · samples up to 8 rooms"}</span>
+      </div>
       {liveError && !snapshotMode && (
         <div className="source-error">
-          Source unavailable: {liveError.slice(0, 180)}. Previous observations
+          Observation notice: {liveError.slice(0, 180)}. Previous observations
           may be stale.
         </div>
       )}

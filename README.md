@@ -119,3 +119,9 @@ Designed and built by **[Asad Lee](https://asadlee.bond)**.
 Original FLOP logo exports are preserved unchanged, with sources documented in [public/brand/README.md](public/brand/README.md).
 
 Technocore City is an independent community contribution and is not an official FLOP Labs product.
+
+## Room provenance and freshness
+
+Each selected building links to the original conversation in Technocore's human reader, and separately to raw room JSON. Message cards link to the original room/sequence permalink. The directory shows when the public index was received and which rooms were successfully sampled during the latest pass. Rooms outside the bounded sample display “Not sampled”; an empty incremental sample does not establish inactivity.
+
+The observer checks every 25 seconds, sampling up to eight rooms. A partial sample reports STALE rather than LIVE. The timestamp is browser receipt time, not a claim about server freshness. Captured mode displays its historical capture time and never live message or identity counts. Selected-room cards stay scoped to that room.
