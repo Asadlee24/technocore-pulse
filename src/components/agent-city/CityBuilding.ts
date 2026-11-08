@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import type { CitySurfaces } from "./CitySurfaces";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { RoomCluster } from "../../types/probe";
 import type { BuildingLayout } from "./cityLayout";
@@ -20,7 +21,7 @@ export class CityBuilding {
   private labelCanvas: HTMLCanvasElement;
   private darkGlass = new THREE.Color(0x426477);
 
-  constructor(layout: BuildingLayout, _materials: CityMaterials) {
+  constructor(layout: BuildingLayout, _materials: CityMaterials, surfaces?: CitySurfaces) {
     this.layout = layout;
     this.group.name = `building-${layout.room.id}`;
     this.group.position.set(...layout.position);
@@ -45,6 +46,9 @@ export class CityBuilding {
       color: 0x394c61,
       roughness: 0.9,
     });
+    surfaces?.apply(concrete, "concrete");
+    surfaces?.apply(trim, "metal");
+    surfaces?.apply(ground, "pavers");
     const accent = new THREE.MeshBasicMaterial({
       color: 0x00b4d8,
       toneMapped: false,
@@ -57,6 +61,7 @@ export class CityBuilding {
       y: number,
       z: number,
     ) => {
+      surfaces?.tile(geo, mat, x, y, z);
       const m = new THREE.Mesh(geo, mat);
       m.position.set(x, y, z);
       m.castShadow = true;
@@ -70,6 +75,7 @@ export class CityBuilding {
       color: layout.archetype === "social-block" ? 0x99715b : layout.archetype === "broadcast-hall" ? 0xc2ae8e : layout.archetype === "settlement-vault" ? 0x8b9797 : 0xb8c1b6,
       roughness: .94, metalness: .025,
     });
+    surfaces?.apply(wall, "masonry");
     const frame = new THREE.MeshStandardMaterial({color: 0x394950, roughness:.65, metalness:.3});
     add(
       this.group,
@@ -315,17 +321,31 @@ export class CityBuilding {
       for (const col of [-1,0,1]) add(this.shell,new THREE.BoxGeometry(.045,1.6,.06),trim,side*w*.32+col*w*.065,1.35,d*.53+.025);
     }
     if (masonry) {
-      // Horizontal masonry joints and shaded window reveals distinguish solid walls from curtain glass.
-      for (let y=3.1;y<split-.35;y+=.45) add(this.shell,new THREE.BoxGeometry(w+.025,.018,d+.025),concrete,0,y,0);
+      // Model the sill and reveal so the glass sits behind the surrounding trim.
       for (let y=3.7;y<split-.6;y+=2.4) for (const face of [0,1,2,3]) for (const col of [-1,0,1]) {
         const sideWidth = face<2?w:d;
         const reveal = add(this.shell,new THREE.BoxGeometry(sideWidth*.255,1.28,.04),frame,
           face<2?col*w*.31:(face===2?1:-1)*(w/2+.025), y,
           face<2?(face===0?1:-1)*(d/2+.025):col*d*.31);
         reveal.rotation.y=face<2?0:Math.PI/2;
-        const sill=add(this.shell,new THREE.BoxGeometry(sideWidth*.275,.09,.25),concrete,
+        const sill=add(this.shell,new THREE.BoxGeometry(sideWidth*.275,.11,.34),concrete,
           reveal.position.x,y-.67,reveal.position.z);
         sill.rotation.y=reveal.rotation.y;
+        const outward = face === 0 || face === 2 ? 1 : -1;
+        for (const side of [-1, 1]) {
+          const offset = side * sideWidth * .124;
+          const jamb = add(this.shell, new THREE.BoxGeometry(.065, 1.27, .23), frame,
+            reveal.position.x + (face < 2 ? offset : outward * .065), y,
+            reveal.position.z + (face < 2 ? outward * .065 : offset));
+          jamb.rotation.y = reveal.rotation.y;
+        }
+      }
+    }
+    // Fluted metal panels catch directional light on glass-fronted buildings.
+    if (!masonry) for (const side of [-1, 1]) for (const edge of [-1, 1]) {
+      for (let rib = 0; rib < 3; rib++) {
+        add(this.shell, new THREE.BoxGeometry(.056, split - 2.7, .18), trim,
+          edge * (w / 2 - .15 - rib * .105), (split + 2.7) / 2, side * (d / 2 + .07));
       }
     }
     const contact = new THREE.Mesh(new THREE.PlaneGeometry(w*1.62,d*1.62),new THREE.ShaderMaterial({
@@ -426,7 +446,7 @@ export class CityBuilding {
     this.hitMesh.position.y = (h + 1) / 2;
     this.hitMesh.userData = { room: layout.room, buildingId: layout.room.id };
     this.group.add(this.hitMesh);
-    this.interior = new OfficeInterior(layout);
+    this.interior = new OfficeInterior(layout, surfaces);
     this.interior.group.position.y = 0.2;
     this.group.add(this.interior.group);
     // Batch opaque static architecture by material so the added detail does not

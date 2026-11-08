@@ -13,6 +13,7 @@ import { CityBuilding } from "./CityBuilding";
 import { AgentDeskFactory } from "./AgentDesk";
 import { AgentWorker } from "./AgentWorker";
 import { MetroLandmark as CityDistrictManager } from "./MetroLandmark";
+import { CitySurfaces } from "./CitySurfaces";
 import { CityRoads } from "./CityRoads";
 import { CityEnvironment } from "./CityEnvironment";
 import { CityLife } from "./CityLife";
@@ -580,7 +581,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = isLight ? 1.15 : 1.28;
     renderer.shadowMap.enabled = quality !== "smooth";
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     rendererRef.current = renderer;
     // Procedural reflection capture gives glass and metal a material response
     // without downloading a heavy HDR sky texture.
@@ -588,13 +589,18 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     const reflectionStudio = new RoomEnvironment();
     const reflectionTarget = reflectionGenerator.fromScene(reflectionStudio,.04);
     scene.environment = reflectionTarget.texture;
-    scene.environmentIntensity = isLight ? .38 : .18;
+    scene.environmentIntensity = isLight ? .45 : .32;
     reflectionStudio.dispose();reflectionGenerator.dispose();
 
     container.innerHTML = "";
     container.appendChild(renderer.domElement);
 
     // 4. Shared Materials & Pulse System
+    const surfaces = new CitySurfaces(
+      quality === "high" ? 512 : 256,
+      Math.min(renderer.capabilities.getMaxAnisotropy(), quality === "high" ? 8 : 4),
+      quality !== "smooth",
+    );
     const materials = createCityMaterials(theme);
     materialsRef.current = materials;
 
@@ -603,20 +609,20 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     scene.add(pulseSystem.group);
 
     // 5. Foundational Digital Platform & Cyber Flora
-    const environment = new CityEnvironment(theme);
+    const environment = new CityEnvironment(theme, surfaces);
     scene.add(environment.group);
     const civicLife = new CityLife();
     scene.add(civicLife.group);
 
     // 6. Central Technocore Core Landmark & 8 District Bridges
-    const districtMgr = new CityDistrictManager(materials);
+    const districtMgr = new CityDistrictManager(materials, surfaces);
     districtMgrRef.current = districtMgr;
     scene.add(districtMgr.group);
 
     // 7. Full 8-District Layout & Metropolitan Road Network
     const { buildings, roadWaypoints } = generateCityLayout(safeClusters);
 
-    const roads = new CityRoads(roadWaypoints, theme);
+    const roads = new CityRoads(roadWaypoints, theme, surfaces);
     scene.add(roads.group);
 
     // 9. Procedural District Buildings & Cutaway Interiors
@@ -628,7 +634,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     cityGroupRef.current = cityGroup;
 
     buildings.forEach((bLayout) => {
-      const bObj = new CityBuilding(bLayout, materials);
+      const bObj = new CityBuilding(bLayout, materials, surfaces);
       buildingsMapRef.current.set(bLayout.room.id, bObj);
       cityGroup.add(bObj.group);
 
@@ -640,14 +646,14 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // 10. Balanced Night Lighting (Readable graphite facades without daytime wash)
     const ambientLight = new THREE.AmbientLight(
       isLight ? 0xffffff : 0xe0e8f2,
-      isLight ? .85 : .65,
+      isLight ? .65 : .38,
     );
     scene.add(ambientLight);
 
     const hemiLight = new THREE.HemisphereLight(
       isLight ? 0xf0f9ff : 0xb9d5ef,
       isLight ? 0xe2e8f0 : 0x26334f,
-      isLight ? 1.8 : 1.25,
+      isLight ? 1.55 : .98,
     );
     scene.add(hemiLight);
 
@@ -663,7 +669,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // Cool Moonlight Directional Key Light (gives crisp architectural edge definition)
     const moonLight = new THREE.DirectionalLight(
       isLight ? 0xffedce : 0xe3efff,
-      isLight ? 2.8 : 1.25,
+      isLight ? 3.05 : 1.85,
     );
     moonLight.position.set(-47, 70, -87.5);
     moonLight.castShadow = true;
@@ -672,15 +678,22 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     moonLight.shadow.camera.right = 75;
     moonLight.shadow.camera.top = 75;
     moonLight.shadow.camera.bottom = -75;
-    moonLight.shadow.normalBias = 0.08;
-    scene.add(moonLight);
+    moonLight.shadow.normalBias = .04;
+    moonLight.shadow.bias = -.00015;
+    moonLight.shadow.radius = 2;
+    scene.add(moonLight, moonLight.target);
 
     const fillLight = new THREE.DirectionalLight(
       isLight ? 0xc9e3f5 : 0x475569,
-      isLight ? 1.0 : 1.5,
+      isLight ? .65 : .60,
     );
-    fillLight.position.set(-50, 60, -45);
+    fillLight.position.set(55, 38, 65);
     scene.add(fillLight);
+    const streetLight = new THREE.PointLight(0xffcb89, 0, 14, 2);
+    if (!isLight && quality !== "smooth") scene.add(streetLight);
+    const shadowCenter = new THREE.Vector3();
+    const keyOffset = moonLight.position.clone();
+    let wetness = 0;
 
     // 11. OrbitControls & User Interaction (Smooth Damping, Pan, Orbit, Wheel Zoom)
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -825,7 +838,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
       const delta = clock.getDelta();
-      const time = clock.getElapsedTime();
+      const time = clock.elapsedTime;
       if (!motionPausedRef.current) sceneryTime += delta;
 
       // Guided city tour. Only illustrative scenery and public room geometry are shown.
@@ -983,9 +996,35 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       environment.update(sceneryTime);
       civicLife.update(lodManagerRef.current.config.prefersReducedMotion ? 0 : sceneryTime, rainRef.current);
       sky.update(lodManagerRef.current.config.prefersReducedMotion ? 0 : sceneryTime, camera, rainRef.current);
+      wetness = THREE.MathUtils.damp(wetness, rainRef.current ? 1 : 0, 2.5, delta);
       roads.update(
         lodManagerRef.current.config.prefersReducedMotion ? 0 : sceneryTime,
+        quality === "smooth" ? 0 : wetness,
       );
+
+      // Keep the same sun direction while concentrating its shadow texels near the camera.
+      const close = 1 - THREE.MathUtils.smoothstep(camera.position.y, 10, 42);
+      if (quality !== "smooth") {
+        shadowCenter.copy(controls.target).multiplyScalar(close).y = 0;
+        moonLight.target.position.copy(shadowCenter);
+        moonLight.position.copy(keyOffset).add(shadowCenter);
+        const span = THREE.MathUtils.lerp(82, 26, close);
+        const shadow = moonLight.shadow.camera;
+        shadow.left = shadow.bottom = -span;
+        shadow.right = shadow.top = span;
+        shadow.updateProjectionMatrix();
+      }
+
+      if (streetLight.parent) {
+        let nearest = Infinity;
+        for (const lamp of environment.streetLampPositions) {
+          const distance = Math.hypot(camera.position.x - lamp.x, camera.position.z - lamp.z);
+          if (distance >= nearest) continue;
+          nearest = distance;
+          streetLight.position.copy(lamp);
+        }
+        streetLight.intensity = close * (1 - THREE.MathUtils.smoothstep(nearest, 5, 14)) * 28;
+      }
 
       // Update individual buildings & interiors
       const currentActiveId = activeRoomRef.current.id;
@@ -1032,6 +1071,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       civicLife.dispose();
       sky.dispose();
       disposeCityMaterials(materials);
+      surfaces.dispose();
 
       buildingsMapRef.current.forEach((b) => b.dispose());
       buildingsMapRef.current.clear();

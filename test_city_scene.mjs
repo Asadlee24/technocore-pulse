@@ -48,7 +48,7 @@ THREE.TextureLoader.prototype.load = function (url) {
 mkdirSync("node_modules/.tmp", { recursive: true });
 const tmp = mkdtempSync(resolve("node_modules/.tmp/city-scene-"));
 try {
-  for (const name of ["CityEnvironment", "CityRoads", "MetroLandmark", "streetMotion"])
+  for (const name of ["CityEnvironment", "CityRoads", "CitySurfaces", "MetroLandmark", "streetMotion"])
     writeFileSync(
       `${tmp}/${name === "streetMotion" ? "streetMotion.js" : name + ".mjs"}`,
       ts.transpileModule(
@@ -68,14 +68,41 @@ try {
   const { MetroLandmark } = await import(
     pathToFileURL(`${tmp}/MetroLandmark.mjs`)
   );
-  const environment = new CityEnvironment(),
-    pavilion = new MetroLandmark({}),
+  const { CitySurfaces } = await import(pathToFileURL(`${tmp}/CitySurfaces.mjs`));
+  const surfaces = new CitySurfaces(64, 4, true);
+  const asphalt = new THREE.MeshStandardMaterial();
+  surfaces.apply(asphalt, "asphalt");
+  assert.ok(asphalt.map && asphalt.bumpMap);
+  assert.equal(asphalt.map.colorSpace, THREE.SRGBColorSpace);
+  assert.equal(asphalt.bumpMap.colorSpace, THREE.NoColorSpace);
+  const strip = new THREE.BoxGeometry(12, .1, 6);
+  surfaces.tile(strip, asphalt);
+  const { normal, uv } = strip.attributes;
+  const horizontalUVs = Array.from({ length: uv.count }, (_, i) => i)
+    .filter(i => normal.getY(i) === 1).map(i => uv.getX(i));
+  assert.equal(Math.max(...horizontalUVs) - Math.min(...horizontalUVs), 4);
+  strip.dispose();
+  asphalt.dispose();
+  const smooth = new CitySurfaces(64, 1, false);
+  const smoothMaterial = new THREE.MeshStandardMaterial();
+  smooth.apply(smoothMaterial, "pavers");
+  assert.ok(smoothMaterial.map);
+  assert.equal(smoothMaterial.bumpMap, null);
+  smoothMaterial.dispose();
+  smooth.dispose();
+  const environment = new CityEnvironment("dark", surfaces),
+    pavilion = new MetroLandmark({}, surfaces),
     roads = new CityRoads({
       innerRingRadius: 14,
       outerRingRadius: 28,
       beltwayRadius: 43,
       radialAvenues: [{ angle: 0, startRadius: 8, endRadius: 65 }],
-    });
+    }, "dark", surfaces);
+  const asphaltMesh = roads.group.children.find(o => o.material?.map === asphalt.map);
+  assert.ok(asphaltMesh, "The road and shared asphalt material use the same texture");
+  roads.update(0, 1);
+  assert.ok(asphaltMesh.material.roughness < .5, "Rain changes the road material response");
+  assert.equal(environment.streetLampPositions.length, 48);
   assert.deepEqual(loads, ["/brand/flop-lockup-on-dark.png"]);
   assert.equal(pavilion.group.userData.isScenery, true);
   pavilion.group.updateMatrixWorld(true);
@@ -108,8 +135,9 @@ try {
     );
     scene.dispose();
   }
+  surfaces.dispose();
   console.log(
-    "City scene checks passed: original logo bytes, captured-source provenance, pavilion, waterfront, street traffic and finite geometry.",
+    "City scene checks passed: shared tiled surfaces, rain response, original logo bytes, captured-source provenance, pavilion, waterfront, street traffic and finite geometry.",
   );
 } finally {
   globalThis.document = previousDocument;

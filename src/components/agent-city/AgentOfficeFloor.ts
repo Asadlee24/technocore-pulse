@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import type { CitySurfaces } from "./CitySurfaces";
 import type { RoomCluster } from "../../types/probe";
 import { AgentDeskFactory, type DeskConfig } from "./AgentDesk";
 import { AgentWorker } from "./AgentWorker";
@@ -10,6 +11,7 @@ export interface OfficeFloorConfig {
   depth: number;
   room: RoomCluster;
   isCommandFloor?: boolean;
+  surfaces?: CitySurfaces;
 }
 
 export class AgentOfficeFloor {
@@ -48,15 +50,17 @@ export class AgentOfficeFloor {
    * Builds the floor slab, ceiling slab, and subtle interior overhead lighting
    */
   private buildFloorStructure() {
-    const { width, depth, floorHeight } = this.config;
+    const { width, depth, floorHeight, surfaces } = this.config;
 
     // Floor Slab
     const slabGeo = new THREE.BoxGeometry(width - 0.2, 0.15, depth - 0.2);
     const floorMat = new THREE.MeshStandardMaterial({
-      color: 0x71869d,
-      roughness: 0.85,
+      color: 0x96795f,
+      roughness: 0.59,
       metalness: 0.05,
     });
+    surfaces?.apply(floorMat, "wood");
+    surfaces?.tile(slabGeo, floorMat);
     const floorMesh = new THREE.Mesh(slabGeo, floorMat);
     floorMesh.position.y = 0.08;
     floorMesh.receiveShadow = true;
@@ -65,13 +69,32 @@ export class AgentOfficeFloor {
       color: 0xb9c8d6,
       roughness: 0.85,
     });
-    const backWall = new THREE.Mesh(
-      new THREE.BoxGeometry(width - 0.2, floorHeight - 0.1, 0.08),
-      wallMat,
-    );
+    const backWallGeo = new THREE.BoxGeometry(width - 0.2, floorHeight - 0.1, 0.08);
+    surfaces?.apply(wallMat, "concrete");
+    surfaces?.tile(backWallGeo, wallMat);
+    const backWall = new THREE.Mesh(backWallGeo, wallMat);
     backWall.position.set(0, floorHeight / 2, -depth / 2 + 0.08);
     backWall.receiveShadow = true;
     this.group.add(backWall);
+    if (surfaces) {
+      const metal = new THREE.MeshStandardMaterial({
+        color: 0x4a5762, roughness: .46, metalness: .55,
+      });
+      const skirting = new THREE.Mesh(new THREE.BoxGeometry(width - .24, .12, .045), metal);
+      skirting.position.set(0, .23, -depth / 2 + .15);
+      this.group.add(skirting);
+      for (const side of [-1, 1]) {
+        const lightHousing = new THREE.Mesh(new THREE.BoxGeometry(.09, .08, depth * .63), metal);
+        lightHousing.position.set(side * width * .28, floorHeight - .03, 0);
+        this.group.add(lightHousing);
+        const diffuser = new THREE.Mesh(
+          new THREE.BoxGeometry(.06, .02, depth * .60),
+          new THREE.MeshBasicMaterial({ color: 0xffe6c3 }),
+        );
+        diffuser.position.copy(lightHousing.position).y -= .045;
+        this.group.add(diffuser);
+      }
+    }
     // A ribbed wall and recessed cabinetry frame the desks without covering the cutaway.
     const cabinetMat = new THREE.MeshStandardMaterial({
       color: 0x253e59,
