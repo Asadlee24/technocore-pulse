@@ -13,6 +13,8 @@ export class CityBuilding {
   layout: BuildingLayout;
   isCutaway = false;
   private shell = new THREE.Group();
+  private disposed = false;
+  private entranceLight?: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
   private windows: THREE.InstancedMesh;
   private selection: THREE.LineSegments;
   private pulseUntil = 0;
@@ -25,14 +27,15 @@ export class CityBuilding {
     this.group.name = `building-${layout.room.id}`;
     this.group.position.set(...layout.position);
     this.group.userData.sourceRoom = layout.room.name;
+    const isTechnocore = layout.room.name.toLowerCase() === "technocore";
     const concrete = new THREE.MeshStandardMaterial({
       color:
-        [0xd4c9b5, 0xcbd5d8, 0x9caeb8, 0xb6b7a5, 0xd4d7cf][Math.abs(Math.round(layout.position[0] / 14 + layout.position[2] / 7)) % 5],
+        isTechnocore ? 0x39454b : [0xd4c9b5, 0xcbd5d8, 0x9caeb8, 0xb6b7a5, 0xd4d7cf][Math.abs(Math.round(layout.position[0] / 14 + layout.position[2] / 7)) % 5],
       roughness: 0.74,
       metalness: 0.12,
     });
     const glass = new THREE.MeshStandardMaterial({
-      color: 0x42677a,
+      color: isTechnocore ? 0x294b60 : 0x42677a,
       roughness: 0.18,
       metalness: 0.65,
     });
@@ -335,6 +338,7 @@ export class CityBuilding {
     }));
     contact.name="architectural-contact-shadow";contact.rotation.x=-Math.PI/2;contact.position.y=.023;this.group.add(contact);
     this.group.add(this.shell);
+    if (isTechnocore) this.addTechnocoreEntrance(w, d, h);
 
     const rows = Math.max(1, Math.floor((h - 3.1) / 2.4));
     this.windows = new THREE.InstancedMesh(
@@ -458,6 +462,75 @@ export class CityBuilding {
       this.shell.add(facade);
     }
   }
+  private addTechnocoreEntrance(width: number, depth: number, height: number) {
+    const entrance = new THREE.Group();
+    entrance.name = "technocore-entrance";
+    this.shell.add(entrance);
+
+    const apron = new THREE.Mesh(
+      new THREE.PlaneGeometry(width * .8, 2.65),
+      new THREE.ShaderMaterial({
+        transparent: true,
+        depthWrite: false,
+        fog: true,
+        uniforms: THREE.UniformsUtils.merge([
+          THREE.UniformsLib.fog,
+          { wet: { value: 0 }, brightness: { value: 1 } },
+        ]),
+        vertexShader: `
+          varying vec2 apronUv;
+          #include <fog_pars_vertex>
+          void main() {
+            apronUv = uv;
+            vec4 mvPosition = modelViewMatrix * vec4(position, 1.);
+            gl_Position = projectionMatrix * mvPosition;
+            #include <fog_vertex>
+          }`,
+        fragmentShader: `
+          varying vec2 apronUv;
+          uniform float wet;
+          uniform float brightness;
+          #include <fog_pars_fragment>
+          void main() {
+            vec2 p = apronUv;
+            float edge = smoothstep(0., .10, p.x) * smoothstep(0., .10, 1. - p.x)
+              * smoothstep(0., .12, p.y) * smoothstep(0., .15, 1. - p.y);
+            float pool = exp(-10. * pow(p.x - .5, 2.) - 3. * p.y);
+            float streak = .54 + .46 * sin(p.x * 126. + sin(p.y * 22.) * 1.4);
+            float puddles = smoothstep(-.45, .6, sin(p.x * 31. + p.y * 13.) * cos(p.y * 29.));
+            float opacity = edge * pool * (.17 + wet * streak * puddles * .52);
+            gl_FragColor = vec4(vec3(.78, .38, .13), opacity * brightness);
+            #include <colorspace_fragment>
+            #include <fog_fragment>
+          }`,
+      }),
+    );
+    apron.name = "technocore-entrance-light-spill";
+    apron.rotation.x = -Math.PI / 2;
+    apron.position.set(0, .208, depth * .56 + 1.12);
+    entrance.add(apron);
+    this.entranceLight = apron;
+
+    const asset = new URL("../../assets/city/technocore-entry.glb", import.meta.url);
+    void import("three/examples/jsm/loaders/GLTFLoader.js").then(async ({ GLTFLoader }) => {
+      if (this.disposed) return;
+      const { scene } = await new GLTFLoader().loadAsync(asset.href);
+      scene.scale.set(width / 7.4, height / 25, depth / 7.2);
+      scene.traverse((object) => {
+        if (!(object instanceof THREE.Mesh)) return;
+        if (this.disposed) {
+          object.geometry.dispose();
+          const materials = Array.isArray(object.material) ? object.material : [object.material];
+          materials.forEach((material) => material.dispose());
+          return;
+        }
+        object.castShadow = object.receiveShadow = true;
+      });
+      if (!this.disposed) entrance.add(scene);
+    }).catch(() => {
+      // The procedural facade stays available if the optional model fails to load.
+    });
+  }
   private paintWindows() {
     const isActive =
       this.layout.room.status === "active" ||
@@ -529,11 +602,16 @@ export class CityBuilding {
   triggerProbeEffect() {
     this.pulseUntil = performance.now() + 2000;
   }
-  update(time: number, selected: boolean) {
+  update(time: number, selected: boolean, wet = 0, daylight = false) {
+    if (this.entranceLight) {
+      this.entranceLight.material.uniforms.wet.value = wet;
+      this.entranceLight.material.uniforms.brightness.value = daylight ? .32 : 1;
+    }
     this.selection.visible = selected || performance.now() < this.pulseUntil;
     if (this.isCutaway) this.interior.update(time);
   }
   dispose() {
+    this.disposed = true;
     this.interior.dispose();
     this.group.remove(this.interior.group);
     const geometries = new Set<THREE.BufferGeometry>(),
