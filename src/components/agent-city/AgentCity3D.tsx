@@ -55,15 +55,6 @@ interface AgentCity3DProps {
   onExitShowcase?: () => void;
 }
 
-const TOUR_SHOT_SECONDS = 6.4;
-const TOUR_STOPS = [
-  "01 / Waterfront arrival",
-  "02 / FLOP Central Plaza",
-  "03 / Technocore skyline",
-  "04 / Room entrance",
-  "05 / City skyline",
-];
-
 const DEFAULT_FALLBACK_ROOM: RoomCluster = {
   id: "live-room-technocore",
   name: "technocore",
@@ -105,13 +96,12 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   const motionPausedRef = useRef(motionPaused);
   useEffect(()=>{motionPausedRef.current=motionPaused;},[motionPaused]);
   useEffect(() => { rainRef.current = rainy; }, [rainy]);
-  const [nearTechnocoreEntrance, setNearTechnocoreEntrance] = useState(false);
   const [tourStep, setTourStep] = useState(0);
   useEffect(() => {
     if (!isShowcase) return;
     setTourStep(0);
     const started = performance.now();
-    const timer = window.setInterval(() => setTourStep(Math.min(4, Math.floor((performance.now() - started) / (TOUR_SHOT_SECONDS * 1000)))), 500);
+    const timer = window.setInterval(() => setTourStep(Math.min(4, Math.floor((performance.now() - started) / 6400))), 500);
     return () => window.clearInterval(timer);
   }, [isShowcase]);
 
@@ -186,7 +176,6 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   viewLevelRef.current = viewLevel;
 
   const safeClusters = activeRoomClusters;
-  const technocoreRoom = safeClusters.find((room) => room.name.toLowerCase() === "technocore");
   const topologyKey = safeClusters.map((r) => r.id).join("|");
   const seenRecordsRef = useRef(new Set<string>());
   const activeRoom = selectedRoom || safeClusters[0] || DEFAULT_FALLBACK_ROOM;
@@ -206,15 +195,6 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   onExitShowcaseRef.current = onExitShowcase;
 
   const showcaseTimerRef = useRef<number>(0);
-  const streetArrivalRef = useRef<BuildingLayout | null>(null);
-  const openTechnocoreRoom = () => {
-    if (!technocoreRoom) return;
-    onSelectRoom(technocoreRoom);
-    setViewLevel("interior");
-    const explorer = document.getElementById("explorer");
-    explorer?.focus({ preventScroll: true });
-    explorer?.scrollIntoView({ block: "start" });
-  };
   const keysPressedRef = useRef<{ [key: string]: boolean }>({});
 
   // Reset showcase timer when showcase mode changes
@@ -223,9 +203,9 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       showcaseTimerRef.current = performance.now();
       isIntroRef.current = false;
       setShowIntroBadge(false);
-    } else if (viewLevelRef.current === "city") {
+    } else {
+      buildingsMapRef.current.forEach(building => building.setCutaway(false));
       if (cameraRef.current && controlsRef.current) {
-        controlsRef.current.minDistance = 4;
         cameraTargetPos.current.copy(INTRO_END_POS.current);
         cameraTargetLookAt.current.copy(INTRO_END_LOOK.current);
         isTransitioningRef.current = true;
@@ -305,7 +285,6 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     isIntroRef.current = false;
     setShowIntroBadge(false);
     setViewLevel("building");
-    if (controlsRef.current) controlsRef.current.minDistance = 4;
     setIsAutoRotate(false);
     isTransitioningRef.current = true;
     lodManagerRef.current.setViewLevel("building", building.room.id);
@@ -375,25 +354,26 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     controlsRef.current.update();
   }, []);
 
-  const aimAtStreetEntrance = useCallback((building: BuildingLayout) => {
-    const [x, , z] = building.position;
-    cameraTargetPos.current.set(x + 1.8, 1.75, z + building.depth / 2 + 2.4);
-    cameraTargetLookAt.current.set(x, 1.7, z + building.depth * .56);
-    setPulseLog(`Arrived outside #${building.room.name}. Walk with WASD or touch buttons.`);
-  }, []);
-
   const walkToBuildingStreet = useCallback((building: BuildingLayout) => {
     isIntroRef.current = false;
     setShowIntroBadge(false);
     setIsAutoRotate(false);
     isTransitioningRef.current = true;
-    buildingsMapRef.current.forEach((item) => item.setCutaway(false));
-    if (cameraPerspectiveRef.current !== "walk") {
-      streetArrivalRef.current = building;
-      onPerspectiveChangeRef.current?.("walk");
+    if (onPerspectiveChangeRef.current) {
+      onPerspectiveChangeRef.current("walk");
     }
-    aimAtStreetEntrance(building);
-  }, [aimAtStreetEntrance]);
+    const bX = building.position[0];
+    const bZ = building.position[2];
+    const angle = Math.atan2(bZ, bX);
+    const walkX = bX - Math.cos(angle) * (building.depth * 0.55 + 2.8);
+    const walkZ = bZ - Math.sin(angle) * (building.depth * 0.55 + 2.8);
+
+    cameraTargetPos.current.set(walkX, 1.75, walkZ);
+    cameraTargetLookAt.current.set(bX, 2.2, bZ);
+    setPulseLog(
+      `Arrived outside #${building.room.name}. Walk with WASD or touch buttons.`,
+    );
+  }, []);
 
   const handleWalkStep = useCallback(
     (direction: "forward" | "backward" | "left" | "right") => {
@@ -454,19 +434,16 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       isIntroRef.current = false;
       isTransitioningRef.current = true;
       setIsAutoRotate(false);
-      const arrival = streetArrivalRef.current;
-      streetArrivalRef.current = null;
-      if (arrival) {
-        aimAtStreetEntrance(arrival);
-      } else {
-        cameraTargetPos.current.set(6.1, 1.75, 13);
-        cameraTargetLookAt.current.set(6.1, 2.1, 30);
-        setPulseLog("Street view · use W A S D or the direction buttons to explore.");
-      }
+      // Begin on an actual sidewalk beside the central square, never inside a parcel.
+      cameraTargetPos.current.set(6.1, 1.75, 13);
+      cameraTargetLookAt.current.set(6.1, 2.1, 30);
       if (controlsRef.current) {
         controlsRef.current.minDistance = 0.1;
         controlsRef.current.maxDistance = 60;
       }
+      setPulseLog(
+        "Street view · use W A S D or the direction buttons to explore.",
+      );
     } else if (cameraPerspective === "building") {
       const bObj =
         buildingsMapRef.current.get(activeRoom.id) ||
@@ -492,7 +469,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       isTransitioningRef.current = false;
       setPulseLog("Autonomous Drone Flythrough Tour initiated.");
     }
-  }, [cameraPerspective, activeRoom.id, switchCameraToBuilding, aimAtStreetEntrance]);
+  }, [cameraPerspective, activeRoom.id, switchCameraToBuilding]);
 
   // -------------------------------------------------------------
   // SIMULATED / LIVE PROBE EFFECT TRIGGER
@@ -570,8 +547,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // 1. Scene & Atmospheric Fog (Target: 10-15% sky readability, softened fog so buildings don't vanish)
     const scene = new THREE.Scene();
     sceneRef.current = scene;
-    const atmosphere = new THREE.FogExp2(isLight ? 0xdaecf8 : 0x22304f, .0018);
-    scene.fog = atmosphere;
+    scene.fog = new THREE.FogExp2(isLight ? 0xdaecf8 : 0x22304f, 0.0018);
     const sky = new CitySky(theme);
     scene.add(sky.group);
 
@@ -660,37 +636,6 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       interactiveMeshesRef.current.push(bObj.hitMesh);
     });
     scene.add(cityGroup);
-    const hub = buildings.find((building) => building.room.name.toLowerCase() === "technocore");
-    const [hubX, , hubZ] = hub?.position ?? [0, 0, 0];
-    const entryZ = hubZ + (hub?.depth ?? 7.2) * .56;
-    const approachZ = entryZ + 2.6;
-    const entryLook = new THREE.Vector3(hubX, 1.8, entryZ);
-    const overview = INTRO_END_POS.current;
-    // Fly above the city before descending on the entrance side of the block.
-    const tourPositions = [
-      INTRO_START_POS.current,
-      new THREE.Vector3(35, 36, 42),
-      new THREE.Vector3(hubX + 7, 40, approachZ + 4),
-      new THREE.Vector3(hubX + 1.45, 8.2, approachZ + .4),
-      new THREE.Vector3(hubX + 1.25, 1.85, approachZ),
-      new THREE.Vector3(hubX + 1.25, 1.85, approachZ),
-      new THREE.Vector3(hubX + 1.45, 42, approachZ),
-      overview,
-    ];
-    const tourTargets = [
-      INTRO_START_LOOK.current,
-      new THREE.Vector3(0, 12, 0),
-      new THREE.Vector3(hubX, 16, hubZ),
-      new THREE.Vector3(hubX, 4.5, entryZ),
-      entryLook,
-      entryLook,
-      new THREE.Vector3(hubX, 12, hubZ),
-      INTRO_END_LOOK.current,
-    ];
-    const tourStops = [0, 1, 2, 3, 3.55, 4.02, 4.47, 5];
-    const hubLight = new THREE.PointLight(0xffb66d, 0, 12, 2);
-    hubLight.position.set(hubX, 2.35, entryZ + .48);
-    if (hub && quality !== "smooth" && !isLight) scene.add(hubLight);
 
     // 10. Balanced Night Lighting (Readable graphite facades without daytime wash)
     const ambientLight = new THREE.AmbientLight(
@@ -874,31 +819,45 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 
     // 12. Animation Loop (60 FPS)
     let animationFrameId: number;
-    const clock = new THREE.Clock();
+    let clock = new THREE.Clock();
     let sceneryTime = 0;
-    let wetness = 0;
-    let nearEntrance = false;
 
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
       const delta = clock.getDelta();
-      const time = clock.elapsedTime;
+      const time = clock.getElapsedTime();
       if (!motionPausedRef.current) sceneryTime += delta;
 
-      // Match the camera and target at each cut, with a brief stop at the entrance.
+      // Guided city tour. Only illustrative scenery and public room geometry are shown.
       if (isShowcaseRef.current) {
-        const progress = (performance.now() - showcaseTimerRef.current) / (TOUR_SHOT_SECONDS * 1000);
-        const segment = tourStops.findIndex((end) => end > progress) - 1;
-        if (segment >= 0) {
-          const u = THREE.MathUtils.smoothstep(progress, tourStops[segment], tourStops[segment + 1]);
-          camera.position.lerpVectors(tourPositions[segment], tourPositions[segment + 1], u);
-          controls.target.lerpVectors(tourTargets[segment], tourTargets[segment + 1], u);
-          controls.autoRotate = false;
-          controls.minDistance = .1;
-          controls.update();
-        } else {
-          onExitShowcaseRef.current?.();
-        }
+        const t = (performance.now() - showcaseTimerRef.current) / 1000;
+        const building = Array.from(buildingsMapRef.current.values())[0];
+        const position = building?.layout.position ?? [0, 0, 0];
+        const ease = (v: number) => { const x = THREE.MathUtils.clamp(v, 0, 1); return x * x * (3 - 2 * x); };
+        const move = (a: number[], b: number[], u: number) => camera.position.lerpVectors(new THREE.Vector3(...a), new THREE.Vector3(...b), ease(u));
+        const target = controlsRef.current!.target;
+        if (t < 6.4) {
+          move([116, 20, 126], [98, 15, 108], t / 6.4);
+          target.set(65, 3, 60);
+        } else if (t < 12.8) {
+          const u = ease((t - 6.4) / 6.4);
+          move([98, 15, 108], [27, 17, 31], u);
+          target.lerpVectors(new THREE.Vector3(65, 3, 60), new THREE.Vector3(0, 7, 0), u);
+        } else if (t < 19.2) {
+          const u = ease((t - 12.8) / 6.4);
+          move([27, 17, 31], [position[0] + 10, 7, position[2] + 13], u);
+          target.lerpVectors(new THREE.Vector3(0, 7, 0), new THREE.Vector3(position[0], 3, position[2]), u);
+        } else if (t < 25.6) {
+          if (building) { building.setCutaway(true); building.interior.setFocusedFloor(0); }
+          const u = (t - 19.2) / 6.4;
+          move([position[0] + 10, 7, position[2] + 13], [position[0] + 5, 3.2, position[2] + 8], u);
+          target.set(position[0], 1.2, position[2]);
+        } else if (t < 32) {
+          const u = ease((t - 25.6) / 6.4);
+          move([position[0] + 5, 3.2, position[2] + 8], INTRO_END_POS.current.toArray(), u);
+          target.lerpVectors(new THREE.Vector3(position[0], 1.2, position[2]), INTRO_END_LOOK.current, u);
+        } else onExitShowcaseRef.current?.();
+        controlsRef.current?.update();
       } else if (isIntroRef.current) {
         introProgressRef.current += delta;
         const t = Math.min(1, introProgressRef.current / 4.2);
@@ -1024,20 +983,9 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       environment.update(sceneryTime);
       civicLife.update(lodManagerRef.current.config.prefersReducedMotion ? 0 : sceneryTime, rainRef.current);
       sky.update(lodManagerRef.current.config.prefersReducedMotion ? 0 : sceneryTime, camera, rainRef.current);
-      wetness = THREE.MathUtils.damp(wetness, rainRef.current ? 1 : 0, 3, delta);
-      const rainDetail = quality === "smooth" ? 0 : wetness;
-      const lowAltitude = 1 - THREE.MathUtils.smoothstep(camera.position.y, 4, 24);
-      atmosphere.density = .0018 + wetness * (.0015 + lowAltitude * .008);
-      const hubBuilding = hub ? buildingsMapRef.current.get(hub.room.id) : undefined;
-      hubLight.intensity = hubBuilding?.isCutaway ? 0 : 10;
-      roads.update(lodManagerRef.current.config.prefersReducedMotion ? 0 : sceneryTime, rainDetail);
-      const atEntrance = Boolean(hub) && cameraPerspectiveRef.current === "walk" &&
-        Math.abs(camera.position.x - hubX) < 2.8 &&
-        camera.position.z >= entryZ - .45 && camera.position.z < entryZ + 3.8;
-      if (atEntrance !== nearEntrance) {
-        nearEntrance = atEntrance;
-        setNearTechnocoreEntrance(atEntrance);
-      }
+      roads.update(
+        lodManagerRef.current.config.prefersReducedMotion ? 0 : sceneryTime,
+      );
 
       // Update individual buildings & interiors
       const currentActiveId = activeRoomRef.current.id;
@@ -1045,8 +993,6 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
         bObj.update(
           lodManagerRef.current.config.prefersReducedMotion ? 0 : sceneryTime,
           bObj.layout.room.id === currentActiveId,
-          rainDetail,
-          isLight,
         );
       });
 
@@ -1139,16 +1085,11 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
         <div role="status" className="tour-progress absolute top-5 left-1/2 -translate-x-1/2 z-30 flex items-center space-x-3 px-4 py-2 rounded-full bg-[#0B1320]/95 border border-[#36D7E7]/60 text-[#36D7E7] font-mono text-xs backdrop-blur-xl shadow-2xl shadow-[#36D7E7]/20">
           <span className="w-2.5 h-2.5 rounded-full bg-[#36D7E7] animate-ping" />
           <span className="font-bold tracking-wider uppercase text-white">
-            {TOUR_STOPS[tourStep]}
+            {["01 / Waterfront arrival", "02 / FLOP Central Plaza", "03 / Room architecture", "04 / Inside the workspace", "05 / City skyline"][tourStep]}
           </span>
           <span className="text-[#95A4B8] text-[11px] hidden sm:inline">
             32-second guided tour
           </span>
-          {tourStep === 3 && technocoreRoom && (
-            <button onClick={openTechnocoreRoom} className="px-2 py-1 rounded bg-[#36D7E7] text-[#0B1320] font-bold whitespace-nowrap">
-              Enter #technocore
-            </button>
-          )}
           {onExitShowcase && (
             <button
               onClick={onExitShowcase}
@@ -1177,28 +1118,6 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
           {isAutoRotate ? "Spin: ON" : "Spin: OFF"}
         </span>
       </button>
-
-      {compactControls && !isShowcase && viewLevel === "building" &&
-        cameraPerspective !== "walk" && activeRoom.id === technocoreRoom?.id && (
-          <button
-            onClick={() => {
-              const building = buildingsMapRef.current.get(activeRoom.id);
-              if (building) walkToBuildingStreet(building.layout);
-            }}
-            className="entrance-action absolute bottom-24 left-1/2 -translate-x-1/2 z-30 rounded-md bg-[#0B1320] px-4 py-2 text-sm font-bold text-white shadow-lg"
-          >
-            Walk to entrance
-          </button>
-        )}
-
-      {cameraPerspective === "walk" && nearTechnocoreEntrance && technocoreRoom && (
-        <button
-          onClick={openTechnocoreRoom}
-          className="entrance-action absolute bottom-24 left-1/2 -translate-x-1/2 z-30 rounded-md bg-[#36D7E7] px-4 py-2 text-sm font-bold text-[#0B1320] shadow-lg"
-        >
-          Enter #technocore
-        </button>
-      )}
 
       {/* Walk Mode Active HUD Banner */}
       {cameraPerspective === "walk" && (

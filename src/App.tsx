@@ -212,7 +212,7 @@ function Metropolis() {
             </p>
           </div>
           <span className="vertical-caption">
-            3D ARCHITECTURE · THREE.JS
+            PROCEDURAL ARCHITECTURE · THREE.JS
           </span>
         </div>
         <div className="scene-area">
@@ -521,7 +521,7 @@ function Metropolis() {
           </div>
         )}
         <div className="scene-footnote">
-          Architecture is illustrative. Office crews and urban transport
+          Architecture is generated in code. Office crews and urban transport
           are illustrative.
         </div>
       </main>

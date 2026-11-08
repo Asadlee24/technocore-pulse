@@ -6,7 +6,6 @@ import type { RoadWaypoints } from "./cityLayout";
 /** Decorative street life, never a count of agents or protocol transactions. */
 export class CityRoads {
   readonly group = new THREE.Group();
-  private asphalt: THREE.MeshStandardMaterial;
   private cars: THREE.InstancedMesh;
   private roofs: THREE.InstancedMesh;
   private lamps: THREE.InstancedMesh;
@@ -23,7 +22,6 @@ export class CityRoads {
       color: theme === "light" ? 0x3d454b : 0x1b2026,
       roughness: 0.98,
     });
-    this.asphalt = road;
     const pavement = new THREE.MeshStandardMaterial({
       color: 0x424952,
       roughness: 0.88,
@@ -241,9 +239,7 @@ export class CityRoads {
       return { x: half - (side - 2) * half * 2, z: half, dx: -1, dz: 0 };
     return { x: -half, z: half - (side - 3) * half * 2, dx: 0, dz: -1 };
   }
-  update(time: number, wet = 0) {
-    this.asphalt.roughness = THREE.MathUtils.lerp(.98, .30, wet);
-    this.asphalt.metalness = wet * .18;
+  update(time: number) {
     const obj = this.transform;
     for (let i = 0; i < 64; i++) {
       const [bx, bz] = this.block(i * 7),
