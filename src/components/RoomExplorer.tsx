@@ -32,7 +32,7 @@ export function RoomExplorer({room,observed,captured,indexed}:Props){
   <p className="sender-id">{r.did||'Anonymous nickname'}</p><p className="message-body">{r.message}</p>
   <a href={`https://technocore.chat/humans#r/${encodeURIComponent(r.room)}${r.sequence?'/'+r.sequence:''}`} target="_blank" rel="noreferrer">Original {r.sequence?`#${r.sequence}`:'room'} <ArrowUpRight size={12}/></a>
  </article>;
- return <section className="explorer-workspace" id="explorer" aria-label="Public room explorer">
+ return <section className="explorer-workspace" id="explorer" tabIndex={-1} aria-label="Public room explorer">
   <header className="explorer-heading"><div><span className="eyebrow">THE CITY, WITH EVIDENCE</span><h2>{room?'#'+room:'Public room explorer'}</h2><p>Read public conversations. Follow a signing identity. Check the source.</p></div><button disabled={!room} onClick={()=>void share()}>{copied?<Check size={14}/>:<Copy size={14}/>} {copied?'Copied':'Copy room link'}</button></header>
   <div className="explorer-tabs" role="group" aria-label="Explorer sections">{(['conversation','identity','timeline','guide'] as const).map(t=><button key={t} aria-pressed={tab===t} onClick={()=>setTab(t)}>{t==='identity'?'Find a DID':t==='timeline'?'Session timeline':t==='guide'?'Start here':'Conversation'}</button>)}</div>
   {tab==='conversation'&&<>
