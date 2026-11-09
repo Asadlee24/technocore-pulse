@@ -1,12 +1,14 @@
 import * as THREE from "three";
+import type { CitySurfaces } from "./CitySurfaces";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 /** Waterfront, gardens and light poles are architectural scenery, not telemetry. */
 export class CityEnvironment {
   readonly group = new THREE.Group();
+  readonly streetLampPositions: THREE.Vector3[] = [];
   private water: THREE.Mesh;
   private waterMaterial: THREE.ShaderMaterial;
-  constructor(theme: "dark" | "light" = "dark") {
+  constructor(theme: "dark" | "light" = "dark", surfaces?: CitySurfaces) {
     const light = theme === "light";
     this.group.name = "waterfront-city-landscape";
     this.group.userData.isScenery = true;
@@ -24,6 +26,8 @@ export class CityEnvironment {
       roughness: 0.7,
       metalness: 0.3,
     });
+    surfaces?.apply(ground, "asphalt");
+    surfaces?.apply(stone, "pavers");
     const add = (
       geo: THREE.BufferGeometry,
       mat: THREE.Material,
@@ -31,6 +35,7 @@ export class CityEnvironment {
       y: number,
       z: number,
     ) => {
+      surfaces?.tile(geo, mat, x, y, z);
       const obj = new THREE.Mesh(geo, mat);
       obj.position.set(x, y, z);
       obj.receiveShadow = true;
@@ -187,16 +192,23 @@ export class CityEnvironment {
       }
     }
     const poleGeo = new THREE.CylinderGeometry(0.035, 0.05, 2.4, 6);
-    const bulbGeo = new THREE.BoxGeometry(0.35, 0.045, 0.16);
+    const headGeo = new THREE.BoxGeometry(.56, .105, .23);
+    const bulbGeo = new THREE.BoxGeometry(.45, .036, .17);
+    const armGeo = new THREE.BoxGeometry(.60, .045, .055);
+    const baseGeo = new THREE.CylinderGeometry(.10, .14, .28, 8);
     const glow = new THREE.MeshBasicMaterial({
-      color: 0xe5f2fa,
+      color: light ? 0xe5f2fa : 0xffdfac,
       toneMapped: false,
     });
     for (let i = 0; i < 48; i++) {
       const x = ((i % 8) - 3.5) * 18 + 3;
       const z = (Math.floor(i / 8) - 2.5) * 18 + 3;
-      add(poleGeo, navy, x, 1.2, z);
-      add(bulbGeo, glow, x, 2.4, z);
+      add(poleGeo, navy, x, 1.28, z);
+      add(baseGeo, navy, x, .22, z);
+      add(armGeo, navy, x - .26, 2.42, z);
+      add(headGeo, navy, x - .61, 2.42, z);
+      add(bulbGeo, glow, x - .61, 2.355, z);
+      this.streetLampPositions.push(new THREE.Vector3(x - .61, 2.32, z));
     }
     // Keep promenade detail inexpensive on mobile by batching static scenery.
     const batches = new Map<THREE.Material, THREE.Mesh[]>();

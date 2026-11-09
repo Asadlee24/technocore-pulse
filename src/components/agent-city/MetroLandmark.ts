@@ -1,11 +1,12 @@
 import * as THREE from "three";
+import type { CitySurfaces } from "./CitySurfaces";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 /** Architectural community landmark, not a claim of an operational FLOP headquarters. */
 export class MetroLandmark {
   readonly group = new THREE.Group();
   private logoTexture: THREE.Texture;
-  constructor(_materials: unknown) {
+  constructor(_materials: unknown, surfaces?: CitySurfaces) {
     this.group.name = "flop-community-pavilion";
     this.group.userData.isScenery = true;
     this.group.userData.role = "Independent FLOP community landmark";
@@ -17,7 +18,11 @@ export class MetroLandmark {
     const green = new THREE.MeshStandardMaterial({color:0x385f48,roughness:.95});
     const cyan = new THREE.MeshBasicMaterial({color:0x39bfd4,toneMapped:false});
     const warm = new THREE.MeshBasicMaterial({color:0xe6c58f,toneMapped:false});
+    surfaces?.apply(stone, "pavers");
+    surfaces?.apply(frame, "metal");
+    surfaces?.apply(timber, "wood");
     const mesh=(geo:THREE.BufferGeometry,mat:THREE.Material,x:number,y:number,z:number,name="")=>{
+      surfaces?.tile(geo,mat,x,y,z);
       const o=new THREE.Mesh(geo,mat);o.position.set(x,y,z);o.name=name;o.castShadow=o.receiveShadow=true;this.group.add(o);return o;
     };
     const box=(w:number,h:number,d:number,mat:THREE.Material,x:number,y:number,z:number,name="")=>mesh(new THREE.BoxGeometry(w,h,d),mat,x,y,z,name);
@@ -110,7 +115,13 @@ export class MetroLandmark {
   dispose(){
     const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>(),textures=new Set<THREE.Texture>();
     this.group.traverse(o=>{if(o instanceof THREE.Mesh){geometries.add(o.geometry);(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>materials.add(m));}});
-    for(const material of materials){if('map'in material&&material.map instanceof THREE.Texture)textures.add(material.map);material.dispose();}
+    textures.add(this.logoTexture);
+    for (const material of materials) {
+      if (material instanceof THREE.MeshBasicMaterial && material.map instanceof THREE.CanvasTexture) {
+        textures.add(material.map);
+      }
+      material.dispose();
+    }
     geometries.forEach(g=>g.dispose());textures.forEach(t=>t.dispose());
   }
 }

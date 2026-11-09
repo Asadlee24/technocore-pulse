@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import type { CitySurfaces } from "./CitySurfaces";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { streetVehiclePose } from "./streetMotion.js";
 import type { RoadWaypoints } from "./cityLayout";
@@ -6,6 +7,7 @@ import type { RoadWaypoints } from "./cityLayout";
 /** Decorative street life, never a count of agents or protocol transactions. */
 export class CityRoads {
   readonly group = new THREE.Group();
+  private asphalt: THREE.MeshStandardMaterial;
   private cars: THREE.InstancedMesh;
   private roofs: THREE.InstancedMesh;
   private lamps: THREE.InstancedMesh;
@@ -15,18 +17,22 @@ export class CityRoads {
   private people: THREE.InstancedMesh;
   private heads: THREE.InstancedMesh;
   private legs: THREE.InstancedMesh;
-  constructor(_waypoints: RoadWaypoints, theme: "dark" | "light" = "dark") {
+  constructor(_waypoints: RoadWaypoints, theme: "dark" | "light" = "dark", surfaces?: CitySurfaces) {
     this.group.name = "walkable-city-blocks";
     this.group.userData.isScenery = true;
     const road = new THREE.MeshStandardMaterial({
       color: theme === "light" ? 0x3d454b : 0x1b2026,
       roughness: 0.98,
     });
+    this.asphalt = road;
     const pavement = new THREE.MeshStandardMaterial({
       color: 0x424952,
       roughness: 0.88,
     });
     const curb = new THREE.MeshStandardMaterial({ color: 0xa2a4a0, roughness: .95 });
+    surfaces?.apply(road, "asphalt");
+    surfaces?.apply(pavement, "pavers");
+    surfaces?.apply(curb, "concrete");
     const paint = new THREE.MeshBasicMaterial({ color: 0xb3b9b8 });
     const add = (
       geo: THREE.BufferGeometry,
@@ -35,6 +41,7 @@ export class CityRoads {
       y: number,
       z: number,
     ) => {
+      surfaces?.tile(geo, mat, x, y, z);
       const m = new THREE.Mesh(geo, mat);
       m.position.set(x, y, z);
       m.receiveShadow = true;
@@ -239,7 +246,9 @@ export class CityRoads {
       return { x: half - (side - 2) * half * 2, z: half, dx: -1, dz: 0 };
     return { x: -half, z: half - (side - 3) * half * 2, dx: 0, dz: -1 };
   }
-  update(time: number) {
+  update(time: number, wetness = 0) {
+    this.asphalt.roughness = THREE.MathUtils.lerp(.98, .38, wetness);
+    this.asphalt.metalness = wetness * .12;
     const obj = this.transform;
     for (let i = 0; i < 64; i++) {
       const [bx, bz] = this.block(i * 7),

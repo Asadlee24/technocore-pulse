@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import type { CitySurfaces } from "./CitySurfaces";
 import type { RoomCluster } from "../../types/probe";
 import type { BuildingLayout } from "./cityLayout";
 import { AgentDeskFactory } from "./AgentDesk";
@@ -8,16 +9,18 @@ export class OfficeInterior {
   public group: THREE.Group;
   public layout: BuildingLayout;
   private floors: AgentOfficeFloor[] = [];
+  private surfaces?: CitySurfaces;
   private interiorLight: THREE.PointLight;
 
-  constructor(layout: BuildingLayout) {
+  constructor(layout: BuildingLayout, surfaces?: CitySurfaces) {
+    this.surfaces = surfaces;
     this.layout = layout;
     this.group = new THREE.Group();
     this.group.name = `interior-${layout.room.id}`;
     this.group.visible = false; // Hidden by default (LOD City Overview)
 
     // Interior Warm Cyan Illumination
-    this.interiorLight = new THREE.PointLight(0xffe5bb, 5, layout.width * 2.5);
+    this.interiorLight = new THREE.PointLight(0xffdfad, 14, layout.width * 1.5);
     this.interiorLight.position.set(0, 2.0, 0);
     this.group.add(this.interiorLight);
 
@@ -41,6 +44,7 @@ export class OfficeInterior {
         depth: this.layout.depth,
         room: this.layout.room,
         isCommandFloor,
+        surfaces: this.surfaces,
       });
       this.floors.push(floor);
       this.group.add(floor.group);
@@ -73,7 +77,7 @@ export class OfficeInterior {
     });
 
     // Subtle interior light breathing
-    this.interiorLight.intensity = 4.5 + Math.sin(time * 0.6) * 0.15;
+    this.interiorLight.intensity = 14 + Math.sin(time * 0.6) * 0.15;
   }
 
   public updateRoomData(room: RoomCluster) {
