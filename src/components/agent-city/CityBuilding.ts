@@ -5,6 +5,7 @@ import type { RoomCluster } from "../../types/probe";
 import type { BuildingLayout } from "./cityLayout";
 import type { CityMaterials } from "./cityMaterials";
 import { OfficeInterior } from "./OfficeInterior";
+import { createCityFrontage } from "./CityFrontage";
 
 /** One architectural parcel per public room; massing is a visual arrangement. */
 export class CityBuilding {
@@ -14,6 +15,7 @@ export class CityBuilding {
   layout: BuildingLayout;
   isCutaway = false;
   private shell = new THREE.Group();
+  private entranceDetails: THREE.Group;
   private windows: THREE.InstancedMesh;
   private windowLight: THREE.InstancedBufferAttribute;
   private selection: THREE.LineSegments;
@@ -56,10 +58,6 @@ export class CityBuilding {
     surfaces?.apply(concrete, "concrete");
     surfaces?.apply(trim, "metal");
     surfaces?.apply(ground, "pavers");
-    const accent = new THREE.MeshBasicMaterial({
-      color: 0x00b4d8,
-      toneMapped: false,
-    });
     const add = (
       parent: THREE.Group,
       geo: THREE.BufferGeometry,
@@ -115,14 +113,9 @@ export class CityBuilding {
         d * 0.59,
       );
     }
-    add(
-      this.shell,
-      new THREE.BoxGeometry(w * 1.05, 2.4, d * 1.05),
-      glass,
-      0,
-      1.4,
-      0,
-    );
+    const frontage = createCityFrontage(layout, { structure: masonry ? wall : concrete, trim, stone: concrete }, isDay, surfaces);
+    this.entranceDetails = frontage.furniture;
+    this.shell.add(frontage.group);
     add(
       this.shell,
       new THREE.BoxGeometry(w * 1.16, 0.18, d * 1.16),
@@ -279,57 +272,6 @@ export class CityBuilding {
     if (layout.archetype === "research-lab") {
       const garden = new THREE.MeshStandardMaterial({color:0x608674,roughness:.9});
       add(this.shell,new THREE.BoxGeometry(roofW*.25,.26,roofD*.55),garden,roofX+roofW*.32,h+.35,0);
-    }
-    // The only strong exterior cyan is a small entrance signal, not a neon outline.
-    add(
-      this.shell,
-      new THREE.BoxGeometry(w * 0.48, 0.055, 0.07),
-      accent,
-      0,
-      2.17,
-      d * 0.53,
-    );
-    add(
-      this.shell,
-      new THREE.BoxGeometry(w * 0.58, 0.09, 0.65),
-      concrete,
-      0,
-      2.3,
-      d * 0.53 + 0.3,
-    );
-    if (h < 13) {
-      const fabric = new THREE.MeshStandardMaterial({
-        color: layout.position[0] > 0 ? 0x426b79 : 0x497062,
-        roughness: 0.85,
-      });
-      const awning = add(
-        this.shell,
-        new THREE.BoxGeometry(w * 0.82, 0.11, 0.95),
-        fabric,
-        0,
-        2.22,
-        d * 0.53 + 0.4,
-      );
-      awning.rotation.x = 0.12;
-      for (const side of [-1, 1])
-        add(
-          this.shell,
-          new THREE.BoxGeometry(0.055, 2, 0.055),
-          trim,
-          side * w * 0.4,
-          1.12,
-          d * 0.53 + 0.7,
-        );
-    }
-    // Recessed entrances, doors, clerestory mullions and a tactile masonry base.
-    const entrance = new THREE.MeshStandardMaterial({color:0x172d37,roughness:.22,metalness:.35});
-    const brass = new THREE.MeshStandardMaterial({color:0xaa9270,roughness:.4,metalness:.7});
-    add(this.shell,new THREE.BoxGeometry(w*.23,1.88,.12),entrance,0,1.15,d*.53+.02);
-    for (const side of [-1,1]) {
-      add(this.shell,new THREE.BoxGeometry(.07,1.98,.18),frame,side*w*.125,1.15,d*.53+.04);
-      add(this.shell,new THREE.BoxGeometry(.025,.4,.04),brass,side*.14,1.18,d*.53+.12);
-      add(this.shell,new THREE.BoxGeometry(w*.31,.12,.75),concrete,side*w*.34,.27,d*.53+.1);
-      for (const col of [-1,0,1]) add(this.shell,new THREE.BoxGeometry(.045,1.6,.06),trim,side*w*.32+col*w*.065,1.35,d*.53+.025);
     }
     if (masonry) {
       // Model the sill and reveal so the glass sits behind the surrounding trim.
@@ -576,7 +518,11 @@ export class CityBuilding {
   triggerProbeEffect() {
     this.pulseUntil = performance.now() + 2000;
   }
-  update(time: number, selected: boolean) {
+  update(time: number, selected: boolean, viewPosition?: THREE.Vector3, detailDistance = 35) {
+    if (viewPosition) {
+      const toEntrance = this.group.position.distanceToSquared(viewPosition);
+      this.entranceDetails.visible = toEntrance < detailDistance * detailDistance;
+    }
     this.selection.visible = selected || performance.now() < this.pulseUntil;
     if (this.isCutaway) this.interior.update(time);
   }

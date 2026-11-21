@@ -12,7 +12,7 @@ type SurfaceSpec = {
 
 const SPEC: Record<Surface, SurfaceSpec> = {
   concrete: { metres: 4, grain: 8, variation: 17, bump: .033, courses: [3, 2] },
-  masonry: { metres: 3.6, grain: 9, variation: 25, bump: .046, courses: [4, 8], stagger: true },
+  masonry: { metres: 3.6, grain: 13, variation: 37, bump: .047, courses: [10, 23], stagger: true },
   asphalt: { metres: 3, grain: 30, variation: 16, bump: .026 },
   pavers: { metres: 3.6, grain: 10, variation: 19, bump: .035, courses: [6, 8], stagger: true },
   metal: { metres: 2, grain: 6, variation: 12, bump: .008 },
@@ -109,13 +109,15 @@ export class CitySurfaces {
         const broad = tileNoise(u, v, 5) - .5;
         const detail = tileNoise(u, v, 24) - .5;
         const grain = hash(x, y) - .5;
+        const stain = Math.max(0, tileNoise(u, v, 8) - .53);
         const brush = surface === "wood" || surface === "metal" ? (hash(0, y) - .5) * 18 : 0;
         const block = (hash(column, row) - .5) * spec.variation;
-        const value = 239 + broad * 23 + detail * 16 + block + grain * spec.grain + brush - (1 - edge) * 62;
+        const value = 237 + broad * 25 + detail * 17 + block + grain * spec.grain + brush - (1 - edge) * 50 - stain * 53;
         const height = 105 + edge * 63 + broad * 24 + detail * 20 + grain * spec.grain + brush;
         const i = (y * size + x) * 4;
+        const mineral = surface === "masonry" ? (hash(column + 21, row + 7) - .3) * 17 : 0;
         for (let channel = 0; channel < 3; channel++) {
-          colors[i + channel] = THREE.MathUtils.clamp(value, 0, 255);
+          colors[i + channel] = THREE.MathUtils.clamp(value + (1 - channel) * mineral * edge, 0, 255);
           if (heights) heights[i + channel] = THREE.MathUtils.clamp(height, 0, 255);
         }
         colors[i + 3] = 255;

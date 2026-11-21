@@ -104,6 +104,12 @@ try {
   assert.ok(asphaltMesh, "The road and shared asphalt material use the same texture");
   roads.update(0, 1);
   assert.ok(asphaltMesh.material.roughness < .5, "Rain changes the road material response");
+  const roadShader = { vertexShader: THREE.ShaderLib.standard.vertexShader, fragmentShader: THREE.ShaderLib.standard.fragmentShader, uniforms: {} };
+  asphaltMesh.material.onBeforeCompile(roadShader);
+  assert.equal(roadShader.uniforms.streetWetness.value, 1);
+  assert.match(roadShader.fragmentShader, /roughnessFactor = clamp/);
+  roads.update(0, 0);
+  assert.equal(roadShader.uniforms.streetWetness.value, 0, "Wetness updates without rebuilding the road material");
   assert.equal(environment.streetLampPositions.length, (CITY_GRID.streetXs.length - 1) * (CITY_GRID.streetZs.length - 1));
   for (const place of CIVIC_SPACES.filter(place => place.kind !== "plaza")) {
     const block = environment.group.getObjectByName(place.name);

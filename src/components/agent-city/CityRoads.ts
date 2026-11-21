@@ -17,9 +17,10 @@ function findBlock(index: number) {
 export class CityRoads {
   readonly group = new THREE.Group();
   private asphalt: THREE.MeshStandardMaterial;
+  private dampness = { value: 0 };
   private traffic: StreetTraffic;
   private pedestrians: StreetPedestrians;
-  constructor(_waypoints: RoadWaypoints, theme: "dark" | "light" = "dark", surfaces?: CitySurfaces) {
+  constructor(_waypoints: RoadWaypoints, theme: "dark" | "light" = "dark", surfaces?: CitySurfaces, detailedRoad = true) {
     this.group.name = "walkable-city-blocks";
     this.group.userData.isScenery = true;
     const road = new THREE.MeshStandardMaterial({
@@ -27,6 +28,32 @@ export class CityRoads {
       roughness: 0.98,
     });
     this.asphalt = road;
+    if (detailedRoad) road.onBeforeCompile = shader => {
+      shader.uniforms.streetWetness = this.dampness;
+      shader.vertexShader = shader.vertexShader
+        .replace("#include <common>", "#include <common>\nvarying vec2 streetWorld;")
+        .replace("#include <worldpos_vertex>", "#include <worldpos_vertex>\nstreetWorld = (modelMatrix * vec4(transformed, 1.)).xz;");
+      shader.fragmentShader = shader.fragmentShader
+        .replace("#include <common>", `#include <common>
+          varying vec2 streetWorld;
+          uniform float streetWetness;
+          float streetNoise(vec2 p) {
+            vec2 cell = floor(p);
+            vec2 f = fract(p);
+            f = f*f*(3.-2.*f);
+            vec4 h = fract(sin(vec4(dot(cell, vec2(127.1, 311.7))) + vec4(0., 127.1, 311.7, 438.8)) * 43758.5453);
+            return mix(mix(h.x, h.y, f.x), mix(h.z, h.w, f.x), f.y);
+          }
+        `)
+        .replace("#include <roughnessmap_fragment>", `#include <roughnessmap_fragment>
+          float wear = streetNoise(streetWorld * .18);
+          float repairs = smoothstep(.73, .91, streetNoise(streetWorld * vec2(.51, .27)));
+          float patchSignal = wear * .73 + streetNoise(streetWorld * .81) * .27;
+          float pool = smoothstep(.56, .73, patchSignal) * streetWetness;
+          diffuseColor.rgb *= (.88 + .22 * wear - repairs * .12) * (1. - streetWetness * .18 - pool * .18);
+          roughnessFactor = clamp(mix(roughnessFactor + (wear - .5) * .12, .13, pool), .12, 1.);
+        `);
+    };
     const pavement = new THREE.MeshStandardMaterial({
       color: 0x424952,
       roughness: 0.88,
@@ -175,8 +202,9 @@ export class CityRoads {
     this.update(0);
   }
   update(time: number, wetness = 0) {
-    this.asphalt.roughness = THREE.MathUtils.lerp(.98, .38, wetness);
-    this.asphalt.metalness = wetness * .12;
+    this.dampness.value = THREE.MathUtils.clamp(wetness, 0, 1);
+    this.asphalt.roughness = THREE.MathUtils.lerp(.98, .38, this.dampness.value);
+    this.asphalt.metalness = this.dampness.value * .055;
     this.traffic.update(time, findBlock);
     this.pedestrians.update(time, findBlock);
   }

@@ -8,7 +8,6 @@ export class CityLife {
   private ferry = new THREE.Group();
   private tram = new THREE.Group();
   private rain: THREE.LineSegments;
-  private puddles: THREE.InstancedMesh;
   private rainMaterial: THREE.ShaderMaterial;
   private fountain: THREE.Points;
   constructor() {
@@ -68,8 +67,6 @@ export class CityLife {
     const rainGeometry=new THREE.BufferGeometry();rainGeometry.setAttribute('position',new THREE.Float32BufferAttribute(rainPositions,3));rainGeometry.setAttribute('tip',new THREE.Float32BufferAttribute(tips,1));
     this.rainMaterial=new THREE.ShaderMaterial({transparent:true,depthWrite:false,uniforms:{time:{value:0}},vertexShader:`attribute float tip;uniform float time;varying float height;void main(){vec3 p=position;p.y=mod(p.y-time*26.,90.)+tip*.85;p.x+=tip*.18;height=p.y;gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);}`,fragmentShader:`varying float height;void main(){gl_FragColor=vec4(.65,.78,.88,.32*smoothstep(0.,3.,height));}`});
     this.rain=new THREE.LineSegments(rainGeometry,this.rainMaterial);this.rain.name="rain-weather";this.rain.frustumCulled=false;this.rain.visible=false;this.group.add(this.rain);
-    this.puddles=new THREE.InstancedMesh(new THREE.CircleGeometry(1,16),new THREE.MeshBasicMaterial({color:0x8eacbf,transparent:true,opacity:.20,depthWrite:false}),36);
-    const transform=new THREE.Object3D();for(let i=0;i<36;i++){transform.position.set((i%6-2.5)*18+9,.25,(Math.floor(i/6)-2.5)*18+9);transform.rotation.x=-Math.PI/2;transform.scale.set(1.5,.45,1);transform.updateMatrix();this.puddles.setMatrixAt(i,transform.matrix);}this.puddles.visible=false;this.group.add(this.puddles);
     for (const parent of [plaza, this.ferry, this.tram, this.group]) {
       const batches = new Map<THREE.Material, THREE.Mesh[]>();
       for(const object of parent.children){if(!(object instanceof THREE.Mesh)||object instanceof THREE.InstancedMesh||Array.isArray(object.material))continue;const list=batches.get(object.material)??[];list.push(object);batches.set(object.material,list);}
@@ -83,7 +80,7 @@ export class CityLife {
     this.tram.position.set(Math.sin(time*.07)*76,.05,CITY_GRID.quayTram.z);
     const positions=this.fountain.geometry.attributes.position;
     for(let i=0;i<positions.count;i++){const phase=(i/positions.count+time*.45)%1;positions.setY(i,.7+Math.sin(phase*Math.PI)*1.6);}positions.needsUpdate=true;
-    this.rain.visible=rainy;this.puddles.visible=rainy;this.rainMaterial.uniforms.time.value=time;
+    this.rain.visible=rainy;this.rainMaterial.uniforms.time.value=time;
   }
   dispose(){const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>();this.group.traverse(o=>{if(o instanceof THREE.Mesh||o instanceof THREE.Points||o instanceof THREE.LineSegments){geometries.add(o.geometry);(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>materials.add(m));}});geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());}
 }

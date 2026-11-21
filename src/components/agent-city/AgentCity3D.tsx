@@ -572,7 +572,10 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // 1. Scene & Atmospheric Fog (Target: 10-15% sky readability, softened fog so buildings don't vanish)
     const scene = new THREE.Scene();
     sceneRef.current = scene;
-    scene.fog = new THREE.FogExp2(isLight ? 0xdaecf8 : 0x293a55, 0.0018);
+    const fog = new THREE.FogExp2(isLight ? 0xdaecf8 : 0x293a55, 0.0018);
+    const clearAir = fog.color.clone();
+    const overcastAir = new THREE.Color(isLight ? 0x879ca9 : 0x263344);
+    scene.fog = fog;
     const sky = new CitySky(theme);
     scene.add(sky.group);
 
@@ -647,7 +650,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // 7. Full 8-District Layout & Metropolitan Road Network
     const { buildings, roadWaypoints } = generateCityLayout(safeClusters);
 
-    const roads = new CityRoads(roadWaypoints, theme, surfaces);
+    const roads = new CityRoads(roadWaypoints, theme, surfaces, quality !== "smooth");
     scene.add(roads.group);
 
     // 9. Procedural District Buildings & Cutaway Interiors
@@ -716,6 +719,8 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     scene.add(fillLight);
     const shadowCenter = new THREE.Vector3();
     const keyOffset = moonLight.position.clone();
+    const keyIntensity = moonLight.intensity;
+    const entranceDetailDistance = quality === "smooth" ? 21 : quality === "high" ? 48 : 32;
     let wetness = 0;
 
     // 11. OrbitControls & User Interaction (Smooth Damping, Pan, Orbit, Wheel Zoom)
@@ -1044,11 +1049,14 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       pulseSystem.update(motionPausedRef.current ? 0 : delta);
       civicLife.update(lodManagerRef.current.config.prefersReducedMotion ? 0 : sceneryTime, rainRef.current);
       sky.update(lodManagerRef.current.config.prefersReducedMotion ? 0 : sceneryTime, camera, rainRef.current);
-      wetness = THREE.MathUtils.damp(wetness, rainRef.current ? 1 : 0, 2.5, delta);
+      wetness = THREE.MathUtils.damp(wetness, rainRef.current ? 1 : 0, rainRef.current ? 2.2 : .7, delta);
+      fog.color.copy(clearAir).lerp(overcastAir, wetness);
+      fog.density = THREE.MathUtils.lerp(.0018, .004, wetness);
+      moonLight.intensity = keyIntensity * (1 - wetness * .51);
       environment.update(lodManagerRef.current.config.prefersReducedMotion ? 0 : sceneryTime, wetness);
       roads.update(
         lodManagerRef.current.config.prefersReducedMotion ? 0 : sceneryTime,
-        quality === "smooth" ? 0 : wetness,
+        wetness,
       );
 
       // Keep the same sun direction while concentrating its shadow texels near the camera.
@@ -1072,6 +1080,8 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
         bObj.update(
           lodManagerRef.current.config.prefersReducedMotion ? 0 : sceneryTime,
           bObj.layout.room.id === currentActiveId,
+          camera.position,
+          entranceDetailDistance,
         );
       });
 

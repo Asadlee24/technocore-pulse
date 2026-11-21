@@ -39,6 +39,7 @@ try {
     "AgentOfficeFloor",
     "OfficeInterior",
     "CityBuilding",
+    "CityFrontage",
   ]) {
     let compiled = ts.transpileModule(
       readFileSync(`${source}${name}.ts`, "utf8"),
@@ -50,7 +51,7 @@ try {
       },
     ).outputText;
     compiled = compiled.replace(
-      /from ['"]\.\/(AgentWorker|AgentDesk|AgentOfficeFloor|OfficeInterior)['"]/g,
+      /from ['"]\.\/(AgentWorker|AgentDesk|AgentOfficeFloor|OfficeInterior|CityFrontage)['"]/g,
       'from "./$1.mjs"',
     );
     writeFileSync(`${tmp}/${name}.mjs`, compiled);
@@ -205,6 +206,18 @@ try {
     building.group.updateMatrixWorld(true);
     const pickingRay = new THREE.Raycaster(new THREE.Vector3(0, 2, 10), new THREE.Vector3(0, 0, -1));
     assert.equal(pickingRay.intersectObject(building.hitMesh)[0]?.object, building.hitMesh);
+    const frontage = building.group.getObjectByName("street-frontage");
+    const lobby = frontage.getObjectByName("street-frontage-interior");
+    const panes = frontage.getObjectByName("recessed-lobby-glazing");
+    assert.ok(panes.material.transparent && panes.material.opacity < .4, "Lobby furniture can be seen through the glass");
+    const lobbyRay = new THREE.Raycaster(new THREE.Vector3(1.4, 1.5, 10), new THREE.Vector3(0, 0, -1));
+    const surfaces = lobbyRay.intersectObject(frontage).filter(hit => hit.object !== panes);
+    assert.ok(panes.position.z - surfaces[0].point.z > 1, "The lobby has physical depth behind the pane");
+    building.update(0, false, new THREE.Vector3(0, 1.75, 8));
+    assert.equal(lobby.visible, true);
+    building.update(0, false, new THREE.Vector3(0, 60, 8));
+    assert.equal(lobby.visible, false);
+    assert.equal(panes.visible, true, "Front glazing persists from above the city");
     const windows = building.group.getObjectByName("observed-activity-windows");
     assert.ok(
       windows.count > 40,
@@ -226,6 +239,7 @@ try {
     assert.equal(signTexture.version, textureVersion);
     assert.equal(windowLight.version, lightVersion);
     building.setCutaway(true);
+    assert.equal(frontage.parent.visible, false);
     building.interior.setFocusedFloor(0);
     building.group.updateMatrixWorld(true);
     let workers = 0;
