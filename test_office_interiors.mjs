@@ -9,6 +9,7 @@ import {
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import ts from "typescript";
+import * as THREE from "three";
 // Scene-graph checks run without claiming GPU-rendered visual verification.
 const previousDocument = globalThis.document;
 const drawCalls = [];
@@ -190,26 +191,40 @@ try {
       rotationY: 0,
       isPrimaryRoom: true,
     };
-    const building = new CityBuilding(layout, {});
+    const building = new CityBuilding(layout, {}, undefined, 1);
     const roofSigns = [];
     building.group.traverse(o => { if (o.name === "rooftop-room-name") roofSigns.push(o); });
     assert.equal(roofSigns.length, 1, "Every archetype has exactly one rooftop room sign");
     assert.ok(roofSigns.every(sign => sign.position.y > layout.height), "Room names sit above the roof");
     assert.ok(roofSigns[0].isSprite, "Aerial identifier faces the viewing camera");
+    const signTexture = roofSigns[0].material.map;
+    assert.equal(signTexture.image.width, 1024);
     assert.equal(building.group.userData.sourceRoom, "lobby");
     assert.equal(building.hitMesh.userData.room.name, "lobby");
+    assert.equal(building.hitMesh.visible, false);
+    building.group.updateMatrixWorld(true);
+    const pickingRay = new THREE.Raycaster(new THREE.Vector3(0, 2, 10), new THREE.Vector3(0, 0, -1));
+    assert.equal(pickingRay.intersectObject(building.hitMesh)[0]?.object, building.hitMesh);
     const windows = building.group.getObjectByName("observed-activity-windows");
     assert.ok(
       windows.count > 40,
       "Facade includes detailed instanced windows",
     );
     const dark = windows.instanceColor.array.slice();
+    const windowLight = windows.geometry.getAttribute("windowLight");
+    assert.ok(windowLight.array.every(value => value === 0));
     building.updateRoomData({ ...room, status: "active" });
     assert.notDeepEqual(
       windows.instanceColor.array,
       dark,
       "Window lighting reflects the room activity state",
     );
+    assert.ok(windowLight.array.some(value => value > 0));
+    const textureVersion = signTexture.version;
+    const lightVersion = windowLight.version;
+    building.updateRoomData({ ...room, status: "surge" });
+    assert.equal(signTexture.version, textureVersion);
+    assert.equal(windowLight.version, lightVersion);
     building.setCutaway(true);
     building.interior.setFocusedFloor(0);
     let workers = 0;

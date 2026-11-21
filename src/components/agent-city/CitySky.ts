@@ -22,7 +22,10 @@ export class CitySky {
         float fbm(vec2 p){float n=0.,a=.5;for(int i=0;i<4;i++){n+=a*noise(p);p=p*2.03+vec2(7.2,3.8);a*=.5;}return n;}
         void main(){
           vec3 d=normalize(direction);float elevation=max(d.y,0.);
-          vec3 night=mix(vec3(.016,.028,.06),vec3(.002,.004,.015),pow(elevation,.45));
+          float horizonGlow=exp(-elevation*10.);
+          float west=pow(max(dot(normalize(vec2(d.x+.001,d.z)),normalize(vec2(-.7,-.7))),0.),4.);
+          vec3 night=mix(vec3(.018,.036,.079),vec3(.0015,.003,.011),pow(elevation,.38));
+          night+=mix(vec3(.005,.012,.025),vec3(.032,.017,.018),west)*horizonGlow;
           vec3 day=mix(vec3(.70,.84,.94),vec3(.12,.39,.72),pow(elevation,.45));
           vec3 col=mix(night,day,daylight);
           vec2 p=d.xz/(max(d.y,.015)+.45)*3.4+vec2(time*.003,0.);
@@ -71,7 +74,17 @@ export class CitySky {
       transparent: true, depthWrite: false, fog: false,
       uniforms: { tint: { value: new THREE.Color(day ? 0xffe6ab : 0x9abce9) }, strength: { value: day ? .30 : .11 } },
       vertexShader: `varying vec2 uvp;void main(){uvp=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
-      fragmentShader: `varying vec2 uvp;uniform vec3 tint;uniform float strength;void main(){float r=length(uvp-.5)*2.;float a=exp(-r*r*5.)*smoothstep(1.,.25,r)*strength;gl_FragColor=vec4(tint,a);#include <colorspace_fragment>}`.replace(";#include", ";\n#include"),
+      fragmentShader: `
+        varying vec2 uvp;
+        uniform vec3 tint;
+        uniform float strength;
+        void main() {
+          float radius = length(uvp - .5) * 2.;
+          float alpha = exp(-radius * radius * 5.) * (1. - smoothstep(.25, 1., radius)) * strength;
+          gl_FragColor = vec4(tint, alpha);
+          #include <colorspace_fragment>
+        }
+      `,
     }));
     this.halo.position.copy(direction).multiplyScalar(1110);
     this.halo.renderOrder = -9;

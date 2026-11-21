@@ -548,7 +548,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // 1. Scene & Atmospheric Fog (Target: 10-15% sky readability, softened fog so buildings don't vanish)
     const scene = new THREE.Scene();
     sceneRef.current = scene;
-    scene.fog = new THREE.FogExp2(isLight ? 0xdaecf8 : 0x22304f, 0.0018);
+    scene.fog = new THREE.FogExp2(isLight ? 0xdaecf8 : 0x293a55, 0.0018);
     const sky = new CitySky(theme);
     scene.add(sky.group);
 
@@ -567,6 +567,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // 3. WebGL Renderer (Mobile optimized, no preserveDrawingBuffer to maximize framerate)
     const isMobileDevice =
       typeof window !== "undefined" && window.innerWidth <= 768;
+    const labelPixelRatio = quality === "high" ? 2 : quality === "smooth" ? .5 : 1;
     const renderer = new THREE.WebGLRenderer({
       antialias: quality !== "smooth",
       alpha: true,
@@ -634,7 +635,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     cityGroupRef.current = cityGroup;
 
     buildings.forEach((bLayout) => {
-      const bObj = new CityBuilding(bLayout, materials, surfaces);
+      const bObj = new CityBuilding(bLayout, materials, surfaces, labelPixelRatio, isLight);
       buildingsMapRef.current.set(bLayout.room.id, bObj);
       cityGroup.add(bObj.group);
 
@@ -689,8 +690,6 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     );
     fillLight.position.set(55, 38, 65);
     scene.add(fillLight);
-    const streetLight = new THREE.PointLight(0xffcb89, 0, 14, 2);
-    if (!isLight && quality !== "smooth") scene.add(streetLight);
     const shadowCenter = new THREE.Vector3();
     const keyOffset = moonLight.position.clone();
     let wetness = 0;
@@ -993,10 +992,10 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
         lodManagerRef.current.config.prefersReducedMotion ? 0 : sceneryTime,
       );
       pulseSystem.update(motionPausedRef.current ? 0 : delta);
-      environment.update(sceneryTime);
       civicLife.update(lodManagerRef.current.config.prefersReducedMotion ? 0 : sceneryTime, rainRef.current);
       sky.update(lodManagerRef.current.config.prefersReducedMotion ? 0 : sceneryTime, camera, rainRef.current);
       wetness = THREE.MathUtils.damp(wetness, rainRef.current ? 1 : 0, 2.5, delta);
+      environment.update(lodManagerRef.current.config.prefersReducedMotion ? 0 : sceneryTime, wetness);
       roads.update(
         lodManagerRef.current.config.prefersReducedMotion ? 0 : sceneryTime,
         quality === "smooth" ? 0 : wetness,
@@ -1008,22 +1007,13 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
         shadowCenter.copy(controls.target).multiplyScalar(close).y = 0;
         moonLight.target.position.copy(shadowCenter);
         moonLight.position.copy(keyOffset).add(shadowCenter);
-        const span = THREE.MathUtils.lerp(82, 26, close);
+        const span = Math.round(THREE.MathUtils.lerp(82, 26, close));
         const shadow = moonLight.shadow.camera;
-        shadow.left = shadow.bottom = -span;
-        shadow.right = shadow.top = span;
-        shadow.updateProjectionMatrix();
-      }
-
-      if (streetLight.parent) {
-        let nearest = Infinity;
-        for (const lamp of environment.streetLampPositions) {
-          const distance = Math.hypot(camera.position.x - lamp.x, camera.position.z - lamp.z);
-          if (distance >= nearest) continue;
-          nearest = distance;
-          streetLight.position.copy(lamp);
+        if (shadow.right !== span) {
+          shadow.left = shadow.bottom = -span;
+          shadow.right = shadow.top = span;
+          shadow.updateProjectionMatrix();
         }
-        streetLight.intensity = close * (1 - THREE.MathUtils.smoothstep(nearest, 5, 14)) * 28;
       }
 
       // Update individual buildings & interiors
@@ -1086,6 +1076,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
         container.removeChild(renderer.domElement);
       }
       reflectionTarget.dispose();
+      moonLight.shadow.dispose();
       renderer.dispose();
     };
   }, [switchCameraToBuilding, theme, topologyKey, quality]);

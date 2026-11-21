@@ -53,26 +53,45 @@ export class CityEnvironment {
     }
     this.waterMaterial = new THREE.ShaderMaterial({
       uniforms: {
-        time: { value: 0 }, daylight: { value: light ? 1 : 0 },
+        time: { value: 0 }, daylight: { value: light ? 1 : 0 }, wetness: { value: 0 },
         deep: { value: new THREE.Color(light ? 0x326e91 : 0x081724) },
-        horizon: { value: new THREE.Color(light ? 0xdaecf8 : 0x22304f) },
+        horizon: { value: new THREE.Color(light ? 0xdaecf8 : 0x293a55) },
       },
       vertexShader: `varying vec3 world;void main(){vec4 p=modelMatrix*vec4(position,1.);world=p.xyz;gl_Position=projectionMatrix*viewMatrix*p;}`,
-      fragmentShader: `varying vec3 world;uniform float time;uniform float daylight;uniform vec3 deep;uniform vec3 horizon;
-        void main(){vec2 p=world.xz;float t=time*.35;
-          float a=sin(p.x*.31+p.y*.18+t),b=cos(p.y*.49-p.x*.12-t*.7);
-          vec3 n=normalize(vec3(a*.10,1.,b*.08));vec3 view=normalize(cameraPosition-world);
-          float fresnel=pow(1.-max(dot(n,view),0.),4.);
-          vec3 col=mix(deep,horizon,fresnel*.52);
-          float glint=pow(max(dot(reflect(-normalize(vec3(-.61,.18,-.79)),n),view),0.),100.);
-          float detail=1.-smoothstep(.12,.8,length(fwidth(p)));
-          float ripples=.5+.5*sin(p.x*.55+p.y*.23+a)*detail;
-          col+=mix(vec3(.28,.35,.47),vec3(1.,.86,.60),daylight)*glint*(.12+.20*ripples);
-          col+=vec3(.008,.014,.018)*a*b;
-          float haze=1.-exp(-pow(length(cameraPosition-world)*.0018,2.));
-          col=mix(col,horizon,haze);gl_FragColor=vec4(col,1.);
+      fragmentShader: `
+        varying vec3 world;
+        uniform float time, daylight, wetness;
+        uniform vec3 deep, horizon;
+
+        void main() {
+          vec2 p = world.xz;
+          float a = sin(dot(p, vec2(.31, .18)) + time * .52);
+          float b = cos(dot(p, vec2(-.12, .64)) - time * .39);
+          float c = sin(dot(p, vec2(.74, -.36)) + time * .85);
+          float detail = 1. - smoothstep(.15, 1.4, length(fwidth(p)));
+          vec3 normal = normalize(vec3(a * .08 + c * .045 * detail, 1., b * .075));
+          vec3 view = normalize(cameraPosition - world);
+          float fresnel = .03 + .97 * pow(1. - max(dot(normal, view), 0.), 4.);
+          vec3 color = mix(deep, horizon, fresnel * .8);
+          float glint = pow(max(dot(reflect(-normalize(vec3(-.61, .18, -.79)), normal), view), 0.), 80.);
+          color += mix(vec3(.16, .24, .37), vec3(1., .80, .55), daylight) * glint * .36 * (1. - wetness * .7);
+          color += vec3(.003, .006, .011) * a * b;
+
+          // The promenade lights are spaced 18 metres apart along each quay.
+          vec2 side = abs(p);
+          float sea = max(side.x, side.y) - 102.;
+          float along = side.x > side.y ? p.y : p.x;
+          float distortion = (a * .65 + b * .45 + c * .35 * detail) * (1. + wetness);
+          float lampDistance = abs(mod(along + distortion + 9., 18.) - 9.);
+          float reflection = exp(-max(sea, 0.) * .105 - lampDistance * .72);
+          reflection *= smoothstep(-.2, 1.5, sea) * (1. - smoothstep(87., 93., abs(along)));
+          reflection *= (.67 + .33 * b * detail) * (1. - daylight) * (1. - wetness * .35);
+          color += vec3(.46, .22, .075) * reflection;
+          color = mix(color, horizon, 1. - exp(-pow(length(cameraPosition - world) * .0018, 2.)));
+          gl_FragColor = vec4(color, 1.);
           #include <colorspace_fragment>
-        }`,
+        }
+      `,
     });
     this.water = add(new THREE.PlaneGeometry(5000, 5000), this.waterMaterial, 0, -2.1, 0);
     this.water.name = "animated-waterfront-water";
@@ -210,6 +229,43 @@ export class CityEnvironment {
       add(bulbGeo, glow, x - .61, 2.355, z);
       this.streetLampPositions.push(new THREE.Vector3(x - .61, 2.32, z));
     }
+    if (!light) {
+      const poolMaterial = new THREE.ShaderMaterial({
+        transparent: true,
+        depthWrite: false,
+        uniforms: { tint: { value: new THREE.Color(0xffb777) } },
+        vertexShader: `
+          varying vec2 poolUv;
+          void main() {
+            poolUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.);
+          }
+        `,
+        fragmentShader: `
+          uniform vec3 tint;
+          varying vec2 poolUv;
+          void main() {
+            vec2 fromCenter = (poolUv - .5) * 2.;
+            float radius = dot(fromCenter, fromCenter);
+            float falloff = exp(-radius * 3.4) * (1. - smoothstep(.55, 1., radius));
+            gl_FragColor = vec4(tint, falloff * .31);
+            #include <colorspace_fragment>
+          }
+        `,
+      });
+      const pools = new THREE.InstancedMesh(
+        new THREE.PlaneGeometry(7.4, 5.8).rotateX(-Math.PI / 2),
+        poolMaterial,
+        this.streetLampPositions.length,
+      );
+      pools.name = "street-lamp-light-pools";
+      const matrix = new THREE.Matrix4();
+      this.streetLampPositions.forEach((lamp, index) => {
+        pools.setMatrixAt(index, matrix.makeTranslation(lamp.x - .5, .127, lamp.z));
+      });
+      pools.instanceMatrix.needsUpdate = true;
+      this.group.add(pools);
+    }
     // Keep promenade detail inexpensive on mobile by batching static scenery.
     const batches = new Map<THREE.Material, THREE.Mesh[]>();
     for (const child of this.group.children) {
@@ -234,8 +290,9 @@ export class CityEnvironment {
       this.group.add(combined);
     }
   }
-  update(time: number) {
+  update(time: number, wetness = 0) {
     this.waterMaterial.uniforms.time.value = time;
+    this.waterMaterial.uniforms.wetness.value = wetness;
     this.water.position.y = -2.1 + Math.sin(time * 0.3) * 0.025;
   }
   dispose() {
@@ -243,6 +300,7 @@ export class CityEnvironment {
       materials = new Set<THREE.Material>();
     this.group.traverse((o) => {
       if (o instanceof THREE.Mesh) {
+        if (o instanceof THREE.InstancedMesh) o.dispose();
         geometries.add(o.geometry);
         (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) =>
           materials.add(m),
