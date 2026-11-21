@@ -1,26 +1,24 @@
 import * as THREE from "three";
 import type { CitySurfaces } from "./CitySurfaces";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { streetVehiclePose } from "./streetMotion.js";
+import { StreetTraffic } from "./StreetTraffic.js";
+import { StreetPedestrians } from "./StreetPedestrians.js";
 import { CITY_GRID, type RoadWaypoints } from "./cityLayout.js";
 
 const BLOCK_CENTERS = CITY_GRID.streetZs.slice(0, -1).flatMap(z =>
   CITY_GRID.streetXs.slice(0, -1).map(x => [x + 9, z + 9] as const),
 );
 
+function findBlock(index: number) {
+  return BLOCK_CENTERS[index % BLOCK_CENTERS.length];
+}
+
 /** Decorative street life, never a count of agents or protocol transactions. */
 export class CityRoads {
   readonly group = new THREE.Group();
   private asphalt: THREE.MeshStandardMaterial;
-  private cars: THREE.InstancedMesh;
-  private roofs: THREE.InstancedMesh;
-  private lamps: THREE.InstancedMesh;
-  private tailLights: THREE.InstancedMesh;
-  private transform = new THREE.Object3D();
-  private wheels: THREE.InstancedMesh;
-  private people: THREE.InstancedMesh;
-  private heads: THREE.InstancedMesh;
-  private legs: THREE.InstancedMesh;
+  private traffic: StreetTraffic;
+  private pedestrians: StreetPedestrians;
   constructor(_waypoints: RoadWaypoints, theme: "dark" | "light" = "dark", surfaces?: CitySurfaces) {
     this.group.name = "walkable-city-blocks";
     this.group.userData.isScenery = true;
@@ -113,75 +111,9 @@ export class CityRoads {
           add(new THREE.BoxGeometry(.025, .085, .095), signalGreen, x + 2.88, 1.75, z + 2.8);
         }
       }
-    this.cars = new THREE.InstancedMesh(
-      new THREE.BoxGeometry(1.2, 0.35, 0.55),
-      new THREE.MeshStandardMaterial({
-        color: 0xffffff,
-        roughness: 0.48,
-        metalness: 0.22,
-      }),
-      64,
-    );
-    this.roofs = new THREE.InstancedMesh(
-      new THREE.BoxGeometry(0.58, 0.18, 0.48),
-      new THREE.MeshStandardMaterial({
-        color: 0x2a495f,
-        roughness: 0.3,
-        metalness: 0.4,
-      }),
-      64,
-    );
-    this.lamps = new THREE.InstancedMesh(
-      new THREE.BoxGeometry(0.035, 0.06, 0.44),
-      new THREE.MeshBasicMaterial({ color: 0xf5edda }),
-      64,
-    );
-    this.tailLights = new THREE.InstancedMesh(
-      new THREE.BoxGeometry(.035, .065, .43),
-      new THREE.MeshBasicMaterial({color: 0xdc5b44, toneMapped: false}), 64);
-    this.tailLights.name = "vehicle-tail-lights";
-    this.wheels = new THREE.InstancedMesh(
-      new THREE.CylinderGeometry(.13, .13, .09, 10).rotateX(Math.PI / 2),
-      new THREE.MeshStandardMaterial({color: 0x090b10, roughness: .9}),
-      256,
-    );
-    this.wheels.name = "vehicle-wheels";
-    this.people = new THREE.InstancedMesh(
-      new THREE.CylinderGeometry(0.11, 0.14, 0.38, 6),
-      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85 }),
-      144,
-    );
-    this.heads = new THREE.InstancedMesh(
-      new THREE.SphereGeometry(0.105, 6, 5),
-      new THREE.MeshStandardMaterial({ color: 0xbba98f, roughness: 0.9 }),
-      144,
-    );
-    this.legs = new THREE.InstancedMesh(
-      new THREE.BoxGeometry(0.065, 0.26, 0.075),
-      new THREE.MeshStandardMaterial({ color: 0x233444, roughness: 0.85 }),
-      288,
-    );
-    const cars = [0xb9c6ce, 0x587b8e, 0xc7a04f, 0x384553, 0xb66c5b, 0x78939a];
-    const clothes = [
-      0x87a5ad, 0x587786, 0xb2aca0, 0x284b64, 0x8b937d, 0xb48f6e,
-    ];
-    for (let i = 0; i < 64; i++)
-      this.cars.setColorAt(i, new THREE.Color(cars[i % cars.length]));
-    for (let i = 0; i < 144; i++)
-      this.people.setColorAt(i, new THREE.Color(clothes[i % clothes.length]));
-    this.cars.castShadow = true;
-    this.people.castShadow = true;
-    this.heads.castShadow = true;
-    this.group.add(
-      this.cars,
-      this.roofs,
-      this.lamps,
-      this.wheels,
-      this.tailLights,
-      this.people,
-      this.heads,
-      this.legs,
-    );
+    this.traffic = new StreetTraffic();
+    this.pedestrians = new StreetPedestrians();
+    this.group.add(this.traffic.group, this.pedestrians.group);
     // Pavement cafe furniture is scenery and uses no invented network metrics.
     const tabletop = new THREE.CylinderGeometry(0.37, 0.37, 0.07, 12),
       tableleg = new THREE.CylinderGeometry(0.035, 0.045, 0.6, 6);
@@ -208,7 +140,7 @@ export class CityRoads {
     const shelterGlass = new THREE.MeshStandardMaterial({color: 0x69878a, roughness: .2, metalness: .35});
     const stopSign = new THREE.MeshStandardMaterial({ color: 0x407c83, roughness: .7 });
     for (let i = 0; i < BLOCK_CENTERS.length; i++) {
-      const [bx, bz] = this.block(i);
+      const [bx, bz] = findBlock(i);
       for (const side of [-1, 1]) {
         add(new THREE.CylinderGeometry(.055,.075,.58,6), metal, bx+side*5.7,.42,bz+5.6);
         const drain = add(new THREE.BoxGeometry(.5,.025,.24),metal,bx+side*6.5,.14,bz+6.65);
@@ -242,92 +174,11 @@ export class CityRoads {
     }
     this.update(0);
   }
-  private block(index: number) {
-    return BLOCK_CENTERS[index % BLOCK_CENTERS.length];
-  }
-  private route(t: number, half: number) {
-    const side = ((t % 4) + 4) % 4;
-    if (side < 1) return { x: -half + side * half * 2, z: -half, dx: 1, dz: 0 };
-    if (side < 2)
-      return { x: half, z: -half + (side - 1) * half * 2, dx: 0, dz: 1 };
-    if (side < 3)
-      return { x: half - (side - 2) * half * 2, z: half, dx: -1, dz: 0 };
-    return { x: -half, z: half - (side - 3) * half * 2, dx: 0, dz: -1 };
-  }
   update(time: number, wetness = 0) {
     this.asphalt.roughness = THREE.MathUtils.lerp(.98, .38, wetness);
     this.asphalt.metalness = wetness * .12;
-    const obj = this.transform;
-    for (let i = 0; i < 64; i++) {
-      const [bx, bz] = this.block(i * 17),
-        p = streetVehiclePose(time, i);
-      const yaw = Math.atan2(-p.dz, p.dx),
-        bus = i % 11 === 0;
-      obj.rotation.set(0, yaw, 0);
-      obj.scale.set(bus ? 2 : 1, bus ? 1.5 : 1, 1);
-      obj.position.set(bx + p.x, 0.25, bz + p.z);
-      obj.updateMatrix();
-      this.cars.setMatrixAt(i, obj.matrix);
-      obj.scale.set(bus ? 2.3 : 1, 1, 1);
-      obj.position.y = bus ? 0.57 : 0.5;
-      obj.updateMatrix();
-      this.roofs.setMatrixAt(i, obj.matrix);
-      obj.scale.set(1, 1, 1);
-      obj.position.set(
-        bx + p.x + p.dx * (bus ? 1.22 : 0.61),
-        0.3,
-        bz + p.z + p.dz * (bus ? 1.22 : 0.61),
-      );
-      obj.updateMatrix();
-      this.lamps.setMatrixAt(i, obj.matrix);
-      obj.position.set(bx+p.x-p.dx*(bus?1.22:.61),.3,bz+p.z-p.dz*(bus?1.22:.61));
-      obj.updateMatrix(); this.tailLights.setMatrixAt(i,obj.matrix);
-      for (let axle = 0; axle < 2; axle++) for (let side = 0; side < 2; side++) {
-        const along = (axle === 0 ? -1 : 1) * (bus ? .85 : .38);
-        const across = (side === 0 ? -1 : 1) * .28;
-        obj.position.set(bx + p.x + p.dx * along - p.dz * across, .14,
-          bz + p.z + p.dz * along + p.dx * across);
-        obj.rotation.set(0, yaw, 0);
-        obj.updateMatrix();
-        this.wheels.setMatrixAt(i * 4 + axle * 2 + side, obj.matrix);
-      }
-    }
-    for (let i = 0; i < 144; i++) {
-      const [bx, bz] = this.block(i),
-        p = this.route(i * 0.137 + time * (0.025 + (i % 5) * 0.003), 6.1),
-        x = bx + p.x,
-        z = bz + p.z,
-        yaw = Math.atan2(-p.dz, p.dx);
-      obj.scale.set(1, 1, 1);
-      obj.rotation.set(0, yaw, 0);
-      obj.position.set(x, 0.52, z);
-      obj.updateMatrix();
-      this.people.setMatrixAt(i, obj.matrix);
-      obj.position.y = 0.82;
-      obj.updateMatrix();
-      this.heads.setMatrixAt(i, obj.matrix);
-      for (const side of [-1, 1]) {
-        obj.position.set(
-          x + p.dz * side * 0.065,
-          0.22,
-          z - p.dx * side * 0.065,
-        );
-        obj.rotation.set(0, yaw, Math.sin(time * 6 + i) * side * 0.28);
-        obj.updateMatrix();
-        this.legs.setMatrixAt(i * 2 + (side === 1 ? 1 : 0), obj.matrix);
-      }
-    }
-    for (const mesh of [
-      this.cars,
-      this.roofs,
-      this.lamps,
-      this.wheels,
-      this.tailLights,
-      this.people,
-      this.heads,
-      this.legs,
-    ])
-      mesh.instanceMatrix.needsUpdate = true;
+    this.traffic.update(time, findBlock);
+    this.pedestrians.update(time, findBlock);
   }
   dispose() {
     const geometries = new Set<THREE.BufferGeometry>(),

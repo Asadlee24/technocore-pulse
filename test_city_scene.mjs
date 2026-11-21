@@ -12,7 +12,7 @@ import { pathToFileURL } from "node:url";
 import ts from "typescript";
 import * as THREE from "three";
 import { PUBLIC_CITY_SNAPSHOT } from "./src/data/publicCitySnapshot.ts";
-import { CITY_GRID, CIVIC_SPACES } from "./src/components/agent-city/cityLayout.ts";
+import { CITY_GRID, CIVIC_SPACES, QUAY_WALK } from "./src/components/agent-city/cityLayout.ts";
 const hashes = {
   dark: "beaa615528cd9b3ee2273b54c944bb2c66ef02d4fa2d8dd223b08dc823bb3f87",
   light: "aefccec3895b8850f0b7e789bbebbb6ae86f14ba49e439e571e61f726cd3890a",
@@ -49,9 +49,10 @@ THREE.TextureLoader.prototype.load = function (url) {
 mkdirSync("node_modules/.tmp", { recursive: true });
 const tmp = mkdtempSync(resolve("node_modules/.tmp/city-scene-"));
 try {
-  for (const name of ["CityEnvironment", "CityRoads", "CitySurfaces", "MetroLandmark", "streetMotion", "cityLayout"])
+  const dependencies = ["streetMotion", "cityLayout", "StreetTraffic", "StreetPedestrians", "StreetTrees"];
+  for (const name of ["CityEnvironment", "CityRoads", "CitySurfaces", "MetroLandmark", ...dependencies])
     writeFileSync(
-      `${tmp}/${name === "streetMotion" || name === "cityLayout" ? name + ".js" : name + ".mjs"}`,
+      `${tmp}/${name}.${dependencies.includes(name) ? "js" : "mjs"}`,
       ts.transpileModule(
         readFileSync(`src/components/agent-city/${name}.ts`, "utf8"),
         {
@@ -120,6 +121,16 @@ try {
   environment.update(2, .65);
   const water = environment.group.getObjectByName("animated-waterfront-water");
   assert.equal(water.material.uniforms.wetness.value, .65);
+  const trees = environment.group.getObjectByName("street-tree-canopies");
+  const trunks = trees.getObjectByName("tapered-tree-trunks");
+  const branches = trees.getObjectByName("tapered-tree-branches");
+  const crowns = trees.getObjectByName("layered-leaf-clusters");
+  assert.equal(branches.count, trunks.count * 5);
+  assert.equal(crowns.count, trunks.count * 18);
+  assert.ok(crowns.material.map?.isCanvasTexture && crowns.material.alphaTest > 0);
+  const crossing = environment.group.getObjectByName("quay-tram-crossing");
+  assert.equal(crossing.position.x, QUAY_WALK.crossingX);
+  assert.ok(new THREE.Box3().setFromObject(crossing).min.z < CITY_GRID.quayTram.z);
   assert.deepEqual(loads, ["/brand/flop-lockup-on-dark.png"]);
   assert.equal(pavilion.group.userData.isScenery, true);
   pavilion.group.updateMatrixWorld(true);
@@ -133,11 +144,24 @@ try {
   assert.ok(pavilion.group.getObjectByName("landmark-community-inscription"));
   assert.ok(pavilion.group.children.length<25,"Landmark detail is batched rather than hundreds of draw calls");
   assert.equal(roads.group.userData.isScenery, true);
-  const vehicle = roads.group.children.find((o) => o.isInstancedMesh);
+  const vehicle = roads.group.getObjectByName("vehicle-painted-body");
+  vehicle.geometry.computeBoundingBox();
+  const vehicleSize = vehicle.geometry.boundingBox.getSize(new THREE.Vector3());
+  assert.ok(vehicleSize.x > 2.6 && vehicleSize.z <= 1.02 && vehicleSize.y > .7);
+  assert.ok(roads.group.getObjectByName("vehicle-windshields"));
+  assert.ok(roads.group.getObjectByName("vehicle-rims"));
+  const pedestrian = roads.group.getObjectByName("pedestrian-heads");
+  const leftShin = roads.group.getObjectByName("pedestrian-shins");
+  const matrix = new THREE.Matrix4();
+  const walker = new THREE.Vector3();
+  pedestrian.getMatrixAt(pedestrian.count - 1, matrix);
+  assert.ok(Math.abs(walker.setFromMatrixPosition(matrix).z - QUAY_WALK.z) < QUAY_WALK.depth / 2);
+  const shinBefore = Array.from(leftShin.instanceMatrix.array);
   const before = Array.from(vehicle.instanceMatrix.array);
   assert.ok(roads.group.children.filter(o => o.isMesh && !o.isInstancedMesh).length < 20, "Street geometry is batched by material, not one draw per stripe");
   assert.ok(roads.group.getObjectByName("vehicle-tail-lights"));
   roads.update(2);
+  assert.notDeepEqual(Array.from(leftShin.instanceMatrix.array), shinBefore, "Pedestrians bend their knees while walking");
   assert.notDeepEqual(
     Array.from(vehicle.instanceMatrix.array),
     before,

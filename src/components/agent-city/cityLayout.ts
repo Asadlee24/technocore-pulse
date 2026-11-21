@@ -61,6 +61,8 @@ export const CITY_GRID = {
   quayTram: { z: -94, halfLength: 87, stopXs: [-65, 65] },
 };
 
+export const QUAY_WALK = { z: -99.15, length: 165, depth: 3.5, crossingX: 30, crossingWidth: 3.1 };
+
 export const CIVIC_SPACES = [
   { name: "FLOP Plaza", x: 0, z: 0, kind: "plaza" },
   { name: "Harbor Gardens", x: -18, z: -72, kind: "garden" },
@@ -240,9 +242,10 @@ export function generateCityLayout(rooms: RoomCluster[]): {
     const district = districtKeys[index % districtKeys.length];
     // Mostly human-scale blocks; taller buildings form occasional skyline anchors.
     const downtown = Math.hypot(x, z) < 43;
+    const waterfront = z < -63;
     const high = downtown && index % 5 === 0;
     const medium = index % (downtown ? 3 : 5) === 0;
-    const height = high
+    const height = waterfront ? 5.6 + seed * 3.1 : high
       ? 21 + seed * 5
       : medium
         ? 12 + seed * 3
@@ -259,8 +262,8 @@ export function generateCityLayout(rooms: RoomCluster[]): {
     const b: BuildingLayout = {
       room,
       position: [x, 0, z],
-      width: 7.4 + (index % 3) * 0.55,
-      depth: 7.2 + (index % 2) * 0.7,
+      width: waterfront ? 8.7 + seed * .55 : 7.4 + (index % 3) * .55,
+      depth: waterfront ? 6.5 + (1 - seed) * .57 : 7.2 + (index % 2) * .7,
       height: Math.round(height * 10) / 10,
       district,
       archetype: themedArchetype ?? (high

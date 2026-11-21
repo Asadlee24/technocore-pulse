@@ -77,9 +77,10 @@ export class CityBuilding {
       return m;
     };
     const { width: w, depth: d, height: h } = layout;
-    const masonry = ["social-block", "broadcast-hall", "settlement-vault", "research-lab"].includes(layout.archetype);
+    const waterfront = layout.position[2] < -63;
+    const masonry = waterfront || ["social-block", "broadcast-hall", "settlement-vault", "research-lab"].includes(layout.archetype);
     const wall = new THREE.MeshStandardMaterial({
-      color: layout.archetype === "social-block" ? 0x99715b : layout.archetype === "broadcast-hall" ? 0xc2ae8e : layout.archetype === "settlement-vault" ? 0x8b9797 : 0xb8c1b6,
+      color: waterfront ? 0x976b57 : layout.archetype === "social-block" ? 0x99715b : layout.archetype === "broadcast-hall" ? 0xc2ae8e : layout.archetype === "settlement-vault" ? 0x8b9797 : 0xb8c1b6,
       roughness: .94, metalness: .025,
     });
     surfaces?.apply(wall, "masonry");
@@ -130,10 +131,10 @@ export class CityBuilding {
       2.65,
       0,
     );
-    const tier =
+    const tier = !waterfront && (
       layout.archetype === "skyscraper" ||
       layout.archetype === "office-tower" ||
-      layout.archetype === "social-block";
+      layout.archetype === "social-block");
     const split = tier ? h * 0.68 : h;
     add(
       this.shell,

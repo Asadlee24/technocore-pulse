@@ -280,6 +280,9 @@
   background: #ffe0ac;
   transform: translate(-50%, -50%);
 }
+.city-map-boardwalk, .city-map-boardwalk-crossing { position: absolute; background: #f0dfbe; }
+.city-map-boardwalk { height: 2px; transform: translateY(-50%); }
+.city-map-boardwalk-crossing { width: 2px; }
 .city-map-quay-garden {
   position: absolute;
   width: 7.35%;

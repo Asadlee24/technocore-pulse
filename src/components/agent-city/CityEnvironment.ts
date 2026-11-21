@@ -1,12 +1,14 @@
 import * as THREE from "three";
 import type { CitySurfaces } from "./CitySurfaces";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { CITY_GRID, CIVIC_SPACES } from "./cityLayout.js";
+import { CITY_GRID, CIVIC_SPACES, QUAY_WALK } from "./cityLayout.js";
+import { createStreetTrees, type TreeLocation } from "./StreetTrees.js";
 
 /** Waterfront, gardens and light poles are architectural scenery, not telemetry. */
 export class CityEnvironment {
   readonly group = new THREE.Group();
   readonly streetLampPositions: THREE.Vector3[] = [];
+  private treeMap: THREE.Texture;
   private water: THREE.Mesh;
   private waterMaterial: THREE.ShaderMaterial;
   constructor(theme: "dark" | "light" = "dark", surfaces?: CitySurfaces) {
@@ -50,9 +52,13 @@ export class CityEnvironment {
     for (const side of [-1, 1]) {
       add(new THREE.BoxGeometry(180, .08, 3.5), stone, 0, .04, side * 89);
       add(new THREE.BoxGeometry(3.5, .08, 180), stone, side * 89, .04, 0);
-      add(new THREE.BoxGeometry(182, .5, .15), navy, 0, .35, side * 91);
       add(new THREE.BoxGeometry(.15, .5, 182), navy, side * 91, .35, 0);
     }
+    add(new THREE.BoxGeometry(182, .5, .15), navy, 0, .35, 91);
+    const crossingLeft = QUAY_WALK.crossingX - QUAY_WALK.crossingWidth / 2;
+    const crossingRight = QUAY_WALK.crossingX + QUAY_WALK.crossingWidth / 2;
+    for (const [from, to] of [[-91, crossingLeft], [crossingRight, 91]])
+      add(new THREE.BoxGeometry(to - from, .5, .15), navy, (from + to) / 2, .35, -91);
     this.waterMaterial = new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0 }, daylight: { value: light ? 1 : 0 }, wetness: { value: 0 },
@@ -118,6 +124,30 @@ export class CityEnvironment {
         }
       }
     }
+    const promenade = new THREE.Group();
+    promenade.name = "north-quay-boardwalk";
+    promenade.userData.isScenery = true;
+    this.group.add(promenade);
+    const deck = new THREE.MeshStandardMaterial({ color: 0x84735e, roughness: .84 });
+    surfaces?.apply(deck, "wood");
+    add(new THREE.BoxGeometry(QUAY_WALK.length, .12, QUAY_WALK.depth), deck, 0, .15, QUAY_WALK.z, promenade);
+    const pavementWalk = add(new THREE.BoxGeometry(QUAY_WALK.crossingWidth, .15, 15.6), stone,
+      QUAY_WALK.crossingX, .124, -91.55, promenade);
+    pavementWalk.name = "quay-tram-crossing";
+    const curbStripe = new THREE.MeshBasicMaterial({ color: 0xd8bb80 });
+    for (const z of [-92.85, -95.15])
+      add(new THREE.BoxGeometry(QUAY_WALK.crossingWidth - .18, .012, .15), curbStripe, QUAY_WALK.crossingX, .208, z, promenade);
+    const soil = new THREE.MeshStandardMaterial({ color: 0x383329, roughness: 1 });
+    const grass = new THREE.MeshStandardMaterial({ color: 0x6b7653, roughness: 1 });
+    for (const x of [-67, -48, -29, -10, 12, 47, 68]) {
+      add(new THREE.BoxGeometry(3.4, .16, .82), stone, x, .175, -96.75, promenade);
+      add(new THREE.BoxGeometry(3.16, .05, .65), soil, x, .26, -96.75, promenade);
+      for (let i = 0; i < 8; i++) {
+        const h = .20 + Math.abs(Math.sin(x * .7 + i * 2.17)) * .38;
+        const tuft = add(new THREE.ConeGeometry(.14, h, 5), grass, x + (i - 3.5) * .37, .27 + h / 2, -96.77, promenade);
+        tuft.rotation.z = Math.sin(i + x) * .38;
+      }
+    }
     // Distant shore and architecture are scenery, kept separate from public rooms.
     const shore = new THREE.MeshStandardMaterial({ color: light ? 0x789286 : 0x1c3037, roughness: 1 });
     const distant = new THREE.MeshStandardMaterial({ color: light ? 0x8cabb9 : 0x253b50, roughness: .8 });
@@ -160,47 +190,26 @@ export class CityEnvironment {
         edge.rotation.y = Math.PI / 2 - angle;
       }
     }
-    const trunk = new THREE.MeshStandardMaterial({
-      color: 0x52616d,
-      roughness: 0.9,
-    });
-    const foliage = new THREE.MeshStandardMaterial({
-      color: light ? 0x5f7b6d : 0x456858,
-      roughness: 0.95,
-    });
-    const stemGeo = new THREE.CylinderGeometry(0.08, 0.1, 1.25, 6),
-      canopyGeo = new THREE.IcosahedronGeometry(0.7, 2);
-    const stems = new THREE.InstancedMesh(stemGeo, trunk, 160),
-      canopies = new THREE.InstancedMesh(canopyGeo, foliage, 480);
-    const dummy = new THREE.Object3D();
-    for (let i = 0; i < 160; i++) {
-      const angle = (i / 64) * Math.PI * 2,
-        radius = 6.5;
-      const streetIndex = i - 64;
-      const edge = Math.floor(i / 12) % 4;
-      const along = ((i % 12) / 11 * 2 - 1) * 84;
-      const perimeterX = edge === 0 ? along : edge === 1 ? 87 : edge === 2 ? -along : -87;
-      const perimeterZ = edge === 0 ? -87 : edge === 1 ? along : edge === 2 ? 87 : -along;
-      const x = i < 48 ? perimeterX : i < 64 ? Math.cos(angle) * radius : ((streetIndex % 7) - 3) * 18 + (streetIndex % 2 ? 6.2 : -6.2),
-        z = i < 48 ? perimeterZ : i < 64 ? Math.sin(angle) * radius : ((Math.floor(streetIndex / 7) % 7) - 3) * 18 + (streetIndex % 3 - 1) * 3;
-      dummy.position.set(x, 0.65, z);
-      dummy.scale.set(1, 1, 1);
-      dummy.updateMatrix();
-      stems.setMatrixAt(i, dummy.matrix);
-      const variation = .85 + Math.abs(Math.sin(i*2.17))*.4;
-      for(let crown=0;crown<3;crown++) {
-        const angle=crown*Math.PI*2/3+i*.63;
-        dummy.position.set(x+Math.cos(angle)*.37,1.8+(crown===1?.38:0),z+Math.sin(angle)*.37);
-        dummy.scale.set(variation,variation*1.18,variation);
-        dummy.updateMatrix();canopies.setMatrixAt(i*3+crown,dummy.matrix);
-        canopies.setColorAt(i*3+crown,new THREE.Color().setHSL(.28+(i%5)*.014,.19+(i%3)*.04,light?.28+(i%4)*.025:.19+(i%4)*.018));
+    const foliage = new THREE.MeshStandardMaterial({ color: light ? 0x496c45 : 0x395440, roughness: .98 });
+    const treeLocations: TreeLocation[] = [];
+    for (const side of [-1, 1]) {
+      for (let i = 0; i < 12; i++) {
+        const height = 3.7 + (i * 7 % 9) * .31;
+        const along = (i - 5.5) * 14 + Math.sin(i * 1.7) * 1.7;
+        // Plant behind the promenade so furniture and trunks leave a clear walking strip.
+        treeLocations.push({ x: along, z: side * 86, height, spread: height * .57 });
+        treeLocations.push({ x: side * 86, z: along + 2.5, height: height * .88, spread: height * .51 });
       }
     }
-    stems.castShadow = true;
-    canopies.castShadow = true;
-    stems.instanceMatrix.needsUpdate = true;
-    canopies.instanceMatrix.needsUpdate = true;
-    this.group.add(stems, canopies);
+    for (const z of CITY_GRID.streetZs.slice(0, -1)) for (const x of CITY_GRID.streetXs.slice(0, -1)) {
+      const cx = x + 9, cz = z + 9;
+      if (CIVIC_SPACES.some(space => space.x === cx && space.z === cz)) continue;
+      const height = 3.15 + Math.abs(Math.sin(x * 1.8 + z * .7)) * 2.15;
+      const treeX = cx + 5.12;
+      const treeZ = cz + 3.5 + Math.cos(z * .9 + x) * 1.1;
+      add(new THREE.BoxGeometry(.68, .058, .86), stone, treeX, .074, treeZ);
+      treeLocations.push({ x: treeX, z: treeZ, height, spread: height * .51, ground: .105 });
+    }
     const lawn = new THREE.MeshStandardMaterial({color: light ? 0x4e775a : 0x284b39, roughness: 1});
     const bench = new THREE.MeshStandardMaterial({color: 0x8a7561, roughness: .9});
     for (const [gardenX, gardenZ] of CITY_GRID.quaysideGardens) {
@@ -238,8 +247,8 @@ export class CityEnvironment {
         box(1.35, .33, .16, navy, side * 3.25, .305, .95);
         for (const end of [-1, 1]) {
           const x = side * 4.4, z = end * 4.4;
-          place(new THREE.CylinderGeometry(.09, .14, 1.85, 8), trunk, x, 1.05, z);
-          place(new THREE.IcosahedronGeometry(1.15, 2), foliage, x, 2.34, z).scale.set(1, 1.25, .84);
+          const height = 3.6 + Math.abs(Math.sin((space.x + x) * .3 + z)) * 2.3;
+          treeLocations.push({ x: space.x + x, z: space.z + z, height, spread: height * .59, ground: .16 });
         }
       }
       if (space.kind === "market") {
@@ -266,6 +275,10 @@ export class CityEnvironment {
         }
       }
     }
+    const trees = createStreetTrees(treeLocations);
+    this.treeMap = trees.map;
+    this.group.add(trees.group);
+
     const poleGeo = new THREE.CylinderGeometry(0.035, 0.05, 2.4, 6);
     const headGeo = new THREE.BoxGeometry(.56, .105, .23);
     const bulbGeo = new THREE.BoxGeometry(.45, .036, .17);
@@ -323,7 +336,7 @@ export class CityEnvironment {
       this.group.add(pools);
     }
     // Keep promenade detail inexpensive on mobile by batching static scenery.
-    for (const parent of [this.group, ...civicBlocks]) {
+    for (const parent of [this.group, promenade, ...civicBlocks]) {
       const batches = new Map<THREE.Material, THREE.Mesh[]>();
       for (const child of parent.children) {
         if (!(child instanceof THREE.Mesh) || child instanceof THREE.InstancedMesh || child.name || Array.isArray(child.material)) continue;
@@ -367,5 +380,6 @@ export class CityEnvironment {
     });
     geometries.forEach((g) => g.dispose());
     materials.forEach((m) => m.dispose());
+    this.treeMap.dispose();
   }
 }

@@ -1,7 +1,7 @@
 import { useMemo, type Ref } from "react";
 import { X } from "lucide-react";
 import type { RoomCluster } from "../../types/probe";
-import { CITY_GRID, CIVIC_SPACES, generateCityLayout } from "./cityLayout";
+import { CITY_GRID, CIVIC_SPACES, QUAY_WALK, generateCityLayout } from "./cityLayout";
 
 interface CityMapProps {
   dialogRef: Ref<HTMLDialogElement>;
@@ -26,6 +26,12 @@ export function CityMap({ dialogRef, rooms, selectedName, onSelectRoom }: CityMa
         <div className="city-map-land" />
         <span className="city-map-north" aria-label="North">↑ N</span>
         <span className="city-map-harbor">North Quay</span>
+        <span className="city-map-boardwalk" title="North Quay boardwalk" style={{
+          top: position(QUAY_WALK.z), left: position(-QUAY_WALK.length / 2), right: position(-QUAY_WALK.length / 2),
+        }} />
+        <span className="city-map-boardwalk-crossing" title="Pedestrian crossing" style={{
+          left: position(QUAY_WALK.crossingX), top: position(QUAY_WALK.z), height: "7%",
+        }} />
         <span className="city-map-tram" style={{ top: position(quayTram.z), left: position(-quayTram.halfLength), right: position(-quayTram.halfLength) }} />
         {quayTram.stopXs.map(x => <span key={x} className="city-map-tram-stop" title="Tram stop" style={{ left: position(x), top: position(quayTram.z) }} />)}
         {quaysideGardens.map(([x, z]) => (
