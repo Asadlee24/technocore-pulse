@@ -264,7 +264,31 @@
   pointer-events: none;
 }
 .city-map-north { right: 2.2%; top: 2.2%; }
-.city-map-harbor { left: 50%; top: 4%; transform: translateX(-50%); }
+.city-map-harbor { left: 50%; top: 1.6%; transform: translateX(-50%); }
+.city-map-tram {
+  position: absolute;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, #efbe74 0 6px, #785d43 6px 8px);
+  transform: translateY(-50%);
+}
+.city-map-tram-stop {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 2px solid #2a3b3f;
+  border-radius: 50%;
+  background: #ffe0ac;
+  transform: translate(-50%, -50%);
+}
+.city-map-quay-garden {
+  position: absolute;
+  width: 7.35%;
+  height: 12.25%;
+  border: 1px solid #b4c39c;
+  border-radius: 34% 12% 25% 14%;
+  background: linear-gradient(90deg, #496a4d 45%, #c7bd9e 45% 55%, #496a4d 55%);
+  transform: translate(-50%, -50%);
+}
 .city-map-place {
   position: absolute;
   width: 5.3%;
@@ -307,6 +331,7 @@
 .legend-room { background: #e8dfc3; }
 .legend-park { background: #548b5f; }
 .legend-market { background: #c07855; }
+.legend-tram { background: #efbe74; }
 .legend-plaza { background: #7fc7ce; }
 @media (max-height: 560px) {
   .city-map-dialog { width: min(94vw, 440px); }

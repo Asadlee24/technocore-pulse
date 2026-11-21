@@ -57,6 +57,8 @@ export const CITY_GRID = {
   streetXs: [-63, -45, -27, -9, 9, 27, 45, 63],
   streetZs: [-81, -63, -45, -27, -9, 9, 27, 45, 63],
   shore: 102,
+  quaysideGardens: [[-76, -40], [76, -40], [-76, 40], [76, 40]] as const,
+  quayTram: { z: -94, halfLength: 87, stopXs: [-65, 65] },
 };
 
 export const CIVIC_SPACES = [

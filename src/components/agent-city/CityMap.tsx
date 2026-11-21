@@ -14,7 +14,7 @@ const position = (metres: number) => `${(metres / CITY_GRID.shore + 1) * 50}%`;
 
 export function CityMap({ dialogRef, rooms, selectedName, onSelectRoom }: CityMapProps) {
   const { buildings } = useMemo(() => generateCityLayout(rooms), [rooms]);
-  const { streetXs, streetZs } = CITY_GRID;
+  const { streetXs, streetZs, quaysideGardens, quayTram } = CITY_GRID;
 
   return (
     <dialog ref={dialogRef} className="city-map-dialog" aria-labelledby="city-map-title">
@@ -26,6 +26,11 @@ export function CityMap({ dialogRef, rooms, selectedName, onSelectRoom }: CityMa
         <div className="city-map-land" />
         <span className="city-map-north" aria-label="North">↑ N</span>
         <span className="city-map-harbor">North Quay</span>
+        <span className="city-map-tram" style={{ top: position(quayTram.z), left: position(-quayTram.halfLength), right: position(-quayTram.halfLength) }} />
+        {quayTram.stopXs.map(x => <span key={x} className="city-map-tram-stop" title="Tram stop" style={{ left: position(x), top: position(quayTram.z) }} />)}
+        {quaysideGardens.map(([x, z]) => (
+          <span key={`${x}-${z}`} className="city-map-quay-garden" title="Waterfront garden" style={{ left: position(x), top: position(z) }} />
+        ))}
         {streetXs.map(x => (
           <span key={x} className={`city-map-street vertical ${Math.abs(x) === 9 ? "avenue" : ""}`} style={{ left: position(x) }} />
         ))}
@@ -55,6 +60,7 @@ export function CityMap({ dialogRef, rooms, selectedName, onSelectRoom }: CityMa
         <span><i className="legend-room" />Public room</span>
         <span><i className="legend-park" />Park</span>
         <span><i className="legend-market" />Market or station</span>
+        <span><i className="legend-tram" />Tram</span>
         <span><i className="legend-plaza" />FLOP Plaza</span>
       </div>
     </dialog>

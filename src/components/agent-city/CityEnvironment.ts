@@ -203,13 +203,14 @@ export class CityEnvironment {
     this.group.add(stems, canopies);
     const lawn = new THREE.MeshStandardMaterial({color: light ? 0x4e775a : 0x284b39, roughness: 1});
     const bench = new THREE.MeshStandardMaterial({color: 0x8a7561, roughness: .9});
-    for (const side of [-1, 1]) for (const other of [-1, 1]) {
-      add(new THREE.BoxGeometry(15, .1, 25), lawn, side * 76, .08, other * 40);
-      add(new THREE.BoxGeometry(1.6, .13, 25), stone, side * 76, .13, other * 40);
+    for (const [gardenX, gardenZ] of CITY_GRID.quaysideGardens) {
+      add(new THREE.BoxGeometry(15, .1, 25), lawn, gardenX, .08, gardenZ);
+      add(new THREE.BoxGeometry(1.6, .13, 25), stone, gardenX, .13, gardenZ);
+      const benchX = gardenX + Math.sign(gardenX) * 2;
       for (let i = 0; i < 4; i++) {
-        const z = other * 40 + (i - 1.5) * 5;
-        add(new THREE.BoxGeometry(1.5, .15, .5), bench, side * 78, .55, z);
-        add(new THREE.BoxGeometry(1.5, .7, .1), bench, side * 78, .8, z + .25);
+        const z = gardenZ + (i - 1.5) * 5;
+        add(new THREE.BoxGeometry(1.5, .15, .5), bench, benchX, .55, z);
+        add(new THREE.BoxGeometry(1.5, .7, .1), bench, benchX, .8, z + .25);
       }
     }
     const civicBlocks: THREE.Group[] = [];
