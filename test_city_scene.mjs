@@ -12,6 +12,7 @@ import { pathToFileURL } from "node:url";
 import ts from "typescript";
 import * as THREE from "three";
 import { PUBLIC_CITY_SNAPSHOT } from "./src/data/publicCitySnapshot.ts";
+import { CITY_GRID, CIVIC_SPACES } from "./src/components/agent-city/cityLayout.ts";
 const hashes = {
   dark: "beaa615528cd9b3ee2273b54c944bb2c66ef02d4fa2d8dd223b08dc823bb3f87",
   light: "aefccec3895b8850f0b7e789bbebbb6ae86f14ba49e439e571e61f726cd3890a",
@@ -48,9 +49,9 @@ THREE.TextureLoader.prototype.load = function (url) {
 mkdirSync("node_modules/.tmp", { recursive: true });
 const tmp = mkdtempSync(resolve("node_modules/.tmp/city-scene-"));
 try {
-  for (const name of ["CityEnvironment", "CityRoads", "CitySurfaces", "MetroLandmark", "streetMotion"])
+  for (const name of ["CityEnvironment", "CityRoads", "CitySurfaces", "MetroLandmark", "streetMotion", "cityLayout"])
     writeFileSync(
-      `${tmp}/${name === "streetMotion" ? "streetMotion.js" : name + ".mjs"}`,
+      `${tmp}/${name === "streetMotion" || name === "cityLayout" ? name + ".js" : name + ".mjs"}`,
       ts.transpileModule(
         readFileSync(`src/components/agent-city/${name}.ts`, "utf8"),
         {
@@ -102,7 +103,14 @@ try {
   assert.ok(asphaltMesh, "The road and shared asphalt material use the same texture");
   roads.update(0, 1);
   assert.ok(asphaltMesh.material.roughness < .5, "Rain changes the road material response");
-  assert.equal(environment.streetLampPositions.length, 48);
+  assert.equal(environment.streetLampPositions.length, (CITY_GRID.streetXs.length - 1) * (CITY_GRID.streetZs.length - 1));
+  for (const place of CIVIC_SPACES.filter(place => place.kind !== "plaza")) {
+    const block = environment.group.getObjectByName(place.name);
+    assert.deepEqual(block?.position.toArray(), [place.x, 0, place.z]);
+    assert.ok(block.children.length > 3, "Civic blocks are furnished in the rendered scene");
+  }
+  asphaltMesh.geometry.computeBoundingBox();
+  assert.ok(asphaltMesh.geometry.boundingBox.min.z <= -92, "Downtown roads reach the north quay");
   const nightPools = environment.group.getObjectByName("street-lamp-light-pools");
   assert.ok(nightPools?.isInstancedMesh, "Street lighting uses one batch");
   assert.equal(nightPools.count, environment.streetLampPositions.length);

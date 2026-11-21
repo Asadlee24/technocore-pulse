@@ -11,6 +11,7 @@ import {
   Eye,
   Footprints,
   Layers3,
+  Map as MapIcon,
   Maximize2,
   RefreshCw,
   Search,
@@ -22,6 +23,7 @@ import { DataProvider, useData } from "./context/DataContext";
 import { RoomExplorer } from "./components/RoomExplorer";
 import { roomFromHash } from "./data/explorer";
 import { CityBoundary } from "./components/CityBoundary";
+import { CityMap } from "./components/agent-city/CityMap";
 const AgentCity3D = lazy(() =>
   import("./components/agent-city/AgentCity3D").then((m) => ({
     default: m.AgentCity3D,
@@ -100,6 +102,7 @@ function Metropolis() {
   const [showDirectory, setShowDirectory] = useState(false);
   const [cityUnavailable, setCityUnavailable] = useState(false);
   const dialogRef = useRef<HTMLElement>(null);
+  const cityMapRef = useRef<HTMLDialogElement>(null);
   const guideTrigger = useRef<HTMLElement | null>(null);
   useEffect(() => {
     if (!showInfo) return;
@@ -276,6 +279,9 @@ function Metropolis() {
           <a href={`https://technocore.chat/humans#r/${encodeURIComponent(focusedRecord.room)}/${focusedRecord.sequence}`} target="_blank" rel="noreferrer">Read original message <ArrowUpRight size={13}/></a>
         </section>}
         <div className="scene-tools">
+          <button title="City map" aria-label="City map" onClick={() => cityMapRef.current?.showModal()}>
+            <MapIcon size={18} />
+          </button>
           <button
             title="Change scene lighting"
             aria-label="Change scene lighting"
@@ -320,6 +326,7 @@ function Metropolis() {
             <Maximize2 size={18} />
           </button>
         </div>
+        <CityMap dialogRef={cityMapRef} rooms={rooms} selectedName={selected?.name} onSelectRoom={selectRoom} />
 
         <aside
           className={`city-directory ${showDirectory ? "directory-open" : ""}`}

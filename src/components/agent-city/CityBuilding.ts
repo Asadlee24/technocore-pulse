@@ -92,6 +92,9 @@ export class CityBuilding {
       0.1,
       0,
     );
+    const entryGap = 6.27 - d * .64;
+    add(this.group, new THREE.BoxGeometry(w * .45, .12, entryGap), ground,
+      0, .075, d * .64 + entryGap / 2);
     // Discreet sidewalk furniture gives every building an entrance and scale.
     for (const side of [-1, 1]) {
       add(

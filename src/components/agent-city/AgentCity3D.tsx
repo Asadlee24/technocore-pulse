@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { SignedRecord, RoomCluster } from "../../types/probe";
-import { generateCityLayout, type BuildingLayout } from "./cityLayout";
+import { CITY_GRID, generateCityLayout, type BuildingLayout } from "./cityLayout";
 import {
   createCityMaterials,
   disposeCityMaterials,
@@ -197,6 +197,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 
   const showcaseTimerRef = useRef<number>(0);
   const keysPressedRef = useRef<{ [key: string]: boolean }>({});
+  const streetArrivalRef = useRef<BuildingLayout | null>(null);
 
   // Reset showcase timer when showcase mode changes
   useEffect(() => {
@@ -217,13 +218,9 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
   // WASD Keyboard Exploration Listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        ["input", "textarea"].includes(
-          (e.target as HTMLElement)?.tagName?.toLowerCase(),
-        )
-      )
-        return;
+      if ((e.target as HTMLElement)?.closest?.("input, textarea, select, dialog, [contenteditable]")) return;
       const k = e.key.toLowerCase();
+      if (k === "shift") keysPressedRef.current.shift = true;
       if (
         [
           "w",
@@ -236,20 +233,24 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
           "arrowright",
         ].includes(k)
       ) {
+        if (cameraPerspectiveRef.current === "walk" && k.startsWith("arrow")) e.preventDefault();
         keysPressedRef.current[k] = true;
         if (isAutoRotateRef.current) setIsAutoRotate(false);
-        isTransitioningRef.current = false;
+        if (cameraPerspectiveRef.current !== "walk") isTransitioningRef.current = false;
       }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
       keysPressedRef.current[k] = false;
     };
+    const releaseKeys = () => { keysPressedRef.current = {}; };
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", releaseKeys);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", releaseKeys);
     };
   }, []);
 
@@ -360,20 +361,43 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     setShowIntroBadge(false);
     setIsAutoRotate(false);
     isTransitioningRef.current = true;
-    if (onPerspectiveChangeRef.current) {
+    if (cameraPerspectiveRef.current !== "walk" && onPerspectiveChangeRef.current) {
+      streetArrivalRef.current = building;
       onPerspectiveChangeRef.current("walk");
     }
     const bX = building.position[0];
     const bZ = building.position[2];
-    const angle = Math.atan2(bZ, bX);
-    const walkX = bX - Math.cos(angle) * (building.depth * 0.55 + 2.8);
-    const walkZ = bZ - Math.sin(angle) * (building.depth * 0.55 + 2.8);
-
-    cameraTargetPos.current.set(walkX, 1.75, walkZ);
+    cameraTargetPos.current.set(bX, 1.75, bZ + 6.05);
     cameraTargetLookAt.current.set(bX, 2.2, bZ);
     setPulseLog(
       `Arrived outside #${building.room.name}. Walk with WASD or touch buttons.`,
     );
+  }, []);
+
+  const moveAlongStreet = useCallback((move: THREE.Vector3) => {
+    const camera = cameraRef.current;
+    const target = controlsRef.current?.target;
+    if (!camera || !target) return;
+    const boundary = CITY_GRID.shore - 2;
+    const isClear = (x: number, z: number) => {
+      if (Math.abs(x) <= 7.4 && Math.abs(z) <= 7.4) return false;
+      for (const { layout } of buildingsMapRef.current.values()) {
+        if (Math.abs(x - layout.position[0]) < layout.width * .56 &&
+            Math.abs(z - layout.position[2]) < layout.depth * .56) return false;
+      }
+      return true;
+    };
+    const steps = Math.max(1, Math.ceil(move.length() / .5));
+    for (let i = 0; i < steps; i++) {
+      const { x, z } = camera.position;
+      const nextX = THREE.MathUtils.clamp(x + move.x / steps, -boundary, boundary);
+      const nextZ = THREE.MathUtils.clamp(z + move.z / steps, -boundary, boundary);
+      const allowedX = isClear(nextX, z) ? nextX : x;
+      const allowedZ = isClear(allowedX, nextZ) ? nextZ : z;
+      camera.position.set(allowedX, 1.75, allowedZ);
+      target.x += allowedX - x;
+      target.z += allowedZ - z;
+    }
   }, []);
 
   const handleWalkStep = useCallback(
@@ -387,22 +411,16 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       const rgt = new THREE.Vector3()
         .crossVectors(fwd, new THREE.Vector3(0, 1, 0))
         .normalize();
-      const stepDist = 2.4;
+      if (isTransitioningRef.current) return;
       const move = new THREE.Vector3();
       if (direction === "forward") move.add(fwd);
       if (direction === "backward") move.sub(fwd);
       if (direction === "right") move.add(rgt);
       if (direction === "left") move.sub(rgt);
 
-      move.normalize().multiplyScalar(stepDist);
-      camera.position.add(move);
-      controlsRef.current.target.add(move);
-      if (cameraPerspectiveRef.current === "walk") {
-        camera.position.y = 1.75;
-        controlsRef.current.target.y = 1.75;
-      }
+      moveAlongStreet(move.normalize().multiplyScalar(1.25));
     },
-    [],
+    [moveAlongStreet],
   );
 
   // Sync view scale with controlled prop from parent
@@ -431,16 +449,26 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 
   // Sync camera perspective (orbit | drone | plaza | walk | building)
   useEffect(() => {
+    const controls = controlsRef.current;
+    if (controls) {
+      controls.enabled = cameraPerspective !== "walk";
+      controls.maxPolarAngle = cameraPerspective === "walk" ? Math.PI - .1 : Math.PI / 2 - .04;
+      controls.minDistance = cameraPerspective === "walk" ? .1 : 4;
+      controls.maxDistance = cameraPerspective === "walk" ? 60 : 340;
+    }
     if (cameraPerspective === "walk") {
       isIntroRef.current = false;
       isTransitioningRef.current = true;
       setIsAutoRotate(false);
-      // Begin on an actual sidewalk beside the central square, never inside a parcel.
-      cameraTargetPos.current.set(6.1, 1.75, 13);
-      cameraTargetLookAt.current.set(6.1, 2.1, 30);
-      if (controlsRef.current) {
-        controlsRef.current.minDistance = 0.1;
-        controlsRef.current.maxDistance = 60;
+      const arrival = streetArrivalRef.current;
+      streetArrivalRef.current = null;
+      if (arrival) {
+        const [x, , z] = arrival.position;
+        cameraTargetPos.current.set(x, 1.75, z + 6.05);
+        cameraTargetLookAt.current.set(x, 2.2, z);
+      } else {
+        cameraTargetPos.current.set(6.05, 1.75, 10.5);
+        cameraTargetLookAt.current.set(6.05, 2.1, -16);
       }
       setPulseLog(
         "Street view · use W A S D or the direction buttons to explore.",
@@ -456,10 +484,6 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       cameraTargetLookAt.current.set(0, 14, 0);
       setPulseLog("Camera switched to Plaza ground view.");
     } else if (cameraPerspective === "orbit") {
-      if (controlsRef.current) {
-        controlsRef.current.minDistance = 4;
-        controlsRef.current.maxDistance = 340;
-      }
       if (viewLevelRef.current === "city") {
         isTransitioningRef.current = true;
         cameraTargetPos.current.copy(INTRO_END_POS.current);
@@ -697,13 +721,15 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     // 11. OrbitControls & User Interaction (Smooth Damping, Pan, Orbit, Wheel Zoom)
     const controls = new OrbitControls(camera, renderer.domElement);
     controlsRef.current = controls;
+    const startsWalking = cameraPerspectiveRef.current === "walk";
+    controls.enabled = !startsWalking;
     controls.target.copy(INTRO_START_LOOK.current);
     controls.enableDamping = true;
     controls.dampingFactor = 0.06;
     controls.screenSpacePanning = true;
-    controls.maxPolarAngle = Math.PI / 2 - 0.04; // Keep camera above ground
-    controls.minDistance = 4;
-    controls.maxDistance = 340;
+    controls.maxPolarAngle = startsWalking ? Math.PI - .1 : Math.PI / 2 - .04;
+    controls.minDistance = startsWalking ? .1 : 4;
+    controls.maxDistance = startsWalking ? 60 : 340;
     controls.rotateSpeed = 0.85;
     controls.zoomSpeed = 1.15;
     controls.panSpeed = 0.8;
@@ -729,6 +755,9 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2(-100, -100);
+    const lookOffset = new THREE.Vector3();
+    const lookSpherical = new THREE.Spherical();
+    const walkLook = { pointer: -1, x: 0, y: 0, dragged: false };
 
     let pointerDownPos = { x: 0, y: 0 };
     let pointerDownTime = 0;
@@ -743,6 +772,9 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     };
 
     const handlePointerUp = (e: PointerEvent) => {
+      const lookedAround = walkLook.pointer === e.pointerId && walkLook.dragged;
+      if (walkLook.pointer === e.pointerId) walkLook.pointer = -1;
+      if (lookedAround) return;
       const dist = Math.hypot(
         e.clientX - pointerDownPos.x,
         e.clientY - pointerDownPos.y,
@@ -799,6 +831,18 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     };
 
     const handlePointerMove = (e: PointerEvent) => {
+      if (cameraPerspectiveRef.current === "walk" && walkLook.pointer === e.pointerId) {
+        if (!walkLook.dragged && Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y) < 4) return;
+        walkLook.dragged = true;
+        lookSpherical.setFromVector3(lookOffset.subVectors(controls.target, camera.position));
+        lookSpherical.theta -= (e.clientX - walkLook.x) * .006;
+        lookSpherical.phi = THREE.MathUtils.clamp(lookSpherical.phi - (e.clientY - walkLook.y) * .005, .3, Math.PI - .3);
+        controls.target.copy(camera.position).add(lookOffset.setFromSpherical(lookSpherical));
+        walkLook.x = e.clientX;
+        walkLook.y = e.clientY;
+        setHoveredRoom(null);
+        return;
+      }
       // Don't calculate hover states on touch events
       if (e.pointerType === "touch") return;
 
@@ -825,9 +869,22 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
     };
 
     const domElement = renderer.domElement;
-    domElement.addEventListener("pointerdown", handlePointerDown);
+    const startPointer = (event: PointerEvent) => {
+      handlePointerDown(event);
+      if (cameraPerspectiveRef.current !== "walk" || isTransitioningRef.current || !event.isPrimary) return;
+      walkLook.pointer = event.pointerId;
+      walkLook.x = event.clientX;
+      walkLook.y = event.clientY;
+      walkLook.dragged = false;
+      domElement.setPointerCapture(event.pointerId);
+    };
+    const cancelPointer = (event: PointerEvent) => {
+      if (walkLook.pointer === event.pointerId) walkLook.pointer = -1;
+    };
+    domElement.addEventListener("pointerdown", startPointer);
     domElement.addEventListener("pointerup", handlePointerUp);
     domElement.addEventListener("pointermove", handlePointerMove);
+    domElement.addEventListener("pointercancel", cancelPointer);
 
     // 12. Animation Loop (60 FPS)
     let animationFrameId: number;
@@ -849,15 +906,15 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
         const move = (a: number[], b: number[], u: number) => camera.position.lerpVectors(new THREE.Vector3(...a), new THREE.Vector3(...b), ease(u));
         const target = controlsRef.current!.target;
         if (t < 6.4) {
-          move([116, 20, 126], [98, 15, 108], t / 6.4);
-          target.set(65, 3, 60);
+          move([37, 20, -126], [28, 13, -96], t / 6.4);
+          target.set(12, 2, -72);
         } else if (t < 12.8) {
           const u = ease((t - 6.4) / 6.4);
-          move([98, 15, 108], [27, 17, 31], u);
-          target.lerpVectors(new THREE.Vector3(65, 3, 60), new THREE.Vector3(0, 7, 0), u);
+          move([28, 13, -96], [27, 17, -31], u);
+          target.lerpVectors(new THREE.Vector3(12, 2, -72), new THREE.Vector3(0, 7, 0), u);
         } else if (t < 19.2) {
           const u = ease((t - 12.8) / 6.4);
-          move([27, 17, 31], [position[0] + 10, 7, position[2] + 13], u);
+          move([27, 17, -31], [position[0] + 10, 7, position[2] + 13], u);
           target.lerpVectors(new THREE.Vector3(0, 7, 0), new THREE.Vector3(position[0], 3, position[2]), u);
         } else if (t < 25.6) {
           if (building) { building.setCutaway(true); building.interior.setFocusedFloor(0); }
@@ -931,8 +988,9 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
             .crossVectors(fwd, new THREE.Vector3(0, 1, 0))
             .normalize();
           const isSprint = keys["shift"] || false;
-          const baseSpeed = cameraPerspectiveRef.current === "walk" ? 14 : 24;
-          const moveSpeed = (isSprint ? baseSpeed * 1.8 : baseSpeed) * delta;
+          const walking = cameraPerspectiveRef.current === "walk";
+          const baseSpeed = walking ? 4 : 24;
+          const moveSpeed = (isSprint ? baseSpeed * 1.8 : baseSpeed) * Math.min(delta, .1);
           const move = new THREE.Vector3();
           if (keys["w"] || keys["arrowup"]) move.add(fwd);
           if (keys["s"] || keys["arrowdown"]) move.sub(fwd);
@@ -941,23 +999,15 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 
           if (move.lengthSq() > 0) {
             move.normalize().multiplyScalar(moveSpeed);
-            camera.position.add(move);
-            if (controlsRef.current) {
-              controlsRef.current.target.add(move);
-            }
-            if (cameraPerspectiveRef.current === "walk") {
-              camera.position.y = 1.75;
-              if (controlsRef.current) {
-                controlsRef.current.target.y = 1.75;
-              }
+            if (walking) {
+              if (!isTransitioningRef.current) moveAlongStreet(move);
             } else {
-              camera.position.y = Math.max(
-                1.75,
-                Math.min(65, camera.position.y),
-              );
+              const x = THREE.MathUtils.clamp(camera.position.x + move.x, -85, 85);
+              const z = THREE.MathUtils.clamp(camera.position.z + move.z, -85, 85);
+              controls.target.x += x - camera.position.x;
+              controls.target.z += z - camera.position.z;
+              camera.position.set(x, THREE.MathUtils.clamp(camera.position.y, 1.75, 65), z);
             }
-            camera.position.x = Math.max(-85, Math.min(85, camera.position.x));
-            camera.position.z = Math.max(-85, Math.min(85, camera.position.z));
           }
         }
 
@@ -1048,9 +1098,10 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       cancelAnimationFrame(animationFrameId);
       resizeObserver.disconnect();
 
-      domElement.removeEventListener("pointerdown", handlePointerDown);
+      domElement.removeEventListener("pointerdown", startPointer);
       domElement.removeEventListener("pointerup", handlePointerUp);
       domElement.removeEventListener("pointermove", handlePointerMove);
+      domElement.removeEventListener("pointercancel", cancelPointer);
 
       controls.dispose();
 
@@ -1079,7 +1130,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
       moonLight.shadow.dispose();
       renderer.dispose();
     };
-  }, [switchCameraToBuilding, theme, topologyKey, quality]);
+  }, [switchCameraToBuilding, theme, topologyKey, quality, moveAlongStreet]);
 
   const isLight = theme === "light";
 
@@ -1177,7 +1228,7 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
 
       {/* On-Screen D-Pad for Street Walking (Desktop & Mobile) */}
       {cameraPerspective === "walk" && (
-        <div className="absolute bottom-24 left-4 z-30 flex flex-col items-center bg-[#0B1320]/90 backdrop-blur-md p-2 rounded-2xl border border-[#1B2A3D] shadow-2xl select-none">
+        <div className="street-controls absolute bottom-24 left-4 z-30 flex flex-col items-center bg-[#0B1320]/90 backdrop-blur-md p-2 rounded-2xl border border-[#1B2A3D] shadow-2xl select-none" role="group" aria-label="Street movement">
           <button
             onClick={() => handleWalkStep("forward")}
             className="w-9 h-9 rounded-xl bg-[#101A2A] border border-[#1E3048] flex items-center justify-center text-white active:scale-90 hover:bg-[#36D7E7]/20 cursor-pointer"
@@ -1208,9 +1259,6 @@ export const AgentCity3D: React.FC<AgentCity3DProps> = ({
               <ArrowRight className="w-4 h-4 text-[#36D7E7]" />
             </button>
           </div>
-          <span className="text-[8px] font-mono text-[#6F8096] uppercase font-bold">
-            WALK D-PAD
-          </span>
         </div>
       )}
 
