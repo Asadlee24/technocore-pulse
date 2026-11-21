@@ -10,7 +10,6 @@ export class OfficeInterior {
   public layout: BuildingLayout;
   private floors: AgentOfficeFloor[] = [];
   private surfaces?: CitySurfaces;
-  private interiorLight: THREE.PointLight;
 
   constructor(layout: BuildingLayout, surfaces?: CitySurfaces) {
     this.surfaces = surfaces;
@@ -18,11 +17,6 @@ export class OfficeInterior {
     this.group = new THREE.Group();
     this.group.name = `interior-${layout.room.id}`;
     this.group.visible = false; // Hidden by default (LOD City Overview)
-
-    // Interior Warm Cyan Illumination
-    this.interiorLight = new THREE.PointLight(0xffdfad, 14, layout.width * 1.5);
-    this.interiorLight.position.set(0, 2.0, 0);
-    this.group.add(this.interiorLight);
 
     // Floors are allocated only while a building is open.
   }
@@ -76,8 +70,6 @@ export class OfficeInterior {
       if (f.group.visible) f.update(time);
     });
 
-    // Subtle interior light breathing
-    this.interiorLight.intensity = 14 + Math.sin(time * 0.6) * 0.15;
   }
 
   public updateRoomData(room: RoomCluster) {

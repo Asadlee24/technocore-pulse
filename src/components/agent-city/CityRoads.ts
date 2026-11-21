@@ -2,7 +2,11 @@ import * as THREE from "three";
 import type { CitySurfaces } from "./CitySurfaces";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { streetVehiclePose } from "./streetMotion.js";
-import type { RoadWaypoints } from "./cityLayout";
+import { CITY_GRID, type RoadWaypoints } from "./cityLayout.js";
+
+const BLOCK_CENTERS = CITY_GRID.streetZs.slice(0, -1).flatMap(z =>
+  CITY_GRID.streetXs.slice(0, -1).map(x => [x + 9, z + 9] as const),
+);
 
 /** Decorative street life, never a count of agents or protocol transactions. */
 export class CityRoads {
@@ -48,22 +52,37 @@ export class CityRoads {
       this.group.add(m);
       return m;
     };
-    const axes = [-63, -45, -27, -9, 9, 27, 45, 63];
-    for (const axis of axes) {
-      add(new THREE.BoxGeometry(4.6, 0.035, 132), road, axis, 0.015, 0);
-      add(new THREE.BoxGeometry(132, 0.035, 4.6), road, 0, 0.016, axis);
-      for (const side of [-1, 1]) for (let block = -54; block <= 54; block += 18) {
-        // Sidewalks stop at junctions instead of running through traffic lanes.
-        add(new THREE.BoxGeometry(1.1,.12,13.2),pavement,axis+side*2.9,.06,block);
-        add(new THREE.BoxGeometry(13.2,.12,1.1),pavement,block,.061,axis+side*2.9);
-        add(new THREE.BoxGeometry(.14,.19,13.2),curb,axis+side*2.38,.095,block);
-        add(new THREE.BoxGeometry(13.2,.19,.14),curb,block,.096,axis+side*2.38);
+    const { streetXs, streetZs } = CITY_GRID;
+    const street = (axis: number, crosses: number[], northSouth: boolean) => {
+      const extent = axis === 9 || axis === -9 ? 92 : crosses[crosses.length - 1] + 2.3;
+      const start = axis === 9 || axis === -9 ? -92 : crosses[0] - 2.3;
+      const place = (across: number, y: number, along: number, wide: number, height: number, long: number, material: THREE.Material) => {
+        const geometry = northSouth ? new THREE.BoxGeometry(wide, height, long) : new THREE.BoxGeometry(long, height, wide);
+        add(geometry, material, northSouth ? across : along, y, northSouth ? along : across);
+      };
+      place(axis, northSouth ? .015 : .016, (start + extent) / 2, 4.6, .035, extent - start, road);
+      const junctions = [start, ...crosses, extent];
+      for (let i = 0; i < junctions.length - 1; i++) {
+        const length = junctions[i + 1] - junctions[i] - 4.6;
+        if (length < 1) continue;
+        const center = (junctions[i + 1] + junctions[i]) / 2;
+        for (const side of [-1, 1]) {
+          place(axis + side * 2.96, .06, center, 1.2, .12, length, pavement);
+          place(axis + side * 2.38, .095, center, .14, .19, length, curb);
+        }
       }
-      for (let p = -64; p <= 64; p += 4) {
-        if (axes.some(cross => Math.abs(cross - p) < 3.3)) continue;
-        add(new THREE.BoxGeometry(0.055, 0.018, 0.65), paint, axis, 0.05, p);
-        add(new THREE.BoxGeometry(0.65, 0.018, 0.055), paint, p, 0.051, axis);
+      for (let p = start + 2; p < extent - 1; p += 4) {
+        if (crosses.some(cross => Math.abs(cross - p) < 3.8)) continue;
+        place(axis, .049, p, .055, .014, .68, paint);
       }
+    };
+    for (const x of streetXs) street(x, streetZs, true);
+    for (const z of streetZs) street(z, streetXs, false);
+
+    // The quay's sidewalks meet the two routes through the city centre.
+    for (const side of [-1, 1]) {
+      add(new THREE.BoxGeometry(180, .105, 2.25), pavement, 0, .063, side * 90.5);
+      add(new THREE.BoxGeometry(2.25, .105, 180), pavement, side * 90.5, .064, 0);
     }
     // Crosswalks and traffic lights make intersections legible from street level.
     const poleMat = new THREE.MeshStandardMaterial({
@@ -71,25 +90,17 @@ export class CityRoads {
       roughness: 0.6,
     });
     const poleGeo = new THREE.CylinderGeometry(0.035, 0.045, 1.9, 6);
-    for (const x of axes)
-      for (const z of axes) {
-        for (let stripe = 0; stripe < 5; stripe++) {
-          add(
-            new THREE.BoxGeometry(0.2, 0.02, 2.8),
-            paint,
-            x + (stripe - 2) * 0.4,
-            0.075,
-            z + 3.1,
-          );
-          add(
-            new THREE.BoxGeometry(2.8, 0.02, 0.2),
-            paint,
-            x + 3.1,
-            0.076,
-            z + (stripe - 2) * 0.4,
-          );
+    const signalGreen = new THREE.MeshBasicMaterial({ color: 0x81caa0 });
+    const signalRed = new THREE.MeshBasicMaterial({ color: 0xe57558 });
+    for (const x of streetXs)
+      for (const z of streetZs) {
+        for (let stripe = -3; stripe <= 3; stripe++) {
+          if (z < 63 || Math.abs(x) === 9)
+            add(new THREE.BoxGeometry(.28, .014, .95), paint, x + stripe * .58, .04, z + 3.1);
+          if (x < 63 || Math.abs(z) === 9)
+            add(new THREE.BoxGeometry(.95, .014, .28), paint, x + 3.1, .041, z + stripe * .58);
         }
-        if (Math.abs(x) < 63 && Math.abs(z) < 63) {
+        if (Math.abs(x) < 63 && z > -81 && z < 63) {
           add(poleGeo, poleMat, x + 2.8, 0.95, z + 2.8);
           add(
             new THREE.BoxGeometry(0.14, 0.38, 0.15),
@@ -98,6 +109,8 @@ export class CityRoads {
             1.85,
             z + 2.8,
           );
+          add(new THREE.BoxGeometry(.095, .085, .025), signalRed, x + 2.8, 1.96, z + 2.88);
+          add(new THREE.BoxGeometry(.025, .085, .095), signalGreen, x + 2.88, 1.75, z + 2.8);
         }
       }
     this.cars = new THREE.InstancedMesh(
@@ -148,7 +161,7 @@ export class CityRoads {
       new THREE.MeshStandardMaterial({ color: 0x233444, roughness: 0.85 }),
       288,
     );
-    const cars = [0xb9c6ce, 0x587b8e, 0xaaa389, 0x2a4f69, 0xc1b6a5, 0x78939a];
+    const cars = [0xb9c6ce, 0x587b8e, 0xc7a04f, 0x384553, 0xb66c5b, 0x78939a];
     const clothes = [
       0x87a5ad, 0x587786, 0xb2aca0, 0x284b64, 0x8b937d, 0xb48f6e,
     ];
@@ -193,7 +206,8 @@ export class CityRoads {
     // Kerbside drains, bollards and modest bus shelters put detail at pedestrian scale.
     const metal = new THREE.MeshStandardMaterial({color: 0x303b40, roughness: .65, metalness: .45});
     const shelterGlass = new THREE.MeshStandardMaterial({color: 0x69878a, roughness: .2, metalness: .35});
-    for (let i = 0; i < 48; i++) {
+    const stopSign = new THREE.MeshStandardMaterial({ color: 0x407c83, roughness: .7 });
+    for (let i = 0; i < BLOCK_CENTERS.length; i++) {
       const [bx, bz] = this.block(i);
       for (const side of [-1, 1]) {
         add(new THREE.CylinderGeometry(.055,.075,.58,6), metal, bx+side*5.7,.42,bz+5.6);
@@ -208,7 +222,7 @@ export class CityRoads {
         for (const dx of [-1.4,1.4]) add(new THREE.BoxGeometry(.065,2,.065),metal,bx+1+dx,1.2,bz+6.4);
         add(new THREE.BoxGeometry(2.2,.14,.38),pavement,bx+1,.65,bz+5.7);
         add(new THREE.CylinderGeometry(.035,.035,2.6,6),metal,bx-1.1,1.4,bz+6.1);
-        add(new THREE.BoxGeometry(.38,.48,.055),new THREE.MeshStandardMaterial({color:0x407c83,roughness:.7}),bx-1.1,2.4,bz+6.1);
+        add(new THREE.BoxGeometry(.38,.48,.055),stopSign,bx-1.1,2.4,bz+6.1);
       }
     }
     // One draw per static material instead of one per stripe, curb or street prop.
@@ -229,13 +243,7 @@ export class CityRoads {
     this.update(0);
   }
   private block(index: number) {
-    let i = index % 48;
-    for (let z = -3; z <= 3; z++)
-      for (let x = -3; x <= 3; x++) {
-        if (x === 0 && z === 0) continue;
-        if (i-- === 0) return [x * 18, z * 18];
-      }
-    return [0, 0];
+    return BLOCK_CENTERS[index % BLOCK_CENTERS.length];
   }
   private route(t: number, half: number) {
     const side = ((t % 4) + 4) % 4;
@@ -251,7 +259,7 @@ export class CityRoads {
     this.asphalt.metalness = wetness * .12;
     const obj = this.transform;
     for (let i = 0; i < 64; i++) {
-      const [bx, bz] = this.block(i * 7),
+      const [bx, bz] = this.block(i * 17),
         p = streetVehiclePose(time, i);
       const yaw = Math.atan2(-p.dz, p.dx),
         bus = i % 11 === 0;
@@ -326,6 +334,7 @@ export class CityRoads {
       materials = new Set<THREE.Material>();
     this.group.traverse((o) => {
       if (o instanceof THREE.Mesh) {
+        if (o instanceof THREE.InstancedMesh) o.dispose();
         geometries.add(o.geometry);
         (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) =>
           materials.add(m),

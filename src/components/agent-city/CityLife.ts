@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { CITY_GRID } from "./cityLayout.js";
 
 /** Fixed civic scenery and transport, independent of observed agents or messages. */
 export class CityLife {
@@ -48,14 +49,20 @@ export class CityLife {
     for(const side of [-1,1])add(this.ferry,new THREE.SphereGeometry(.13,6,4),new THREE.MeshBasicMaterial({color:side<0?0xe46c6c:0x5bd3a4}),side*1.7,1.4,2.4);
     // The tram runs along the north waterfront, away from indexed room parcels.
     this.tram.name="waterfront-tram";this.group.add(this.tram);
-    for(const z of [-.58,.58])add(this.group,new THREE.BoxGeometry(174,.025,.045),navy,0,.22,-94+z);
+    const { z: tramZ, halfLength, stopXs } = CITY_GRID.quayTram;
+    for(const z of [-.58,.58])add(this.group,new THREE.BoxGeometry(halfLength*2,.025,.045),navy,0,.22,tramZ+z);
     for(const segment of [-1,1]) {
       add(this.tram,new THREE.BoxGeometry(4.5,1.7,1.7),white,segment*2.4,1.15,0);
       add(this.tram,new THREE.BoxGeometry(4.1,.7,1.74),glass,segment*2.4,1.4,0);
       add(this.tram,new THREE.BoxGeometry(4.6,.2,1.8),navy,segment*2.4,2.1,0);
       for(const x of [-1.4,1.4])for(const z of [-.7,.7]){const wheel=add(this.tram,new THREE.CylinderGeometry(.25,.25,.12,8),navy,segment*2.4+x,.35,z);wheel.rotation.x=Math.PI/2;}
     }
-    for(const x of [-65,65]){add(this.group,new THREE.BoxGeometry(10,.3,2.7),stone,x,.28,-96.5);add(this.group,new THREE.BoxGeometry(10,.12,3),navy,x,3.3,-96.5);for(const dx of [-4.5,4.5])add(this.group,new THREE.BoxGeometry(.12,3,.12),navy,x+dx,1.8,-96.5);}
+    for (const x of stopXs) {
+      const stationZ = tramZ - 2.5;
+      add(this.group, new THREE.BoxGeometry(10,.3,2.7), stone, x, .28, stationZ);
+      add(this.group, new THREE.BoxGeometry(10,.12,3), navy, x, 3.3, stationZ);
+      for (const dx of [-4.5,4.5]) add(this.group, new THREE.BoxGeometry(.12,3,.12), navy, x+dx, 1.8, stationZ);
+    }
     const rainPositions=[],tips=[];let seed=9182;const rnd=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
     for(let i=0;i<1200;i++){const x=(rnd()-.5)*230,y=rnd()*90,z=(rnd()-.5)*230;rainPositions.push(x,y,z,x,y,z);tips.push(0,1);}
     const rainGeometry=new THREE.BufferGeometry();rainGeometry.setAttribute('position',new THREE.Float32BufferAttribute(rainPositions,3));rainGeometry.setAttribute('tip',new THREE.Float32BufferAttribute(tips,1));
@@ -73,7 +80,7 @@ export class CityLife {
   update(time:number,rainy:boolean){
     const angle=time*.035;
     this.ferry.position.set(Math.sin(angle)*145,-1.4+Math.sin(time*1.2)*.09,Math.cos(angle)*145);this.ferry.rotation.y=angle+Math.PI/2;
-    this.tram.position.set(Math.sin(time*.07)*76,.05,-94);
+    this.tram.position.set(Math.sin(time*.07)*76,.05,CITY_GRID.quayTram.z);
     const positions=this.fountain.geometry.attributes.position;
     for(let i=0;i<positions.count;i++){const phase=(i/positions.count+time*.45)%1;positions.setY(i,.7+Math.sin(phase*Math.PI)*1.6);}positions.needsUpdate=true;
     this.rain.visible=rainy;this.puddles.visible=rainy;this.rainMaterial.uniforms.time.value=time;

@@ -179,8 +179,8 @@ try {
   ]) {
     const layout = {
       room: { ...room },
-      width: 4.4,
-      depth: 4.4,
+      width: 7.4,
+      depth: 7.2,
       height: 22,
       position: [0, 0, 0],
       district: "coordination",
@@ -227,10 +227,20 @@ try {
     assert.equal(windowLight.version, lightVersion);
     building.setCutaway(true);
     building.interior.setFocusedFloor(0);
+    building.group.updateMatrixWorld(true);
     let workers = 0;
+    const furniture = new Map();
+    const desksOnFloor = [];
     building.group.traverseVisible((o) => {
       if (o.name === "illustrative-office-worker") workers++;
+      if (["office-sofa", "office-armchair", "office-coffee-table", "office-lamp"].includes(o.name)) furniture.set(o.name, o);
+      if (o.name === "agent-workstation") desksOnFloor.push(o);
     });
+    assert.equal(furniture.size, 4, "The agent lounge includes seating, a table, and a lamp");
+    assert.ok(furniture.get("office-lamp").children.some(object => object.isPointLight && object.intensity > 0));
+    const sofaBounds = new THREE.Box3().setFromObject(furniture.get("office-sofa"));
+    assert.ok(sofaBounds.max.z < layout.depth / 2 && sofaBounds.min.z > 0);
+    for (const desk of desksOnFloor) assert.ok(new THREE.Box3().setFromObject(desk).max.z < sofaBounds.min.z, "Workstations stay clear of lounge furniture");
     assert.equal(
       workers,
       6,

@@ -52,6 +52,26 @@ export interface RoadWaypoints {
   radialAvenues: { angle: number; startRadius: number; endRadius: number }[];
 }
 
+// The north end has an extra row of blocks between the downtown grid and the quay.
+export const CITY_GRID = {
+  streetXs: [-63, -45, -27, -9, 9, 27, 45, 63],
+  streetZs: [-81, -63, -45, -27, -9, 9, 27, 45, 63],
+  shore: 102,
+  quaysideGardens: [[-76, -40], [76, -40], [-76, 40], [76, 40]] as const,
+  quayTram: { z: -94, halfLength: 87, stopXs: [-65, 65] },
+};
+
+export const CIVIC_SPACES = [
+  { name: "FLOP Plaza", x: 0, z: 0, kind: "plaza" },
+  { name: "Harbor Gardens", x: -18, z: -72, kind: "garden" },
+  { name: "Quay Market", x: 18, z: -72, kind: "market" },
+  { name: "West Square", x: -36, z: -18, kind: "garden" },
+  { name: "East Library Garden", x: 36, z: 18, kind: "garden" },
+  { name: "South Play Park", x: -18, z: 54, kind: "playground" },
+  { name: "Station Forecourt", x: 54, z: -72, kind: "market" },
+  { name: "West Green", x: -54, z: 18, kind: "garden" },
+] as const;
+
 export const DISTRICT_CONFIGS: Record<
   CityDistrictType,
   {
@@ -206,18 +226,22 @@ export function generateCityLayout(rooms: RoomCluster[]): {
   const totalSectors = districtKeys.length; // 8
   const sectorAngleStep = (Math.PI * 2) / totalSectors;
 
-  // A walkable seven-by-seven street grid. The central block is the community plaza.
   const slots: [number, number][] = [];
-  for (let z = -3; z <= 3; z++)
-    for (let x = -3; x <= 3; x++)
-      if (x !== 0 || z !== 0) slots.push([x * 18, z * 18]);
+  for (const z of CITY_GRID.streetZs.slice(0, -1).map(street => street + 9)) {
+    for (const x of CITY_GRID.streetXs.slice(0, -1).map(street => street + 9)) {
+      if (!CIVIC_SPACES.some(space => space.x === x && space.z === z)) slots.push([x, z]);
+    }
+  }
+  // Fill the blocks around the plaza first, then side streets and the waterfront.
+  slots.sort(([ax, az], [bx, bz]) => Math.hypot(ax, az) - Math.hypot(bx, bz) || az - bz || ax - bx);
   rooms.slice(0, 48).forEach((room, index) => {
     const [x, z] = slots[index];
     const seed = Math.abs(Math.sin(index * 12.9898 + 7.31));
     const district = districtKeys[index % districtKeys.length];
     // Mostly human-scale blocks; taller buildings form occasional skyline anchors.
-    const high = index % 9 === 0;
-    const medium = index % 4 === 0;
+    const downtown = Math.hypot(x, z) < 43;
+    const high = downtown && index % 5 === 0;
+    const medium = index % (downtown ? 3 : 5) === 0;
     const height = high
       ? 21 + seed * 5
       : medium
@@ -284,12 +308,7 @@ export function generateCityLayout(rooms: RoomCluster[]): {
     };
   });
 
-  // 4. Road Waypoints: Concentric Boulevards and Inter-District Radial Avenues
-  // Rings run between the building rings so roads never intersect buildings!
-  // Inner ring: radius 14 (between central core and Ring 1)
-  // Mid Boulevard: radius 28 (between Ring 1 at 21.5 and Ring 2 at 35)
-  // Beltway Highway: radius 43 (between Ring 2 at 35 and Ring 3 at 50)
-  // Outer Beltway: radius 60 (framing the outer perimeter)
+  // Legacy paths used by the older city scene components.
   const roadWaypoints: RoadWaypoints = {
     innerRingRadius: 14,
     outerRingRadius: 28,

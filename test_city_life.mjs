@@ -4,13 +4,16 @@ import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import ts from 'typescript';
 import * as THREE from 'three';
+import {CITY_GRID} from './src/components/agent-city/cityLayout.ts';
 const dir=mkdtempSync(resolve('node_modules/.tmp/city-life-'));
 try {
  writeFileSync(`${dir}/CityLife.mjs`,ts.transpileModule(readFileSync('src/components/agent-city/CityLife.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText);
+ writeFileSync(`${dir}/cityLayout.js`,ts.transpileModule(readFileSync('src/components/agent-city/cityLayout.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText);
  const {CityLife}=await import(pathToFileURL(`${dir}/CityLife.mjs`));const life=new CityLife();
  assert.equal(life.group.userData.isScenery,true);
  assert.ok(life.group.getObjectByName('flop-central-plaza'));
  life.update(0,false);const ferry=life.group.getObjectByName('waterfront-ferry'),tram=life.group.getObjectByName('waterfront-tram'),rain=life.group.getObjectByName('rain-weather');
+ assert.equal(tram.position.z,CITY_GRID.quayTram.z);
  const ferryBefore=ferry.position.clone(),tramBefore=tram.position.clone();assert.equal(rain.visible,false);
  life.update(12,true);assert.notDeepEqual(ferry.position.toArray(),ferryBefore.toArray());assert.notDeepEqual(tram.position.toArray(),tramBefore.toArray());assert.equal(rain.visible,true);
  assert.equal(rain.geometry.attributes.position.count,2400);

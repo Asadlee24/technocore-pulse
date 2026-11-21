@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import type { CitySurfaces } from "./CitySurfaces";
 import type { RoomCluster } from "../../types/probe";
 import { AgentDeskFactory, type DeskConfig } from "./AgentDesk";
@@ -32,6 +33,7 @@ export class AgentOfficeFloor {
     this.group.position.y = config.floorIndex * config.floorHeight;
 
     this.buildFloorStructure();
+    this.furnishOffice();
     this.group.traverse((obj) => {
       if (obj instanceof THREE.Mesh && !Array.isArray(obj.material))
         this.structureResources.push({
@@ -44,6 +46,91 @@ export class AgentOfficeFloor {
     if (config.isCommandFloor) {
       this.buildCommandCenterScreen();
     }
+  }
+
+  private furnishOffice() {
+    const { width, depth, floorHeight, floorIndex, room, surfaces } = this.config;
+    const ivory = new THREE.MeshStandardMaterial({ color: 0xf3d9ad, roughness: .87, emissive: 0xd78b42, emissiveIntensity: .48 });
+    const bronze = new THREE.MeshStandardMaterial({ color: 0x95816a, roughness: .36, metalness: .62 });
+    const lamp = new THREE.Group();
+    lamp.name = "office-lamp";
+    const roomy = width >= 6 && depth >= 6;
+    lamp.position.set(-width * .39, .15, roomy ? depth * .15 : -depth * .28);
+    this.group.add(lamp);
+
+    const add = (parent: THREE.Group, geometry: THREE.BufferGeometry, material: THREE.Material, x: number, y: number, z: number) => {
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(x, y, z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      parent.add(mesh);
+      return mesh;
+    };
+    add(lamp, new THREE.CylinderGeometry(.17, .2, .045, 16), bronze, 0, .025, 0);
+    add(lamp, new THREE.CylinderGeometry(.018, .025, 1.43, 8), bronze, 0, .74, 0);
+    add(lamp, new THREE.CylinderGeometry(.16, .27, .23, 20, 1, true), ivory, 0, 1.43, 0).material.side = THREE.DoubleSide;
+    const bulb = new THREE.MeshBasicMaterial({ color: 0xffdeaa });
+    add(lamp, new THREE.SphereGeometry(.073, 10, 8), bulb, 0, 1.37, 0).castShadow = false;
+    const glow = new THREE.PointLight(0xffc494, 9, 4.2);
+    glow.position.set(0, 1.34, 0);
+    lamp.add(glow);
+
+    // Light the workstations of whichever floor is visible in the cutaway.
+    const overhead = new THREE.PointLight(0xffebd4, 11, Math.max(width, depth));
+    overhead.position.set(.15, floorHeight - .18, -.65);
+    this.group.add(overhead);
+    if (!roomy) return;
+
+    const lounge = new THREE.Group();
+    lounge.name = "office-lounge";
+    lounge.position.set(0, .155, depth * .30);
+    this.group.add(lounge);
+    const palette = [...room.name].reduce((value, letter) => value + letter.codePointAt(0)!, floorIndex) % 3;
+    const fabric = new THREE.MeshStandardMaterial({
+      color: [0x496c66, 0x5a697e, 0x9c705a][palette], roughness: .95,
+    });
+    const cushion = new THREE.MeshStandardMaterial({ color: 0xc48c61, roughness: .95 });
+    const frame = new THREE.MeshStandardMaterial({ color: 0x493d35, roughness: .75 });
+    const wood = new THREE.MeshStandardMaterial({ color: 0x8f5f42, roughness: .65 });
+    surfaces?.apply(wood, "wood");
+    const rug = new THREE.MeshStandardMaterial({ color: 0x918579, roughness: 1 });
+    const rugBorder = new THREE.MeshStandardMaterial({ color: 0x6c615e, roughness: 1 });
+    const upholstered = (parent: THREE.Group, w: number, h: number, d: number, material: THREE.Material, x: number, y: number, z: number, radius = .06) =>
+      add(parent, new RoundedBoxGeometry(w, h, d, 2, radius), material, x, y, z);
+
+    upholstered(lounge, Math.min(width - .9, 5.6), .028, 2.35, rugBorder, 0, .018, 0, .01).castShadow = false;
+    upholstered(lounge, Math.min(width - 1.1, 5.4), .019, 2.15, rug, 0, .032, 0, .006).castShadow = false;
+    const seating = (name: string, x: number, span: number, rotation: number, seats: number) => {
+      const seat = new THREE.Group();
+      seat.name = name;
+      seat.position.x = x;
+      seat.rotation.y = rotation;
+      lounge.add(seat);
+      upholstered(seat, span, .22, .88, fabric, 0, .225, 0);
+      upholstered(seat, span - .05, .54, .19, fabric, 0, .57, -.35).rotation.x = -.13;
+      for (const side of [-1, 1]) {
+        upholstered(seat, .13, .35, .82, fabric, side * (span / 2 - .08), .42, 0);
+        for (const z of [-.31, .31]) add(seat, new THREE.BoxGeometry(.07, .15, .07), frame, side * (span / 2 - .13), .087, z);
+      }
+      const seatWidth = (span - .34) / seats;
+      for (let i = 0; i < seats; i++) {
+        const x = (i - (seats - 1) / 2) * seatWidth;
+        upholstered(seat, seatWidth - .018, .12, .65, fabric, x, .385, .065);
+        upholstered(seat, seatWidth * .81, .29, .12, i === 0 ? cushion : fabric, x, .59, -.19).rotation.x = -.18;
+      }
+    };
+    seating("office-sofa", -1.95, 2.16, Math.PI / 2, 3);
+    seating("office-armchair", 1.85, .92, -Math.PI / 2, 1);
+
+    const table = upholstered(lounge, 1.22, .075, .67, wood, -.12, .455, 0, .035);
+    table.name = "office-coffee-table";
+    surfaces?.tile(table.geometry, wood);
+    for (const x of [-.55, .31]) for (const z of [-.24, .24])
+      add(lounge, new THREE.CylinderGeometry(.027, .034, .39, 8), frame, x, .227, z);
+    upholstered(lounge, .23, .035, .17, cushion, -.33, .51, -.12, .009).rotation.y = .22;
+    const cup = new THREE.MeshStandardMaterial({ color: 0xe6ddd0, roughness: .35 });
+    add(lounge, new THREE.CylinderGeometry(.05, .04, .088, 12), cup, .18, .535, .11);
+    add(lounge, new THREE.TorusGeometry(.024, .009, 6, 10), cup, .23, .54, .11);
   }
 
   /**
@@ -157,7 +244,9 @@ export class AgentOfficeFloor {
 
     // Calculate clean non-overlapping spacing across the room
     const spacingX = Math.min(1.35, (width - 0.8) / 3);
-    const rowZ = Math.min(1.25, depth * 0.24);
+    const roomy = width >= 6 && depth >= 6;
+    const rowZ = roomy ? depth * .15 : Math.min(1.25, depth * .24);
+    const workAreaZ = roomy ? -depth * .21 : 0;
 
     // 6 distinct workstations arranged in 2 collaborative banks
     const deskLayouts: DeskConfig[] = [
@@ -187,7 +276,7 @@ export class AgentOfficeFloor {
     // Fixed illustrative crew. Geometry never represents a measured population.
     deskLayouts.forEach((cfg) => {
       // 1. Create Workstation (Desk + Ergonomic Chair + Glowing Cyber Laptop)
-      const deskGroup = AgentDeskFactory.createWorkstation(cfg);
+      const deskGroup = AgentDeskFactory.createWorkstation({ ...cfg, z: cfg.z + workAreaZ });
       this.group.add(deskGroup);
 
       // 2. Mount Seated Agent directly inside deskGroup
@@ -339,10 +428,8 @@ export class AgentOfficeFloor {
 
   public dispose() {
     this.workers.forEach((worker) => worker.dispose());
-    this.structureResources.forEach(({ geometry, material }) => {
-      geometry.dispose();
-      material.dispose();
-    });
+    new Set(this.structureResources.map(resource => resource.geometry)).forEach(geometry => geometry.dispose());
+    new Set(this.structureResources.map(resource => resource.material)).forEach(material => material.dispose());
     this.structureResources = [];
     this.commandDisplayMesh?.geometry.dispose();
     if (this.commandDisplayMesh?.material instanceof THREE.Material)

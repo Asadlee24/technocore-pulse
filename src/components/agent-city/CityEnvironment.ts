@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { CitySurfaces } from "./CitySurfaces";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { CITY_GRID, CIVIC_SPACES } from "./cityLayout.js";
 
 /** Waterfront, gardens and light poles are architectural scenery, not telemetry. */
 export class CityEnvironment {
@@ -34,12 +35,13 @@ export class CityEnvironment {
       x: number,
       y: number,
       z: number,
+      parent: THREE.Group = this.group,
     ) => {
       surfaces?.tile(geo, mat, x, y, z);
       const obj = new THREE.Mesh(geo, mat);
       obj.position.set(x, y, z);
       obj.receiveShadow = true;
-      this.group.add(obj);
+      parent.add(obj);
       return obj;
     };
     // A grounded waterfront neighbourhood rather than a circular display plinth.
@@ -201,13 +203,67 @@ export class CityEnvironment {
     this.group.add(stems, canopies);
     const lawn = new THREE.MeshStandardMaterial({color: light ? 0x4e775a : 0x284b39, roughness: 1});
     const bench = new THREE.MeshStandardMaterial({color: 0x8a7561, roughness: .9});
-    for (const side of [-1, 1]) for (const other of [-1, 1]) {
-      add(new THREE.BoxGeometry(15, .1, 25), lawn, side * 76, .08, other * 40);
-      add(new THREE.BoxGeometry(1.6, .13, 25), stone, side * 76, .13, other * 40);
+    for (const [gardenX, gardenZ] of CITY_GRID.quaysideGardens) {
+      add(new THREE.BoxGeometry(15, .1, 25), lawn, gardenX, .08, gardenZ);
+      add(new THREE.BoxGeometry(1.6, .13, 25), stone, gardenX, .13, gardenZ);
+      const benchX = gardenX + Math.sign(gardenX) * 2;
       for (let i = 0; i < 4; i++) {
-        const z = other * 40 + (i - 1.5) * 5;
-        add(new THREE.BoxGeometry(1.5, .15, .5), bench, side * 78, .55, z);
-        add(new THREE.BoxGeometry(1.5, .7, .1), bench, side * 78, .8, z + .25);
+        const z = gardenZ + (i - 1.5) * 5;
+        add(new THREE.BoxGeometry(1.5, .15, .5), bench, benchX, .55, z);
+        add(new THREE.BoxGeometry(1.5, .7, .1), bench, benchX, .8, z + .25);
+      }
+    }
+    const civicBlocks: THREE.Group[] = [];
+    const canvas = new THREE.MeshStandardMaterial({ color: 0xa66043, roughness: .92 });
+    const greenCanvas = new THREE.MeshStandardMaterial({ color: 0x547565, roughness: .92 });
+    for (const space of CIVIC_SPACES) {
+      if (space.kind === "plaza") continue;
+      const block = new THREE.Group();
+      block.name = space.name;
+      block.userData.civicSpace = true;
+      block.position.set(space.x, 0, space.z);
+      this.group.add(block);
+      civicBlocks.push(block);
+      const place = (geometry: THREE.BufferGeometry, material: THREE.Material, x: number, y: number, z: number) =>
+        add(geometry, material, x, y, z, block);
+      const box = (width: number, height: number, depth: number, material: THREE.Material, x: number, y: number, z: number) =>
+        place(new THREE.BoxGeometry(width, height, depth), material, x, y, z);
+
+      box(11.2, .13, 11.2, space.kind === "market" ? stone : lawn, 0, .1, 0);
+      box(12.4, .11, 1.35, stone, 0, .115, 0);
+      box(1.35, .11, 12.4, stone, 0, .116, 0);
+      for (const side of [-1, 1]) {
+        box(1.75, .13, .52, bench, side * 3.25, .54, .95);
+        box(1.75, .39, .075, bench, side * 3.25, .72, 1.2);
+        box(1.35, .33, .16, navy, side * 3.25, .305, .95);
+        for (const end of [-1, 1]) {
+          const x = side * 4.4, z = end * 4.4;
+          place(new THREE.CylinderGeometry(.09, .14, 1.85, 8), trunk, x, 1.05, z);
+          place(new THREE.IcosahedronGeometry(1.15, 2), foliage, x, 2.34, z).scale.set(1, 1.25, .84);
+        }
+      }
+      if (space.kind === "market") {
+        for (const x of [-2.7, 2.7]) {
+          box(2.6, .13, 1.35, bench, x, .87, -2.7);
+          box(2.35, .64, .95, navy, x, .5, -2.7);
+          for (const side of [-1, 1]) box(.08, 2.35, .08, navy, x + side * 1.12, 1.25, -3.19);
+          box(2.75, .085, 1.65, x < 0 ? canvas : greenCanvas, x, 2.36, -2.77).rotation.x = -.16;
+          for (const side of [-1, 1]) box(.25, .18, .29, x < 0 ? greenCanvas : canvas, x + side * .45, 1.006, -2.55);
+        }
+      } else if (space.kind === "playground") {
+        box(3.2, .1, 2.7, canvas, 2.55, .23, -2.65);
+        box(2.7, .1, .13, navy, 2.55, 2.18, -2.65);
+        for (const x of [1.22, 3.88]) box(.11, 1.96, .11, navy, x, 1.2, -2.65);
+        for (const x of [2.12, 2.98]) {
+          box(.41, .07, .26, bench, x, .74, -2.65);
+          for (const side of [-1, 1]) box(.025, 1.42, .025, navy, x + side * .17, 1.48, -2.65);
+        }
+      } else {
+        for (const x of [-2.65, 2.65]) {
+          box(2.5, .27, 1.15, stone, x, .29, -2.4);
+          for (const offset of [-.69, 0, .69])
+            place(new THREE.IcosahedronGeometry(.44, 1), foliage, x + offset, .62, -2.4);
+        }
       }
     }
     const poleGeo = new THREE.CylinderGeometry(0.035, 0.05, 2.4, 6);
@@ -219,9 +275,9 @@ export class CityEnvironment {
       color: light ? 0xe5f2fa : 0xffdfac,
       toneMapped: false,
     });
-    for (let i = 0; i < 48; i++) {
-      const x = ((i % 8) - 3.5) * 18 + 3;
-      const z = (Math.floor(i / 8) - 2.5) * 18 + 3;
+    for (const streetX of CITY_GRID.streetXs.slice(0, -1)) for (const streetZ of CITY_GRID.streetZs.slice(0, -1)) {
+      const x = streetX + 3;
+      const z = streetZ + 12;
       add(poleGeo, navy, x, 1.28, z);
       add(baseGeo, navy, x, .22, z);
       add(armGeo, navy, x - .26, 2.42, z);
@@ -267,27 +323,29 @@ export class CityEnvironment {
       this.group.add(pools);
     }
     // Keep promenade detail inexpensive on mobile by batching static scenery.
-    const batches = new Map<THREE.Material, THREE.Mesh[]>();
-    for (const child of this.group.children) {
-      if (!(child instanceof THREE.Mesh) || child instanceof THREE.InstancedMesh || child.name || Array.isArray(child.material)) continue;
-      const list = batches.get(child.material) ?? [];
-      list.push(child);
-      batches.set(child.material, list);
-    }
-    for (const [material, meshes] of batches) {
-      if (meshes.length < 2) continue;
-      const parts = meshes.map(mesh => {
-        mesh.updateMatrix();
-        return mesh.geometry.clone().applyMatrix4(mesh.matrix);
-      });
-      const geometry = mergeGeometries(parts, false);
-      parts.forEach(part => part.dispose());
-      if (!geometry) continue;
-      const combined = new THREE.Mesh(geometry, material);
-      combined.name = "batched-waterfront-scenery";
-      combined.receiveShadow = true;
-      meshes.forEach(mesh => { this.group.remove(mesh); mesh.geometry.dispose(); });
-      this.group.add(combined);
+    for (const parent of [this.group, ...civicBlocks]) {
+      const batches = new Map<THREE.Material, THREE.Mesh[]>();
+      for (const child of parent.children) {
+        if (!(child instanceof THREE.Mesh) || child instanceof THREE.InstancedMesh || child.name || Array.isArray(child.material)) continue;
+        const list = batches.get(child.material) ?? [];
+        list.push(child);
+        batches.set(child.material, list);
+      }
+      for (const [material, meshes] of batches) {
+        if (meshes.length < 2) continue;
+        const parts = meshes.map(mesh => {
+          mesh.updateMatrix();
+          return mesh.geometry.clone().applyMatrix4(mesh.matrix);
+        });
+        const geometry = mergeGeometries(parts, false);
+        parts.forEach(part => part.dispose());
+        if (!geometry) continue;
+        const combined = new THREE.Mesh(geometry, material);
+        combined.receiveShadow = true;
+        combined.castShadow = parent !== this.group && material !== lawn && material !== stone;
+        meshes.forEach(mesh => { parent.remove(mesh); mesh.geometry.dispose(); });
+        parent.add(combined);
+      }
     }
   }
   update(time: number, wetness = 0) {

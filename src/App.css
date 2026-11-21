@@ -208,6 +208,135 @@
 .scene-tools button[aria-pressed="true"] {
   background: #0466c8;
 }
+.city-map-dialog {
+  width: min(96vw, 550px, calc(100dvh - 105px));
+  max-height: 94dvh;
+  margin: auto;
+  padding: 15px;
+  border: 1px solid #688078;
+  border-radius: 14px;
+  background: #172322;
+  color: #eef3e7;
+  box-shadow: 0 24px 72px #070e13bc;
+}
+.city-map-dialog::backdrop { background: #071115ad; backdrop-filter: blur(5px); }
+.city-map-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.city-map-heading h2 { margin: 0; font: 600 21px Inter, sans-serif; }
+.city-map-heading button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #82978c54;
+  border-radius: 8px;
+  background: #273a36;
+  color: inherit;
+  cursor: pointer;
+}
+.city-map-plan {
+  position: relative;
+  isolation: isolate;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #253f4b;
+}
+.city-map-land {
+  position: absolute;
+  inset: 4.9%;
+  border: 3px solid #acb5a2;
+  background: #7b8e78;
+  box-shadow: 0 0 0 2px #465d52, inset 0 0 0 3px #657967;
+}
+.city-map-street { position: absolute; background: #dfd7bf; pointer-events: none; }
+.city-map-street.vertical { width: 2.2%; top: 9.15%; bottom: 17.98%; transform: translateX(-50%); }
+.city-map-street.horizontal { height: 2.2%; left: 17.98%; right: 17.98%; transform: translateY(-50%); }
+.city-map-street.vertical.avenue { top: 4.9%; bottom: 4.9%; }
+.city-map-street.horizontal.avenue { left: 4.9%; right: 4.9%; }
+.city-map-north, .city-map-harbor {
+  position: absolute;
+  z-index: 1;
+  color: #f5f4e9;
+  background: #20383de8;
+  border-radius: 4px;
+  font: 600 11px Inter, sans-serif;
+  padding: 3px 5px;
+  pointer-events: none;
+}
+.city-map-north { right: 2.2%; top: 2.2%; }
+.city-map-harbor { left: 50%; top: 1.6%; transform: translateX(-50%); }
+.city-map-tram {
+  position: absolute;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, #efbe74 0 6px, #785d43 6px 8px);
+  transform: translateY(-50%);
+}
+.city-map-tram-stop {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 2px solid #2a3b3f;
+  border-radius: 50%;
+  background: #ffe0ac;
+  transform: translate(-50%, -50%);
+}
+.city-map-quay-garden {
+  position: absolute;
+  width: 7.35%;
+  height: 12.25%;
+  border: 1px solid #b4c39c;
+  border-radius: 34% 12% 25% 14%;
+  background: linear-gradient(90deg, #496a4d 45%, #c7bd9e 45% 55%, #496a4d 55%);
+  transform: translate(-50%, -50%);
+}
+.city-map-place {
+  position: absolute;
+  width: 5.3%;
+  height: 5.3%;
+  transform: translate(-50%, -50%);
+  border: 1px solid #e6ecda82;
+  border-radius: 3px;
+  background: #395f45;
+}
+.city-map-place.market { background: #a96347; }
+.city-map-place.plaza { height: 6%; width: 6%; background: #405866; border: 2px solid #cfedeb; }
+.city-map-room {
+  position: absolute;
+  width: min(7.6%, 30px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 4px;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.city-map-room::before {
+  content: "";
+  width: 54%;
+  height: 48%;
+  background: #e8dfc3;
+  border: 1px solid #514e44;
+  border-radius: 2px;
+  box-shadow: 2px 2px #32483980;
+}
+.city-map-room.tower::before { width: 59%; height: 59%; box-shadow: 3px 3px #324839b0; }
+.city-map-room:hover::before, .city-map-room[aria-current]::before { background: #91ebe4; }
+.city-map-room:focus-visible { outline: 2px solid #052a34; background: #d4f5ed; }
+.city-map-legend { display: flex; gap: 8px 16px; flex-wrap: wrap; margin-top: 12px; font: 500 12px Inter, sans-serif; }
+.city-map-legend span { display: flex; align-items: center; gap: 6px; }
+.city-map-legend i { width: 9px; height: 9px; border-radius: 2px; outline: 1px solid #ffffff40; }
+.legend-room { background: #e8dfc3; }
+.legend-park { background: #548b5f; }
+.legend-market { background: #c07855; }
+.legend-tram { background: #efbe74; }
+.legend-plaza { background: #7fc7ce; }
+@media (max-height: 560px) {
+  .city-map-dialog { width: min(94vw, 440px); }
+  .city-map-plan { max-width: min(100%, calc(100dvh - 145px)); margin-inline: auto; }
+}
 .city-directory {
   position: absolute;
   right: 0;
@@ -716,12 +845,15 @@
   color: #0a1128;
 }
 .metro-canvas > button,
-.metro-canvas > div:not(:first-child):not(.tour-progress) {
+.metro-canvas > div:not(:first-child):not(.tour-progress):not(.street-controls) {
   display: none !important;
 }
 .metro-canvas canvas {
   display: block;
 }
+.metro-canvas > div.street-controls { display: flex; pointer-events: auto; }
+.street-controls button { width: 42px; height: 42px; }
+.photo-mode .metro-canvas > div.street-controls { display: none; }
 .refreshing {
   animation: metro-spin 1.5s linear infinite;
 }
