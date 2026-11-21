@@ -15,13 +15,20 @@ export class CityBuilding {
   isCutaway = false;
   private shell = new THREE.Group();
   private windows: THREE.InstancedMesh;
+  private windowLight: THREE.InstancedBufferAttribute;
   private selection: THREE.LineSegments;
   private pulseUntil = 0;
   private labelTexture: THREE.CanvasTexture;
   private labelCanvas: HTMLCanvasElement;
   private darkGlass = new THREE.Color(0x426477);
 
-  constructor(layout: BuildingLayout, _materials: CityMaterials, surfaces?: CitySurfaces) {
+  constructor(
+    layout: BuildingLayout,
+    _materials: CityMaterials,
+    surfaces?: CitySurfaces,
+    labelPixelRatio = 2,
+    isDay = false,
+  ) {
     this.layout = layout;
     this.group.name = `building-${layout.room.id}`;
     this.group.position.set(...layout.position);
@@ -357,11 +364,32 @@ export class CityBuilding {
     this.group.add(this.shell);
 
     const rows = Math.max(1, Math.floor((h - 3.1) / 2.4));
-    this.windows = new THREE.InstancedMesh(
-      new THREE.PlaneGeometry(w * 0.235, 1.1),
-      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .24, metalness: .45 }),
-      rows * 12,
-    );
+    const windowGeometry = new THREE.PlaneGeometry(w * .235, 1.1);
+    const windowMaterial = new THREE.MeshStandardMaterial({
+      roughness: .2,
+      metalness: .5,
+      emissive: 0xffbd79,
+      emissiveIntensity: isDay ? .11 : .63,
+    });
+    windowMaterial.defines = { ...windowMaterial.defines, USE_UV: "" };
+    windowMaterial.onBeforeCompile = shader => {
+      shader.vertexShader = shader.vertexShader
+        .replace("#include <common>", "#include <common>\nattribute float windowLight;\nvarying float vWindowLight;")
+        .replace("#include <uv_vertex>", "#include <uv_vertex>\nvWindowLight = windowLight;");
+      shader.fragmentShader = shader.fragmentShader
+        .replace("#include <common>", "#include <common>\nvarying float vWindowLight;")
+        .replace("#include <emissivemap_fragment>", `
+          vec2 edge = min(vUv, 1.0 - vUv);
+          float inset = smoothstep(.015, .075, min(edge.x, edge.y));
+          float mullion = smoothstep(.014, .041, abs(vUv.x - .5));
+          float ceilingLight = smoothstep(.35, .94, vUv.y);
+          float sill = smoothstep(.0, .24, vUv.y);
+          totalEmissiveRadiance *= vWindowLight * inset * mullion * sill * (.33 + .67 * ceilingLight);
+        `);
+    };
+    this.windowLight = new THREE.InstancedBufferAttribute(new Float32Array(rows * 12), 1);
+    windowGeometry.setAttribute("windowLight", this.windowLight);
+    this.windows = new THREE.InstancedMesh(windowGeometry, windowMaterial, rows * 12);
     this.windows.name = "observed-activity-windows";
     const dummy = new THREE.Object3D();
     let index = 0;
@@ -397,11 +425,11 @@ export class CityBuilding {
     this.shell.add(this.windows);
     this.paintWindows();
     this.labelCanvas = document.createElement("canvas");
-    this.labelCanvas.width = 2048;
-    this.labelCanvas.height = 448;
+    this.labelCanvas.width = 1024 * labelPixelRatio;
+    this.labelCanvas.height = 224 * labelPixelRatio;
     this.labelTexture = new THREE.CanvasTexture(this.labelCanvas);
     this.labelTexture.colorSpace = THREE.SRGBColorSpace;
-    this.labelTexture.anisotropy = 8;
+    this.labelTexture.anisotropy = labelPixelRatio === 2 ? 8 : 4;
     // Exactly one rooftop identifier per building, readable from any orbit angle.
     const rooftop = new THREE.Sprite(new THREE.SpriteMaterial({
       map: this.labelTexture, toneMapped: false, depthTest: true, depthWrite: false,
@@ -435,14 +463,8 @@ export class CityBuilding {
     this.selection.position.y = 0.14;
     this.selection.visible = false;
     this.group.add(this.selection);
-    this.hitMesh = new THREE.Mesh(
-      new THREE.BoxGeometry(w * 1.16, h + 1, d * 1.16),
-      new THREE.MeshBasicMaterial({
-        transparent: true,
-        opacity: 0,
-        depthWrite: false,
-      }),
-    );
+    this.hitMesh = new THREE.Mesh(new THREE.BoxGeometry(w * 1.16, h + 1, d * 1.16));
+    this.hitMesh.visible = false;
     this.hitMesh.position.y = (h + 1) / 2;
     this.hitMesh.userData = { room: layout.room, buildingId: layout.room.id };
     this.group.add(this.hitMesh);
@@ -478,26 +500,26 @@ export class CityBuilding {
       this.shell.add(facade);
     }
   }
+  private hasWindowActivity(room: RoomCluster) {
+    return room.status === "active" || room.status === "surge";
+  }
   private paintWindows() {
-    const isActive =
-      this.layout.room.status === "active" ||
-      this.layout.room.status === "surge";
-    const lit = new THREE.Color(0xe9c58b);
+    const isActive = this.hasWindowActivity(this.layout.room);
+    const lit = new THREE.Color(0xbca894);
     for (let i = 0; i < this.windows.count; i++) {
-      // Deterministic architectural lighting. A lit building indicates recent room activity only.
-      const pattern = Math.abs(Math.sin(i * 13.7 + this.layout.position[0]));
-      this.windows.setColorAt(
-        i,
-        isActive && pattern > 0.82 ? lit : this.darkGlass,
-      );
+      const pattern = Math.abs(Math.sin(i * 13.7 + this.layout.position[0] + this.layout.position[2] * .19));
+      const isLit = isActive && pattern > .82;
+      this.windows.setColorAt(i, isLit ? lit : this.darkGlass);
+      this.windowLight.setX(i, isLit ? THREE.MathUtils.lerp(.48, 1, (pattern - .82) / .18) : 0);
     }
-    if (this.windows.instanceColor)
-      this.windows.instanceColor.needsUpdate = true;
+    if (this.windows.instanceColor) this.windows.instanceColor.needsUpdate = true;
+    this.windowLight.needsUpdate = true;
   }
   private paintLabel() {
     const c = this.labelCanvas.getContext("2d");
     if (!c) return;
-    c.setTransform(2, 0, 0, 2, 0, 0);
+    const scale = this.labelCanvas.width / 1024;
+    c.setTransform(scale, 0, 0, scale, 0, 0);
     c.clearRect(0, 0, 1024, 224);
     c.beginPath();
     c.roundRect(4, 4, 1016, 216, 26);
@@ -540,11 +562,12 @@ export class CityBuilding {
     this.interior.setCutawayVisible(value);
   }
   updateRoomData(room: RoomCluster) {
+    const previous = this.layout.room;
     this.layout.room = room;
     this.hitMesh.userData.room = room;
     this.interior.updateRoomData(room);
-    this.paintWindows();
-    this.paintLabel();
+    if (this.hasWindowActivity(previous) !== this.hasWindowActivity(room)) this.paintWindows();
+    if (previous.name !== room.name) this.paintLabel();
   }
   triggerProbeEffect() {
     this.pulseUntil = performance.now() + 2000;
@@ -561,6 +584,7 @@ export class CityBuilding {
     this.group.traverse((o) => {
       if (o instanceof THREE.Sprite) materials.add(o.material);
       if (o instanceof THREE.Mesh || o instanceof THREE.LineSegments) {
+        if (o instanceof THREE.InstancedMesh) o.dispose();
         geometries.add(o.geometry);
         (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) =>
           materials.add(m),

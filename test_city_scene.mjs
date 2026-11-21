@@ -103,6 +103,15 @@ try {
   roads.update(0, 1);
   assert.ok(asphaltMesh.material.roughness < .5, "Rain changes the road material response");
   assert.equal(environment.streetLampPositions.length, 48);
+  const nightPools = environment.group.getObjectByName("street-lamp-light-pools");
+  assert.ok(nightPools?.isInstancedMesh, "Street lighting uses one batch");
+  assert.equal(nightPools.count, environment.streetLampPositions.length);
+  const daylight = new CityEnvironment("light", surfaces);
+  assert.equal(daylight.group.getObjectByName("street-lamp-light-pools"), undefined);
+  daylight.dispose();
+  environment.update(2, .65);
+  const water = environment.group.getObjectByName("animated-waterfront-water");
+  assert.equal(water.material.uniforms.wetness.value, .65);
   assert.deepEqual(loads, ["/brand/flop-lockup-on-dark.png"]);
   assert.equal(pavilion.group.userData.isScenery, true);
   pavilion.group.updateMatrixWorld(true);
